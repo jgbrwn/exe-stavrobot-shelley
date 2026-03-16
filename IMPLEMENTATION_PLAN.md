@@ -121,3 +121,7 @@ Soft warn on:
 ## Discovered upstream limitation
 
 While implementing Phase 1, we verified that current upstream Stavrobot exposes `provider`, `model`, `apiKey`, and `authFile` in `config.toml`, but no explicit base-URL field for arbitrary OpenAI-compatible endpoints. The installer can still present OpenRouter free-model suggestions and collect generic provider details, but full arbitrary OpenAI-compatible endpoint setup may require upstream Stavrobot changes in Phase 2.
+
+## Implemented increment
+
+The installer now supports Phase 1 core config generation plus a first pass at plugin prompting and plugin installation/configuration through Stavrobot's authenticated HTTP endpoints.

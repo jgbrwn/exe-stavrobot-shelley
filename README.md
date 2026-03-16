@@ -50,6 +50,17 @@ Implemented so far:
 - Docker Compose rebuild/recreate on change
 - Basic authenticated readiness check against Stavrobot
 
-Next step:
+Implemented next:
 
-- Interactive plugin selection plus install/configure flow against the running Stavrobot instance
+- Interactive plugin selection
+- Required and optional plugin config prompts
+- Saved plugin selections in `state/last-plugin-inputs.json`
+- Install and configure selected plugins against the running Stavrobot instance after startup
+
+## Plugin state
+
+Selected plugin installs are saved to:
+
+- `state/last-plugin-inputs.json`
+
+This file may contain plugin secrets. It is written with mode `0600`.
