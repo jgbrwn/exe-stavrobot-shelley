@@ -18,6 +18,7 @@ REQUEST_TIMEOUT=300
 RETRIES=1
 RETRY_DELAY=2
 PRETTY=0
+EXTRACT=""
 
 usage() {
   cat <<'EOF'
@@ -44,7 +45,14 @@ Flags:
   --retries COUNT        Retry count on transport failure (default: 1)
   --retry-delay SEC      Sleep between retries (default: 2)
   --pretty               Pretty-print JSON output
+  --extract FIELD        Print only one extracted field
   --help
+
+Extract fields:
+  response
+  conversation_id
+  message_id
+  ok
 EOF
 }
 
@@ -236,6 +244,10 @@ while [[ $# -gt 0 ]]; do
       PRETTY=1
       shift
       ;;
+    --extract)
+      EXTRACT="$2"
+      shift 2
+      ;;
     --help)
       usage
       exit 0
@@ -261,6 +273,9 @@ read_message_if_needed
 [[ "$RETRIES" =~ ^[0-9]+$ ]] || die "--retries must be an integer"
 [[ "$RETRY_DELAY" =~ ^[0-9]+$ ]] || die "--retry-delay must be an integer"
 (( RETRIES >= 1 )) || die "--retries must be at least 1"
+if (( PRETTY )) && [[ -n "$EXTRACT" ]]; then
+  die "--pretty and --extract cannot be combined"
+fi
 build_request
 
 if RESPONSE=$(perform_request); then
@@ -273,7 +288,22 @@ else
   die "Stavrobot request failed"
 fi
 
-if (( PRETTY )); then
+if [[ -n "$EXTRACT" ]]; then
+  python3 - "$EXTRACT" "$RESPONSE" <<'PY'
+import json, sys
+field, response_json = sys.argv[1:3]
+data = json.loads(response_json)
+value = data.get(field, '')
+if isinstance(value, bool):
+    print('true' if value else 'false')
+elif value is None:
+    print('')
+elif isinstance(value, (dict, list)):
+    print(json.dumps(value))
+else:
+    print(value)
+PY
+elif (( PRETTY )); then
   python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin), indent=2, sort_keys=True))' <<<"$RESPONSE"
 else
   printf '%s\n' "$RESPONSE"

@@ -176,6 +176,8 @@ Machine-oriented client wrapper examples:
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot health --pretty
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot conversations --pretty
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot chat --message "Summarize current status" --pretty
+./client-stavrobot.sh --stavrobot-dir /opt/stavrobot chat --message "Summarize current status" --extract response
+./client-stavrobot.sh --stavrobot-dir /opt/stavrobot chat --message "Summarize current status" --extract conversation_id
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot messages --conversation-id conv_1 --pretty
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot events --conversation-id conv_1 --pretty
 ```
@@ -185,6 +187,9 @@ Stateful Shelley-side session wrapper examples:
 ```bash
 ./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot chat --message "First turn" --pretty
 ./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot continue --message "Second turn" --pretty
+./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot continue --message "Second turn" --extract response
+./shelley-stavrobot-session.sh get --extract conversation_id
+./shelley-stavrobot-session.sh get --extract message_id
 ./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot show
 ./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot messages --pretty
 ./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot events --pretty

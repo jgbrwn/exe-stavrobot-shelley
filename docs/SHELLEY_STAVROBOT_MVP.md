@@ -108,6 +108,7 @@ The first adapter hardening pass should prefer local improvements before upstrea
 - stdin support for piping prompts from other tools
 - a local machine-oriented client wrapper for validated `/api/client/*` endpoints
 - a small Shelley-side state file for last conversation reuse
+- terse extraction flags so Shelley can request only `response`, `conversation_id`, or `message_id` when needed
 - a smoke harness that checks health, chat, conversation listing, history, and events together
 
 These are now implemented across `chat-with-stavrobot.sh`, `client-stavrobot.sh`, `shelley-stavrobot-session.sh`, and `smoke-test-stavrobot-client.sh`.

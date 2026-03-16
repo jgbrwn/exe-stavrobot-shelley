@@ -16,6 +16,7 @@ REQUEST_TIMEOUT=300
 RETRIES=1
 RETRY_DELAY=2
 PRETTY=0
+EXTRACT=""
 STATE_FILE="$ROOT_DIR/state/last-stavrobot-client-session.json"
 COMMAND=""
 CONVERSATION_ID=""
@@ -27,11 +28,14 @@ Usage: ./shelley-stavrobot-session.sh <command> [flags]
 Commands:
   chat                      Send a chat turn using saved conversation state if present
   continue                  Alias for chat using saved conversation state
+  chat                      Send a chat turn using saved conversation state if present
+  continue                  Alias for chat using saved conversation state
   show                      Print saved local session state
   messages                  Fetch messages for saved conversation state
   events                    Fetch events for saved conversation state
   reset                     Remove saved local session state
   set --conversation-id ID  Save a conversation ID explicitly
+  get FIELD                 Print one field from saved local session state
 
 Flags:
   --stavrobot-dir PATH   Read password from PATH/data/main/config.toml
@@ -48,7 +52,20 @@ Flags:
   --retries COUNT        Retry count on transport failure (default: 1)
   --retry-delay SEC      Sleep between retries (default: 2)
   --pretty               Pretty-print JSON output
+  --extract FIELD        For chat/messages/events/show output, print one field only
   --help
+
+Session get/show extract fields:
+  conversation_id
+  message_id
+  base_url
+  source
+  sender
+
+Chat extract fields:
+  response
+  conversation_id
+  message_id
 EOF
 }
 
@@ -115,6 +132,28 @@ with open(state_path, 'w') as f:
 PY
 }
 
+print_state_field() {
+  local field="$1"
+  [[ -f "$STATE_FILE" ]] || die "No saved session state at $STATE_FILE"
+  python3 - "$STATE_FILE" "$field" <<'PY'
+import json, sys
+state_path, field = sys.argv[1:3]
+try:
+    data = json.load(open(state_path))
+except Exception:
+    data = {}
+value = data.get(field, '')
+if isinstance(value, bool):
+    print('true' if value else 'false')
+elif value is None:
+    print('')
+elif isinstance(value, (dict, list)):
+    print(json.dumps(value))
+else:
+    print(value)
+PY
+}
+
 run_client() {
   local -a cmd
   cmd=(
@@ -140,9 +179,28 @@ run_client() {
   "${cmd[@]}" "$@"
 }
 
+extract_json_field() {
+  local field="$1"
+  local response_json="$2"
+  python3 - "$field" "$response_json" <<'PY'
+import json, sys
+field, response_json = sys.argv[1:3]
+data = json.loads(response_json)
+value = data.get(field, '')
+if isinstance(value, bool):
+    print('true' if value else 'false')
+elif value is None:
+    print('')
+elif isinstance(value, (dict, list)):
+    print(json.dumps(value))
+else:
+    print(value)
+PY
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    chat|continue|show|messages|events|reset|set)
+    chat|continue|show|messages|events|reset|set|get)
       [[ -z "$COMMAND" ]] || die "Only one command may be specified"
       COMMAND="$1"
       shift
@@ -203,6 +261,10 @@ while [[ $# -gt 0 ]]; do
       PRETTY=1
       shift
       ;;
+    --extract)
+      EXTRACT="$2"
+      shift 2
+      ;;
     --help)
       usage
       exit 0
@@ -222,6 +284,9 @@ done
 [[ "$RETRIES" =~ ^[0-9]+$ ]] || die "--retries must be an integer"
 [[ "$RETRY_DELAY" =~ ^[0-9]+$ ]] || die "--retry-delay must be an integer"
 (( RETRIES >= 1 )) || die "--retries must be at least 1"
+if (( PRETTY )) && [[ -n "$EXTRACT" ]]; then
+  die "--pretty and --extract cannot be combined"
+fi
 read_message_if_needed
 
 case "$COMMAND" in
@@ -240,16 +305,22 @@ case "$COMMAND" in
       args+=(--sender "$SENDER")
     fi
     RAW_RESPONSE=$(run_client "${args[@]}")
-    PRETTY_RESPONSE="$RAW_RESPONSE"
-    if (( PRETTY )); then
-      PRETTY_RESPONSE=$(python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin), indent=2, sort_keys=True))' <<<"$RAW_RESPONSE")
-    fi
     save_state_from_response "$RAW_RESPONSE"
-    printf '%s\n' "$PRETTY_RESPONSE"
+    if [[ -n "$EXTRACT" ]]; then
+      extract_json_field "$EXTRACT" "$RAW_RESPONSE"
+    elif (( PRETTY )); then
+      python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin), indent=2, sort_keys=True))' <<<"$RAW_RESPONSE"
+    else
+      printf '%s\n' "$RAW_RESPONSE"
+    fi
     ;;
   show)
     [[ -f "$STATE_FILE" ]] || die "No saved session state at $STATE_FILE"
-    cat "$STATE_FILE"
+    if [[ -n "$EXTRACT" ]]; then
+      print_state_field "$EXTRACT"
+    else
+      cat "$STATE_FILE"
+    fi
     ;;
   messages)
     if [[ -z "$CONVERSATION_ID" ]]; then
@@ -273,5 +344,9 @@ case "$COMMAND" in
     [[ -n "$CONVERSATION_ID" ]] || die "--conversation-id is required for set"
     save_explicit_state
     info "Saved conversation_id $CONVERSATION_ID to $STATE_FILE"
+    ;;
+  get)
+    [[ -n "$EXTRACT" ]] || die "get requires --extract FIELD"
+    print_state_field "$EXTRACT"
     ;;
 esac

@@ -47,9 +47,11 @@ Provide a very small local harness for validating the Shelley-to-Stavrobot adapt
 ```bash
 ./smoke-test-stavrobot-adapter.sh --stavrobot-dir /opt/stavrobot --raw-json
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot health --pretty
-./client-stavrobot.sh --stavrobot-dir /opt/stavrobot conversations --pretty
-./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot chat --message "first turn" --pretty
-./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot continue --message "second turn" --pretty
+./client-stavrobot.sh --stavrobot-dir /opt/stavrobot chat --message "first turn" --extract conversation_id
+./client-stavrobot.sh --stavrobot-dir /opt/stavrobot chat --message "first turn" --extract response
+./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot chat --message "first turn" --extract conversation_id
+./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot continue --message "second turn" --extract response
+./shelley-stavrobot-session.sh get --extract message_id
 ./smoke-test-stavrobot-client.sh --stavrobot-dir /opt/stavrobot --pretty
 ```
 
