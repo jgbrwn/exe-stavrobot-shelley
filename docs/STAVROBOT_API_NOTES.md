@@ -83,7 +83,8 @@ The main repo now consumes this validated direction locally in two ways:
    - `GET /api/client/conversations`
    - `GET /api/client/conversations/:conversation_id/messages`
    - `GET /api/client/conversations/:conversation_id/events`
-3. `smoke-test-stavrobot-client.sh` exercises health, chat, listing, history, and events together against a live stack.
+3. `shelley-stavrobot-session.sh` adds a tiny Shelley-side state file so the last `conversation_id` can be reused without manually copying it between commands.
+4. `smoke-test-stavrobot-client.sh` exercises health, chat, listing, history, and events together against a live stack.
 
 ## What is still missing for stronger Shelley integration
 

@@ -14,6 +14,10 @@ Provide a very small local harness for validating the Shelley-to-Stavrobot adapt
 
 - `client-stavrobot.sh`
 
+### Stateful session wrapper
+
+- `shelley-stavrobot-session.sh`
+
 ### Smoke harnesses
 
 - `smoke-test-stavrobot-adapter.sh`
@@ -26,6 +30,7 @@ Provide a very small local harness for validating the Shelley-to-Stavrobot adapt
 ```bash
 ./chat-with-stavrobot.sh --help
 ./client-stavrobot.sh --help
+./shelley-stavrobot-session.sh --help
 ./smoke-test-stavrobot-adapter.sh --help
 ./smoke-test-stavrobot-client.sh --help
 ```
@@ -43,6 +48,8 @@ Provide a very small local harness for validating the Shelley-to-Stavrobot adapt
 ./smoke-test-stavrobot-adapter.sh --stavrobot-dir /opt/stavrobot --raw-json
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot health --pretty
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot conversations --pretty
+./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot chat --message "first turn" --pretty
+./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot continue --message "second turn" --pretty
 ./smoke-test-stavrobot-client.sh --stavrobot-dir /opt/stavrobot --pretty
 ```
 

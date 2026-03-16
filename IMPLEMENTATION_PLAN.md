@@ -191,4 +191,4 @@ A small local harness exists in `smoke-test-stavrobot-adapter.sh` to validate th
 
 ## Shelley client validation
 
-The main repo now also includes `client-stavrobot.sh` as a local wrapper around the validated `/api/client/*` surface plus `smoke-test-stavrobot-client.sh` to exercise health, chat, conversation listing, history, and events against a live stack.
+The main repo now also includes `client-stavrobot.sh` as a local wrapper around the validated `/api/client/*` surface, `shelley-stavrobot-session.sh` as a tiny stateful conversation helper, and `smoke-test-stavrobot-client.sh` to exercise health, chat, conversation listing, history, and events against a live stack.

@@ -38,6 +38,7 @@ Still manual in this track:
 
 - `chat-with-stavrobot.sh` is a thin adapter around Stavrobot's authenticated `POST /chat` endpoint
 - `client-stavrobot.sh` is a local machine-oriented wrapper around the validated authenticated `/api/client/*` surface
+- `shelley-stavrobot-session.sh` is a tiny stateful convenience wrapper that persists and reuses the last `conversation_id`
 - `smoke-test-stavrobot-client.sh` validates that local client wrapper against the running stack
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`
@@ -177,6 +178,17 @@ Machine-oriented client wrapper examples:
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot chat --message "Summarize current status" --pretty
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot messages --conversation-id conv_1 --pretty
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot events --conversation-id conv_1 --pretty
+```
+
+Stateful Shelley-side session wrapper examples:
+
+```bash
+./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot chat --message "First turn" --pretty
+./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot continue --message "Second turn" --pretty
+./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot show
+./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot messages --pretty
+./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot events --pretty
+./shelley-stavrobot-session.sh reset
 ```
 
 Design notes live in:

@@ -84,12 +84,13 @@ Phase 2 testing has now moved beyond pure planning:
 
 That means the additive `/api/client/*` direction is now materially validated both in the spike and in a live running stack, including event visibility and real chat message IDs. The next likely work is just incremental client ergonomics if Shelley needs them.
 
-The main repo now has two local Shelley-side entrypoints:
+The main repo now has three local Shelley-side entrypoints:
 
 - `chat-with-stavrobot.sh` for the lowest-risk existing `/chat` path
 - `client-stavrobot.sh` for the validated machine-oriented `/api/client/*` path
+- `shelley-stavrobot-session.sh` as a tiny stateful wrapper that persists and reuses the last `conversation_id`
 
-That gives Shelley a conservative fallback and a richer local client wrapper without requiring further speculative upstream API work first.
+That gives Shelley a conservative fallback, a richer local client wrapper, and a simple local session model without requiring further speculative upstream API work first.
 
 ## Decision
 
@@ -106,9 +107,10 @@ The first adapter hardening pass should prefer local improvements before upstrea
 - raw JSON debug mode
 - stdin support for piping prompts from other tools
 - a local machine-oriented client wrapper for validated `/api/client/*` endpoints
+- a small Shelley-side state file for last conversation reuse
 - a smoke harness that checks health, chat, conversation listing, history, and events together
 
-These are now implemented across `chat-with-stavrobot.sh`, `client-stavrobot.sh`, and `smoke-test-stavrobot-client.sh`.
+These are now implemented across `chat-with-stavrobot.sh`, `client-stavrobot.sh`, `shelley-stavrobot-session.sh`, and `smoke-test-stavrobot-client.sh`.
 
 ## Next planning artifact
 
