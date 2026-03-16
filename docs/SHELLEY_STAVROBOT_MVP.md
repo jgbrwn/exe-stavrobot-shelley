@@ -428,3 +428,308 @@ Important principle:
 - Shelley itself should still own conversation-level mode selection and per-conversation metadata
 
 So the installer should not directly rewrite user conversations. It should only make the optional Stavrobot-mode-capable Shelley build available and keep its local rebuild/profile state current.
+
+
+## Draft Shelley conversation lifecycle for Stavrobot mode
+
+The Shelley-side implementation should treat Stavrobot mode as a per-conversation runtime state machine rather than just a boolean toggle.
+
+Recommended conversation states:
+
+### 1. Normal
+
+Meaning:
+
+- ordinary Shelley conversation behavior
+- no Stavrobot mapping in use
+
+Typical metadata:
+
+```json
+{
+  "mode": "default"
+}
+```
+
+### 2. Stavrobot configured, not yet mapped
+
+Meaning:
+
+- the conversation has been switched into Stavrobot mode
+- a bridge profile is selected
+- no successful remote turn has yet created or confirmed a Stavrobot `conversation_id`
+
+Typical metadata:
+
+```json
+{
+  "mode": "stavrobot",
+  "stavrobot": {
+    "enabled": true,
+    "bridge_profile": "local-default"
+  }
+}
+```
+
+Recommended UI cues:
+
+- show that the conversation is in Stavrobot mode
+- show selected local profile name
+- show status like `Not yet connected to remote conversation`
+
+### 3. Stavrobot mapped and active
+
+Meaning:
+
+- at least one successful remote turn has completed
+- the conversation is now mapped to a durable Stavrobot `conversation_id`
+
+Typical metadata:
+
+```json
+{
+  "mode": "stavrobot",
+  "stavrobot": {
+    "enabled": true,
+    "bridge_profile": "local-default",
+    "conversation_id": "conv_123",
+    "last_message_id": "msg_456"
+  }
+}
+```
+
+Recommended UI cues:
+
+- show Stavrobot mode active
+- show remote conversation connected
+- optionally show remote conversation ID in debug/details view, not necessarily in the main user-facing thread chrome
+- show mode-specific context wording such as `Context managed by Stavrobot`
+
+### 4. Stavrobot degraded / attention-needed
+
+Meaning:
+
+- conversation metadata indicates Stavrobot mode
+- but the current profile, bridge, auth, or remote session access has failed
+
+Examples:
+
+- missing bridge profile
+- unreadable local config
+- bridge execution failure
+- remote auth failure
+- remote conversation lookup/history fetch fails unexpectedly
+
+Recommended UI cues:
+
+- show clear non-destructive warning state
+- do not silently fall back to normal direct-model mode for the same turn
+- make the failure actionable: missing profile, bridge unavailable, auth failure, remote unavailable, etc.
+
+## Recommended state transitions
+
+### Transition A: normal -> Stavrobot configured
+
+Trigger:
+
+- user explicitly chooses Stavrobot mode for this conversation
+
+Recommended effect:
+
+1. Shelley validates that at least one installer-managed bridge profile exists
+2. Shelley stores:
+   - `mode = "stavrobot"`
+   - `stavrobot.enabled = true`
+   - `stavrobot.bridge_profile = <selected profile>`
+3. Shelley does not require a remote conversation ID yet
+
+If no local profile exists:
+
+- fail the mode switch cleanly
+- show guidance that Shelley Stavrobot mode is not installed/configured locally
+
+### Transition B: configured -> mapped active
+
+Trigger:
+
+- first successful message sent through the canonical bridge
+
+Recommended effect:
+
+1. Shelley sends the user turn through `shelley-stavrobot-bridge.sh`
+2. bridge/session layer creates a new remote Stavrobot conversation if needed
+3. Shelley receives successful response data including `conversation_id`
+4. Shelley persists:
+   - `stavrobot.conversation_id`
+   - `stavrobot.last_message_id` when available
+5. Shelley renders the returned response in its normal message UI
+
+If the first remote turn fails:
+
+- remain in `configured, not yet mapped`
+- do not invent a fake `conversation_id`
+- keep the draft user turn/result/error semantics consistent with normal Shelley failure handling
+
+### Transition C: mapped active -> mapped active
+
+Trigger:
+
+- subsequent successful user turn in Stavrobot mode
+
+Recommended effect:
+
+1. Shelley routes turn through the canonical bridge
+2. bridge uses the existing mapped `conversation_id`
+3. Shelley updates `last_message_id` if a newer one is returned
+4. Shelley may optionally refresh history/events views separately
+
+### Transition D: mapped active -> degraded
+
+Trigger:
+
+- existing Stavrobot conversation becomes temporarily unusable
+- bridge/profile/config/auth/runtime error occurs
+
+Recommended effect:
+
+- preserve existing mapping metadata unless user explicitly resets/remaps
+- show failure clearly
+- allow retry after operator/user correction
+- avoid silently remapping to a new remote conversation unless the user explicitly requested reset/new thread behavior
+
+### Transition E: degraded -> mapped active
+
+Trigger:
+
+- operator or user fixes the underlying issue and a later turn succeeds
+
+Recommended effect:
+
+- reuse the same stored `conversation_id` when still valid
+- clear degraded UI state
+- continue ordinary mapped conversation flow
+
+### Transition F: mapped active -> configured, not yet mapped
+
+Trigger:
+
+- user explicitly resets the remote mapping for this Shelley conversation
+
+Recommended effect:
+
+- keep `mode = "stavrobot"`
+- keep selected `bridge_profile`
+- clear:
+  - `stavrobot.conversation_id`
+  - `stavrobot.last_message_id`
+- next successful turn creates a fresh remote conversation mapping
+
+This is the clean "new remote thread, same Shelley conversation shell" operation.
+
+### Transition G: Stavrobot mode -> normal mode
+
+Trigger:
+
+- user explicitly disables Stavrobot mode for the conversation
+
+Recommended effect:
+
+- Shelley stops routing turns through the bridge
+- Shelley may either:
+  - preserve prior `stavrobot` metadata as inactive historical info
+  - or clear the `stavrobot` block except for an audit/debug trail if Shelley has a good reason to retain it
+- this should be an explicit UX choice, not an automatic fallback after errors
+
+## Recommended reset/remap semantics
+
+There should be a clear distinction between:
+
+### Reset remote mapping
+
+- keep conversation in Stavrobot mode
+- clear mapped remote `conversation_id`
+- next turn starts a fresh Stavrobot thread
+
+### Change bridge profile
+
+- keep conversation in Stavrobot mode
+- switch from one installer-managed profile name to another
+- Shelley should warn that the existing remote mapping may not be valid against the new profile/backend
+- safest default is to require or strongly suggest mapping reset when profile changes materially
+
+### Disable Stavrobot mode
+
+- stop using bridge path entirely for future turns in this conversation
+- do not do this automatically on transient failures
+
+## Recommended message/history/event handling
+
+For the first version, Shelley should keep the send-turn path and the history/event sync path conceptually separate.
+
+### Send-turn path
+
+- send user turn through canonical bridge
+- render assistant response normally
+- update mapping metadata from returned IDs
+
+### History/event path
+
+Optional at first, but likely useful later:
+
+- fetch remote message history when Shelley needs reconciliation/debug/history refresh
+- fetch remote events when Shelley wants richer trace/tool views
+- treat `last_message_id` as a sync hint, not as proof that local and remote are perfectly synchronized
+
+That separation reduces coupling and makes failures easier to reason about.
+
+## Recommended UI wording for context and recall
+
+For active context in Stavrobot mode:
+
+- prefer wording like `Context managed by Stavrobot`
+- avoid pretending Shelley's ordinary direct-model token gauge is authoritative
+
+For broader recall:
+
+- treat `remember when we did X?` as a separate retrieval action/state
+- likely initial UX should be explicit, not magical
+- e.g. Shelley may show that it is searching or loading older Stavrobot conversations/history before answering
+
+## Recommended edge-case behavior
+
+### Missing installer-managed profile
+
+- keep conversation metadata intact
+- show actionable error
+- do not silently switch providers/modes
+
+### First turn succeeds but metadata write fails
+
+- show response if possible
+- warn that remote mapping may not be persisted
+- next turn may require reconciliation or explicit remap handling
+
+### Stored `conversation_id` no longer works
+
+- enter degraded state
+- offer explicit options such as:
+  - retry
+  - reset remote mapping
+  - switch profile
+  - disable Stavrobot mode
+
+### Multiple long-lived months-long conversations
+
+- acceptable in principle
+- performance concern should focus on bridge/remote behavior and sync ergonomics, not merely the number of Shelley conversation records
+
+## Recommended first implementation discipline
+
+For the earliest Shelley-side spike, keep the state machine minimal:
+
+- normal
+- configured, not yet mapped
+- mapped active
+- degraded
+
+That is enough to validate the behavior cleanly without overcommitting to premature retrieval/history-sync complexity.

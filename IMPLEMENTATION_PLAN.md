@@ -644,3 +644,30 @@ Meaning:
 - Shelley conversation metadata then stores only the chosen profile name and remote conversation mapping
 
 That keeps the installer operational and machine-scoped while keeping conversation selection and per-thread behavior inside Shelley where it belongs.
+
+
+## Draft Shelley-side conversation lifecycle recommendation
+
+The eventual Shelley rebuild should implement optional Stavrobot mode as a small per-conversation state machine, not just as a raw boolean.
+
+Recommended minimum states:
+
+1. normal
+2. Stavrobot configured, not yet mapped
+3. Stavrobot mapped and active
+4. Stavrobot degraded / attention-needed
+
+Recommended implementation implications:
+
+- selecting Stavrobot mode should require only a valid installer-managed bridge profile, not a pre-existing remote conversation ID
+- the first successful remote turn should create or confirm the remote Stavrobot `conversation_id`
+- subsequent turns should reuse that mapping through the canonical bridge
+- failures should move the conversation into a degraded actionable state rather than silently falling back to normal direct-model behavior
+- reset/remap should be explicit user actions
+
+Recommended operational rule:
+
+- installer prepares the Shelley build and local profile definitions
+- Shelley owns per-conversation state transitions and remote mapping lifecycle
+
+This keeps the installer and Shelley responsibilities cleanly separated while preserving a usable conversation-centric mode design.
