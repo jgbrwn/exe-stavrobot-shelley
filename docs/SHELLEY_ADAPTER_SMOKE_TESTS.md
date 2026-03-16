@@ -6,6 +6,10 @@ Provide a very small local harness for validating the Shelley-to-Stavrobot adapt
 
 ## Entry points
 
+### Canonical Shelley-facing bridge
+
+- `shelley-stavrobot-bridge.sh`
+
 ### Basic adapter
 
 - `chat-with-stavrobot.sh`
@@ -28,6 +32,7 @@ Provide a very small local harness for validating the Shelley-to-Stavrobot adapt
 ### 1. Help output
 
 ```bash
+./shelley-stavrobot-bridge.sh --help
 ./chat-with-stavrobot.sh --help
 ./client-stavrobot.sh --help
 ./shelley-stavrobot-session.sh --help
@@ -46,11 +51,11 @@ Provide a very small local harness for validating the Shelley-to-Stavrobot adapt
 
 ```bash
 ./smoke-test-stavrobot-adapter.sh --stavrobot-dir /opt/stavrobot --raw-json
+./shelley-stavrobot-bridge.sh --stavrobot-dir /opt/stavrobot --message "first turn"
+./shelley-stavrobot-bridge.sh --stavrobot-dir /opt/stavrobot --message "first turn" --extract conversation_id
+./shelley-stavrobot-bridge.sh --stavrobot-dir /opt/stavrobot show-session
+./shelley-stavrobot-bridge.sh --stavrobot-dir /opt/stavrobot messages --pretty
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot health --pretty
-./client-stavrobot.sh --stavrobot-dir /opt/stavrobot chat --message "first turn" --extract conversation_id
-./client-stavrobot.sh --stavrobot-dir /opt/stavrobot chat --message "first turn" --extract response
-./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot chat --message "first turn" --extract conversation_id
-./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot continue --message "second turn" --extract response
 ./shelley-stavrobot-session.sh get --extract message_id
 ./smoke-test-stavrobot-client.sh --stavrobot-dir /opt/stavrobot --pretty
 ```

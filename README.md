@@ -37,9 +37,10 @@ Still manual in this track:
 ### Shelley integration MVP
 
 - `chat-with-stavrobot.sh` is a thin adapter around Stavrobot's authenticated `POST /chat` endpoint
-- `client-stavrobot.sh` is a local machine-oriented wrapper around the validated authenticated `/api/client/*` surface
-- `shelley-stavrobot-session.sh` is a tiny stateful convenience wrapper that persists and reuses the last `conversation_id`
-- `smoke-test-stavrobot-client.sh` validates that local client wrapper against the running stack
+- `shelley-stavrobot-bridge.sh` is the canonical Shelley-facing local bridge and should be the default integration target for any future Shelley rebuild
+- `client-stavrobot.sh` is a lower-level machine-oriented wrapper around the validated authenticated `/api/client/*` surface
+- `shelley-stavrobot-session.sh` is a lower-level stateful convenience wrapper that persists and reuses the last `conversation_id`
+- `smoke-test-stavrobot-client.sh` validates the local client surface against the running stack
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`
 - the client chat spike produced a real successful LLM-backed response with OpenRouter using model `z-ai/glm-4.5-air:free`
@@ -170,7 +171,18 @@ Useful adapter flags:
 - `--retries`
 - `--retry-delay`
 
-Machine-oriented client wrapper examples:
+Canonical Shelley-facing bridge examples:
+
+```bash
+./shelley-stavrobot-bridge.sh --stavrobot-dir /opt/stavrobot --message "Summarize current status"
+./shelley-stavrobot-bridge.sh --stavrobot-dir /opt/stavrobot --message "Summarize current status" --extract conversation_id
+./shelley-stavrobot-bridge.sh --stavrobot-dir /opt/stavrobot show-session
+./shelley-stavrobot-bridge.sh --stavrobot-dir /opt/stavrobot messages --pretty
+./shelley-stavrobot-bridge.sh --stavrobot-dir /opt/stavrobot events --pretty
+./shelley-stavrobot-bridge.sh --stavrobot-dir /opt/stavrobot reset-session
+```
+
+Lower-level machine-oriented client wrapper examples:
 
 ```bash
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot health --pretty
@@ -182,7 +194,7 @@ Machine-oriented client wrapper examples:
 ./client-stavrobot.sh --stavrobot-dir /opt/stavrobot events --conversation-id conv_1 --pretty
 ```
 
-Stateful Shelley-side session wrapper examples:
+Lower-level stateful session wrapper examples:
 
 ```bash
 ./shelley-stavrobot-session.sh --stavrobot-dir /opt/stavrobot chat --message "First turn" --pretty

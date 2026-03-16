@@ -74,18 +74,19 @@ Because the OpenRouter key used for testing was pasted interactively during prio
 
 ## Main-repo local consumption status
 
-The main repo now consumes this validated direction locally in two ways:
+The main repo now consumes this validated direction locally in several layers:
 
 1. `chat-with-stavrobot.sh` remains the thin lowest-risk adapter around existing authenticated `POST /chat`.
-2. `client-stavrobot.sh` now provides a local machine-oriented wrapper for:
+2. `client-stavrobot.sh` provides the lower-level machine-oriented wrapper for:
    - `GET /api/client/health`
    - `POST /api/client/chat`
    - `GET /api/client/conversations`
    - `GET /api/client/conversations/:conversation_id/messages`
    - `GET /api/client/conversations/:conversation_id/events`
 3. `shelley-stavrobot-session.sh` adds a tiny Shelley-side state file so the last `conversation_id` can be reused without manually copying it between commands.
-4. Both local wrappers now also support terse extraction-oriented output so Shelley can request only fields such as `response`, `conversation_id`, `message_id`, or saved session metadata.
-5. `smoke-test-stavrobot-client.sh` exercises health, chat, listing, history, and events together against a live stack.
+4. `shelley-stavrobot-bridge.sh` is now the recommended canonical Shelley-facing bridge that routes to the lower-level client/session wrappers while defaulting to stateful chat and response-only output.
+5. The local wrappers support terse extraction-oriented output so Shelley can request only fields such as `response`, `conversation_id`, `message_id`, or saved session metadata.
+6. `smoke-test-stavrobot-client.sh` exercises health, chat, listing, history, and events together against a live stack.
 
 ## What is still missing for stronger Shelley integration
 

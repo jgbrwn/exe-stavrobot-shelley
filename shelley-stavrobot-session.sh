@@ -198,6 +198,29 @@ else:
 PY
 }
 
+run_client_with_extract() {
+  local -a cmd
+  cmd=(
+    "$ROOT_DIR/client-stavrobot.sh"
+    --base-url "$BASE_URL"
+    --connect-timeout "$CONNECT_TIMEOUT"
+    --request-timeout "$REQUEST_TIMEOUT"
+    --retries "$RETRIES"
+    --retry-delay "$RETRY_DELAY"
+    --extract "$EXTRACT"
+  )
+  if [[ -n "$STAVROBOT_DIR" ]]; then
+    cmd+=(--stavrobot-dir "$STAVROBOT_DIR")
+  fi
+  if [[ -n "$CONFIG_PATH" ]]; then
+    cmd+=(--config-path "$CONFIG_PATH")
+  fi
+  if [[ -n "$PASSWORD" ]]; then
+    cmd+=(--password "$PASSWORD")
+  fi
+  "${cmd[@]}" "$@"
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     chat|continue|show|messages|events|reset|set|get)
@@ -327,14 +350,22 @@ case "$COMMAND" in
       CONVERSATION_ID=$(load_saved_conversation_id)
     fi
     [[ -n "$CONVERSATION_ID" ]] || die "No saved conversation_id; run chat first or use set"
-    run_client messages --conversation-id "$CONVERSATION_ID"
+    if [[ -n "$EXTRACT" ]]; then
+      run_client_with_extract messages --conversation-id "$CONVERSATION_ID"
+    else
+      run_client messages --conversation-id "$CONVERSATION_ID"
+    fi
     ;;
   events)
     if [[ -z "$CONVERSATION_ID" ]]; then
       CONVERSATION_ID=$(load_saved_conversation_id)
     fi
     [[ -n "$CONVERSATION_ID" ]] || die "No saved conversation_id; run chat first or use set"
-    run_client events --conversation-id "$CONVERSATION_ID"
+    if [[ -n "$EXTRACT" ]]; then
+      run_client_with_extract events --conversation-id "$CONVERSATION_ID"
+    else
+      run_client events --conversation-id "$CONVERSATION_ID"
+    fi
     ;;
   reset)
     rm -f "$STATE_FILE"

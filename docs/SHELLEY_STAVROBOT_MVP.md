@@ -84,13 +84,14 @@ Phase 2 testing has now moved beyond pure planning:
 
 That means the additive `/api/client/*` direction is now materially validated both in the spike and in a live running stack, including event visibility and real chat message IDs. The next likely work is just incremental client ergonomics if Shelley needs them.
 
-The main repo now has three local Shelley-side entrypoints:
+The main repo now has a recommended canonical Shelley-facing bridge plus lower-level helpers:
 
-- `chat-with-stavrobot.sh` for the lowest-risk existing `/chat` path
-- `client-stavrobot.sh` for the validated machine-oriented `/api/client/*` path
-- `shelley-stavrobot-session.sh` as a tiny stateful wrapper that persists and reuses the last `conversation_id`
+- `shelley-stavrobot-bridge.sh` as the canonical Shelley-facing bridge for future rebuild/integration work
+- `chat-with-stavrobot.sh` as the lowest-risk existing `/chat` fallback
+- `client-stavrobot.sh` as the validated lower-level `/api/client/*` wrapper
+- `shelley-stavrobot-session.sh` as the lower-level stateful wrapper that persists and reuses the last `conversation_id`
 
-That gives Shelley a conservative fallback, a richer local client wrapper, and a simple local session model without requiring further speculative upstream API work first.
+That gives Shelley one preferred integration target while still preserving lower-level tools for debugging, smoke tests, and manual operator use.
 
 ## Decision
 
