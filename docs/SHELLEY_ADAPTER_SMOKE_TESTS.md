@@ -38,7 +38,7 @@ Provide a very small local harness for validating the Shelley-to-Stavrobot adapt
 ### 4. Failure path: wrong password
 
 ```bash
-./smoke-test-stavrobot-adapter.sh --base-url http://localhost:10567 --password wrong
+./smoke-test-stavrobot-adapter.sh --base-url http://localhost:8000 --password wrong
 ```
 
 Expected result: non-zero exit and a clear auth failure.

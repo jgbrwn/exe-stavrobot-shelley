@@ -183,6 +183,8 @@ Quick validation harness:
 ./smoke-test-stavrobot-adapter.sh --stavrobot-dir /opt/stavrobot
 ```
 
+Default local base URL is now `http://localhost:8000`. Override with `--base-url` or `STAVROBOT_BASE_URL` when needed.
+
 Docs:
 
 - `docs/SHELLEY_ADAPTER_SMOKE_TESTS.md`

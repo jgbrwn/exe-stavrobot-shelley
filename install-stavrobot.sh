@@ -16,6 +16,7 @@ CONFIG_ONLY=0
 SKIP_CONFIG=0
 SKIP_PLUGINS=0
 SHOW_SECRETS=0
+STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 
 ENV_PATH=""
 CONFIG_PATH=""
@@ -46,6 +47,9 @@ Flags:
   --skip-plugins
   --show-secrets
   --help
+
+Environment:
+  STAVROBOT_BASE_URL   Local Stavrobot URL for readiness/plugin calls (default: http://localhost:8000)
 EOF
 }
 
@@ -122,7 +126,7 @@ PY
 }
 
 wait_for_stavrobot_ready() {
-  local local_base_url="http://localhost:10567"
+  local local_base_url="$STAVROBOT_BASE_URL"
   [[ -n "$PASSWORD_FOR_READY" ]] || die "Could not determine Stavrobot password for readiness checks"
   if wait_for_http_basic_auth "$local_base_url/" "$PASSWORD_FOR_READY" 120; then
     info "Stavrobot is responding at $local_base_url"
@@ -137,7 +141,7 @@ wait_for_stavrobot_ready() {
 }
 
 run_plugins_from_state() {
-  local local_base_url="http://localhost:10567"
+  local local_base_url="$STAVROBOT_BASE_URL"
   [[ -f "$PLUGIN_STATE_JSON" ]] || return 0
   [[ -n "$PASSWORD_FOR_READY" ]] || die "Missing password for plugin installation"
   while IFS= read -r plugin_entry; do

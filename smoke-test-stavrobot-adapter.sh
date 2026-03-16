@@ -6,7 +6,7 @@ source "$ROOT_DIR/lib/common.sh"
 
 STAVROBOT_DIR=""
 CONFIG_PATH=""
-BASE_URL="http://localhost:10567"
+BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 PASSWORD=""
 MESSAGE="Reply with exactly: adapter smoke test ok"
 SOURCE="shelley-smoke"
@@ -21,7 +21,7 @@ Usage: ./smoke-test-stavrobot-adapter.sh [flags]
 Flags:
   --stavrobot-dir PATH   Read password from PATH/data/main/config.toml
   --config-path PATH     Read password from config.toml
-  --base-url URL         Stavrobot base URL (default: http://localhost:10567)
+  --base-url URL         Stavrobot base URL (default: STAVROBOT_BASE_URL or http://localhost:8000)
   --password VALUE       Override password directly
   --message TEXT         Test message to send
   --timeout SEC          End-to-end timeout in seconds (default: 60)
