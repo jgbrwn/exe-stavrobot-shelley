@@ -21,18 +21,23 @@ This remains the current Shelley MVP integration path via `chat-with-stavrobot.s
 
 A real upstream Stavrobot test clone was used to spike additive machine-oriented endpoints under `/api/client/*`.
 
-Validated endpoints/results:
+Validated endpoints/results so far:
 
 - `GET /api/client/health`
 - `POST /api/client/chat`
+- `GET /api/client/conversations`
+- `GET /api/client/conversations/:conversation_id/messages`
 
 Observed behavior from the spike:
 
 - `GET /api/client/health` returned machine-readable provider/model/config status.
 - `POST /api/client/chat` worked end-to-end and returned a real LLM-backed response.
-- The current client chat spike still returned placeholder metadata:
-  - `conversation_id: null`
-  - `message_id: null`
+- `POST /api/client/chat` now returns a real stable `conversation_id` in the spike implementation.
+- Omitting `conversation_id` routes to the main conversation (`conv_1`).
+- Supplying `conversation_id` continues an existing conversation.
+- `GET /api/client/conversations` returns machine-readable conversation summaries.
+- `GET /api/client/conversations/:conversation_id/messages` returns machine-readable history.
+- `message_id` in the chat response is still placeholder `null` for now.
 
 ### OpenRouter compatibility finding
 
@@ -55,20 +60,19 @@ Because the OpenRouter key used for testing was pasted interactively during prio
 
 ## What is still missing for stronger Shelley integration
 
-These are no longer speculative in the same way. After the successful `/api/client/chat` live test, these are the next justified upstream steps.
+The next missing piece after the successful session/history spike is now narrower.
 
-1. Real `conversation_id` support in `POST /api/client/chat`
-2. `GET /api/client/conversations`
-3. `GET /api/client/conversations/:conversation_id/messages`
-4. Read-only event/trace endpoint later if needed
+1. Read-only event/trace endpoint if Shelley needs tool visibility
+2. Real `message_id` in `POST /api/client/chat`
+3. Any further client ergonomics discovered during Shelley integration
 
 ## Recommended order now
 
 1. Keep using the local adapter in this repo for the Shelley MVP.
 2. Preserve the additive upstream `/api/client/*` direction.
-3. Implement real `conversation_id` support upstream next.
-4. Then add conversation listing and message history endpoints.
-5. Leave event/trace work for a later increment.
+3. Treat conversation IDs, conversation listing, and conversation history as validated upstream direction.
+4. Leave event/trace work for a later increment.
+5. Add real chat `message_id` only when Shelley has a concrete use for it.
 
 ## Concrete proposal
 

@@ -38,9 +38,9 @@ Still manual in this track:
 
 - `chat-with-stavrobot.sh` is a thin adapter around Stavrobot's authenticated `POST /chat` endpoint
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
-- separate upstream spike work validated additive `GET /api/client/health` and `POST /api/client/chat`
+- separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, and `GET /api/client/conversations/:conversation_id/messages`
 - the client chat spike produced a real successful LLM-backed response with OpenRouter using model `z-ai/glm-4.5-air:free`
-- next recommended upstream work is real `conversation_id` support, then conversation listing/history endpoints
+- the upstream spike now also returns real `conversation_id` values and exposes conversation listing/history
 
 ## Intended layout
 

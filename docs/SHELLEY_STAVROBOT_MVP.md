@@ -76,8 +76,10 @@ Phase 2 testing has now moved beyond pure planning:
 - a real live LLM-backed response was confirmed through `POST /api/client/chat`
 - Stavrobot worked with provider `openrouter` without needing an OpenRouter-specific patch
 - the successful live model used in testing was `z-ai/glm-4.5-air:free`
+- the upstream spike now also includes real `conversation_id` support
+- the upstream spike now also includes conversation listing and conversation history endpoints
 
-That means the next upstream step is no longer "decide whether a machine API is worthwhile". The next step is to continue the additive `/api/client/*` path with real `conversation_id` support and then conversation listing/history.
+That means the additive `/api/client/*` direction is now materially validated. The next likely upstream increment is event/trace visibility if Shelley needs it, while the local adapter in this repo remains the lowest-risk integration path today.
 
 ## Decision
 

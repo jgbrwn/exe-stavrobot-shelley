@@ -165,14 +165,15 @@ The installer currently infers health via authenticated page checks and plugin e
 Status so far from upstream spike work:
 
 1. `GET /api/client/health` has been prototyped and validated.
-2. `POST /api/client/chat` has been prototyped and validated with a real LLM-backed response, but still returns placeholder metadata.
+2. `POST /api/client/chat` has been prototyped and validated with a real LLM-backed response.
+3. `POST /api/client/chat` has also been spiked with real `conversation_id` support.
+4. `GET /api/client/conversations` has been spiked.
+5. `GET /api/client/conversations/:conversation_id/messages` has been spiked.
 
 Recommended next implementation steps:
 
-3. make `POST /api/client/chat` return a real `conversation_id`
-4. add `GET /api/client/conversations`
-5. add `GET /api/client/conversations/:conversation_id/messages`
 6. leave `GET /api/client/conversations/:conversation_id/events` for a later increment
+7. add real `message_id` in `POST /api/client/chat` if a client needs it
 
 ## Backward-compatibility stance
 
