@@ -17,6 +17,19 @@ SKIP_CONFIG=0
 SKIP_PLUGINS=0
 SHOW_SECRETS=0
 
+ENV_PATH=""
+CONFIG_PATH=""
+PLUGIN_STATE_JSON=""
+OPENROUTER_OUT=""
+CURRENT_JSON=""
+PASSWORD_FOR_READY=""
+PUBLIC_HOSTNAME_FINAL=""
+CODER_ENABLED=false
+SIGNAL_ENABLED=false
+WHATSAPP_ENABLED=false
+PLUGINS_SELECTED_COUNT=0
+PLUGINS_HANDLED=0
+
 usage() {
   cat <<'EOF'
 Usage: ./install-stavrobot.sh --stavrobot-dir PATH [flags]
@@ -31,6 +44,168 @@ Flags:
   --show-secrets
   --help
 EOF
+}
+
+json_quote() {
+  python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"
+}
+
+render_current_state() {
+  CURRENT_JSON="$ROOT_DIR/state/current-config.json"
+  python3 "$ROOT_DIR/py/load_current_config.py" \
+    "$STAVROBOT_DIR/env.example" \
+    "$ENV_PATH" \
+    "$STAVROBOT_DIR/config.example.toml" \
+    "$CONFIG_PATH" > "$CURRENT_JSON"
+  ensure_private_file "$CURRENT_JSON"
+}
+
+fetch_openrouter_suggestions() {
+  OPENROUTER_OUT="$ROOT_DIR/state/openrouter-free-models.json"
+  if python3 "$ROOT_DIR/py/openrouter_models.py" > "$OPENROUTER_OUT"; then
+    ensure_private_file "$OPENROUTER_OUT"
+    info "Fetched OpenRouter free model suggestions into $OPENROUTER_OUT"
+  else
+    warn "Failed to fetch OpenRouter free model suggestions"
+  fi
+}
+
+load_runtime_password() {
+  if [[ -f "$ROOT_DIR/state/render-config.json" ]]; then
+    PASSWORD_FOR_READY=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("password", ""))' "$ROOT_DIR/state/render-config.json" 2>/dev/null || true)
+  elif [[ -f "$CONFIG_PATH" ]]; then
+    PASSWORD_FOR_READY=$(python3 - "$CONFIG_PATH" <<'PY'
+import sys, tomllib
+try:
+    data = tomllib.loads(open(sys.argv[1]).read())
+    print(data.get('password', ''))
+except Exception:
+    print('')
+PY
+)
+  fi
+}
+
+wait_for_stavrobot_ready() {
+  local local_base_url="http://localhost:10567"
+  [[ -n "$PASSWORD_FOR_READY" ]] || die "Could not determine Stavrobot password for readiness checks"
+  if wait_for_http_basic_auth "$local_base_url/" "$PASSWORD_FOR_READY" 120; then
+    info "Stavrobot is responding at $local_base_url"
+    if stavrobot_list_plugins "$local_base_url" "$PASSWORD_FOR_READY" >/dev/null 2>&1; then
+      info "Plugin settings endpoint is reachable"
+    else
+      warn "Plugin settings endpoint check failed"
+    fi
+  else
+    die "Stavrobot did not become ready within timeout"
+  fi
+}
+
+run_plugins_from_state() {
+  local local_base_url="http://localhost:10567"
+  [[ -f "$PLUGIN_STATE_JSON" ]] || return 0
+  [[ -n "$PASSWORD_FOR_READY" ]] || die "Missing password for plugin installation"
+  while IFS= read -r plugin_entry; do
+    [[ -n "$plugin_entry" ]] || continue
+    plugin_name=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["name"])' "$plugin_entry")
+    plugin_repo=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["repo_url"])' "$plugin_entry")
+    plugin_config=$(python3 -c 'import json,sys; print(json.dumps(json.loads(sys.argv[1])["config"]))' "$plugin_entry")
+    info "Installing plugin $plugin_name"
+    install_response=$(stavrobot_install_plugin "$local_base_url" "$PASSWORD_FOR_READY" "$plugin_repo" || true)
+    if ! printf '%s' "$install_response" | python3 -c 'import json,sys; data=json.load(sys.stdin); import sys as s; s.exit(0 if ("error" not in data or "already installed" in str(data.get("error",""))) else 1)'; then
+      printf '%s\n' "$install_response" >&2
+      die "Failed to install plugin $plugin_name"
+    fi
+    if [[ "$plugin_config" != "{}" ]]; then
+      info "Configuring plugin $plugin_name"
+      configure_response=$(stavrobot_configure_plugin "$local_base_url" "$PASSWORD_FOR_READY" "$plugin_name" "$plugin_config" || true)
+      if ! printf '%s' "$configure_response" | python3 -c 'import json,sys; data=json.load(sys.stdin); import sys as s; s.exit(0 if "error" not in data else 1)'; then
+        printf '%s\n' "$configure_response" >&2
+        die "Failed to configure plugin $plugin_name"
+      fi
+    fi
+    ((PLUGINS_HANDLED+=1))
+  done < <(python3 -c 'import json,sys; [print(json.dumps(x)) for x in json.load(open(sys.argv[1])).get("plugins", [])]' "$PLUGIN_STATE_JSON")
+}
+
+prompt_plugin_selection() {
+  local plugin_tmp="$ROOT_DIR/state/plugin-selections.jsonl"
+  : > "$plugin_tmp"
+  while IFS= read -r plugin_json; do
+    name=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["name"])' "$plugin_json")
+    description=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["description"])' "$plugin_json")
+    repo_url=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["repo_url"])' "$plugin_json")
+    default_yes=$(python3 -c 'import json,sys; print("Y" if json.loads(sys.argv[1]).get("enabled_by_default") else "N")' "$plugin_json")
+    if prompt_yes_no "Install plugin '$name' ($description)?" "$default_yes"; then
+      ((PLUGINS_SELECTED_COUNT+=1))
+      config_json='{}'
+      while IFS= read -r field_json; do
+        [[ -n "$field_json" ]] || continue
+        field_key=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["key"])' "$field_json")
+        field_prompt=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["prompt"])' "$field_json")
+        field_secret=$(python3 -c 'import json,sys; print("1" if json.loads(sys.argv[1]).get("secret") else "0")' "$field_json")
+        field_default=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("default", ""))' "$field_json")
+        if [[ "$field_secret" == "1" ]]; then
+          field_value=$(prompt_secret "$field_prompt" "$field_default")
+        else
+          field_value=$(prompt_text "$field_prompt" "$field_default")
+        fi
+        field_value=${field_value:-$field_default}
+        [[ -n "$field_value" ]] || die "Plugin '$name' requires '$field_key'"
+        config_json=$(python3 - "$config_json" "$field_key" "$field_value" <<'PY'
+import json, sys
+obj = json.loads(sys.argv[1])
+obj[sys.argv[2]] = sys.argv[3]
+print(json.dumps(obj))
+PY
+)
+      done < <(python3 -c 'import json,sys; plugin=json.loads(sys.argv[1]); [print(json.dumps(x)) for x in plugin.get("required_config", [])]' "$plugin_json")
+
+      while IFS= read -r field_json; do
+        [[ -n "$field_json" ]] || continue
+        field_key=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["key"])' "$field_json")
+        field_prompt=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["prompt"])' "$field_json")
+        field_secret=$(python3 -c 'import json,sys; print("1" if json.loads(sys.argv[1]).get("secret") else "0")' "$field_json")
+        field_default=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("default", ""))' "$field_json")
+        if [[ "$field_secret" == "1" ]]; then
+          field_value=$(prompt_secret "$field_prompt (optional; press Enter to keep default)" "$field_default")
+        else
+          field_value=$(prompt_optional_text "$field_prompt (optional; type SKIP to omit)" "$field_default")
+        fi
+        if [[ "$field_value" == "__SKIP__" ]]; then
+          continue
+        fi
+        field_value=${field_value:-$field_default}
+        if [[ -n "$field_value" ]]; then
+          config_json=$(python3 - "$config_json" "$field_key" "$field_value" <<'PY'
+import json, sys
+obj = json.loads(sys.argv[1])
+obj[sys.argv[2]] = sys.argv[3]
+print(json.dumps(obj))
+PY
+)
+        fi
+      done < <(python3 -c 'import json,sys; plugin=json.loads(sys.argv[1]); [print(json.dumps(x)) for x in plugin.get("optional_config", [])]' "$plugin_json")
+
+      python3 - "$name" "$repo_url" "$config_json" >> "$plugin_tmp" <<'PY'
+import json, sys
+print(json.dumps({"name": sys.argv[1], "repo_url": sys.argv[2], "config": json.loads(sys.argv[3])}))
+PY
+    fi
+  done < <(python3 -c 'import json,sys; [print(json.dumps(x)) for x in json.load(open(sys.argv[1]))]' "$ROOT_DIR/data/plugin-catalog.json")
+
+  python3 - "$plugin_tmp" > "$PLUGIN_STATE_JSON" <<'PY'
+import json, sys
+entries = []
+with open(sys.argv[1]) as f:
+    for line in f:
+        line = line.strip()
+        if line:
+            entries.append(json.loads(line))
+print(json.dumps({"plugins": entries}, indent=2))
+PY
+  ensure_private_file "$PLUGIN_STATE_JSON"
+  rm -f "$plugin_tmp"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -82,6 +257,10 @@ require_cmd curl
 
 validate_stavrobot_repo "$STAVROBOT_DIR"
 mkdir -p "$ROOT_DIR/state"
+ENV_PATH="$STAVROBOT_DIR/.env"
+CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
+PLUGIN_STATE_JSON="$ROOT_DIR/state/last-plugin-inputs.json"
+mkdir -p "$(dirname "$CONFIG_PATH")"
 
 info "Documented plan: $ROOT_DIR/IMPLEMENTATION_PLAN.md"
 info "Validating upstream stavrobot repo"
@@ -96,22 +275,17 @@ else
   info "Stavrobot already up to date at $AFTER_HEAD"
 fi
 
-OPENROUTER_OUT="$ROOT_DIR/state/openrouter-free-models.json"
-if python3 "$ROOT_DIR/py/openrouter_models.py" > "$OPENROUTER_OUT"; then
-  ensure_private_file "$OPENROUTER_OUT"
-  info "Fetched OpenRouter free model suggestions into $OPENROUTER_OUT"
-else
-  warn "Failed to fetch OpenRouter free model suggestions"
-fi
+fetch_openrouter_suggestions
 
 if (( PLUGINS_ONLY )); then
-  info "Phase 1 plugin-only mode is planned but not implemented yet"
+  load_runtime_password
+  [[ -f "$PLUGIN_STATE_JSON" ]] || die "No saved plugin state at $PLUGIN_STATE_JSON"
+  wait_for_stavrobot_ready
+  run_plugins_from_state
+  print_run_summary "$BEFORE_HEAD" "$AFTER_HEAD" false false 0 "$PLUGINS_HANDLED"
+  print_next_steps "[unchanged]" false false false
   exit 0
 fi
-
-ENV_PATH="$STAVROBOT_DIR/.env"
-CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
-mkdir -p "$(dirname "$CONFIG_PATH")"
 
 BEFORE_ENV_HASH=$(sha256_file "$ENV_PATH")
 BEFORE_CONFIG_HASH=$(sha256_file "$CONFIG_PATH")
@@ -119,13 +293,7 @@ BEFORE_CONFIG_HASH=$(sha256_file "$CONFIG_PATH")
 if (( REFRESH_ONLY )); then
   info "Refresh mode: skipping config prompts"
 else
-  CURRENT_JSON="$ROOT_DIR/state/current-config.json"
-  python3 "$ROOT_DIR/py/load_current_config.py" \
-    "$STAVROBOT_DIR/env.example" \
-    "$ENV_PATH" \
-    "$STAVROBOT_DIR/config.example.toml" \
-    "$CONFIG_PATH" > "$CURRENT_JSON"
-  ensure_private_file "$CURRENT_JSON"
+  render_current_state
 
   ENV_EXAMPLE_TZ=$(json_get "$CURRENT_JSON" env_example.TZ)
   ENV_CURRENT_TZ=$(json_get "$CURRENT_JSON" env_current.TZ)
@@ -246,52 +414,52 @@ PY
   PUBLIC_HOSTNAME=${PUBLIC_HOSTNAME:-$PUBLIC_HOSTNAME_DEFAULT}
   PUBLIC_HOSTNAME=${PUBLIC_HOSTNAME%/}
   [[ "$PUBLIC_HOSTNAME" =~ ^https?:// ]] || die "publicHostname must start with http:// or https://"
+  PUBLIC_HOSTNAME_FINAL="$PUBLIC_HOSTNAME"
 
   OWNER_NAME=$(prompt_text "Owner name" "$OWNER_NAME_DEFAULT")
   OWNER_NAME=${OWNER_NAME:-$OWNER_NAME_DEFAULT}
   [[ -n "$OWNER_NAME" ]] || die "Owner name is required by stavrobot"
 
   OWNER_SIGNAL_DEFAULT=$(json_get "$CURRENT_JSON" toml_current.owner.signal)
-  OWNER_SIGNAL=$(prompt_text "Owner Signal number (optional)" "$OWNER_SIGNAL_DEFAULT")
+  OWNER_SIGNAL=$(prompt_optional_text "Owner Signal number (optional; type SKIP to omit)" "$OWNER_SIGNAL_DEFAULT")
+  [[ "$OWNER_SIGNAL" == "__SKIP__" ]] && OWNER_SIGNAL=""
   OWNER_SIGNAL=${OWNER_SIGNAL:-$OWNER_SIGNAL_DEFAULT}
 
   OWNER_TELEGRAM_DEFAULT=$(json_get "$CURRENT_JSON" toml_current.owner.telegram)
-  OWNER_TELEGRAM=$(prompt_text "Owner Telegram chat ID (optional)" "$OWNER_TELEGRAM_DEFAULT")
+  OWNER_TELEGRAM=$(prompt_optional_text "Owner Telegram chat ID (optional; type SKIP to omit)" "$OWNER_TELEGRAM_DEFAULT")
+  [[ "$OWNER_TELEGRAM" == "__SKIP__" ]] && OWNER_TELEGRAM=""
   OWNER_TELEGRAM=${OWNER_TELEGRAM:-$OWNER_TELEGRAM_DEFAULT}
 
   OWNER_WHATSAPP_DEFAULT=$(json_get "$CURRENT_JSON" toml_current.owner.whatsapp)
-  OWNER_WHATSAPP=$(prompt_text "Owner WhatsApp number (optional)" "$OWNER_WHATSAPP_DEFAULT")
+  OWNER_WHATSAPP=$(prompt_optional_text "Owner WhatsApp number (optional; type SKIP to omit)" "$OWNER_WHATSAPP_DEFAULT")
+  [[ "$OWNER_WHATSAPP" == "__SKIP__" ]] && OWNER_WHATSAPP=""
   OWNER_WHATSAPP=${OWNER_WHATSAPP:-$OWNER_WHATSAPP_DEFAULT}
 
   OWNER_EMAIL_DEFAULT=$(json_get "$CURRENT_JSON" toml_current.owner.email)
-  OWNER_EMAIL=$(prompt_text "Owner email address (optional)" "$OWNER_EMAIL_DEFAULT")
+  OWNER_EMAIL=$(prompt_optional_text "Owner email address (optional; type SKIP to omit)" "$OWNER_EMAIL_DEFAULT")
+  [[ "$OWNER_EMAIL" == "__SKIP__" ]] && OWNER_EMAIL=""
   OWNER_EMAIL=${OWNER_EMAIL:-$OWNER_EMAIL_DEFAULT}
 
-  TELEGRAM_ENABLED=0
   TELEGRAM_BOT_TOKEN=""
   if prompt_yes_no "Enable Telegram integration?" "N"; then
-    TELEGRAM_ENABLED=1
     TELEGRAM_BOT_TOKEN=$(prompt_secret "Telegram bot token" "")
   fi
 
-  SIGNAL_ENABLED=0
   SIGNAL_ACCOUNT=""
   COMPOSE_PROFILES=""
   if prompt_yes_no "Enable Signal integration?" "N"; then
-    SIGNAL_ENABLED=1
+    SIGNAL_ENABLED=true
     COMPOSE_PROFILES="signal"
     SIGNAL_ACCOUNT=$(prompt_text "Signal bot account number" "")
   fi
 
-  WHATSAPP_ENABLED=0
   if prompt_yes_no "Enable WhatsApp integration?" "N"; then
-    WHATSAPP_ENABLED=1
+    WHATSAPP_ENABLED=true
   fi
 
-  CODER_ENABLED=0
   CODER_MODEL=""
   if prompt_yes_no "Enable coder container?" "N"; then
-    CODER_ENABLED=1
+    CODER_ENABLED=true
     CODER_MODEL=$(prompt_choice "Coder model:" "sonnet" "opus" "haiku")
   fi
 
@@ -303,11 +471,11 @@ PY
   ENV_JSON="$ROOT_DIR/state/render-env.json"
   cat > "$ENV_JSON" <<EOF
 {
-  "TZ": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$TZ_VALUE"),
-  "POSTGRES_USER": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$PG_USER"),
-  "POSTGRES_PASSWORD": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$PG_PASSWORD"),
-  "POSTGRES_DB": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$PG_DB"),
-  "COMPOSE_PROFILES": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$COMPOSE_PROFILES")
+  "TZ": $(json_quote "$TZ_VALUE"),
+  "POSTGRES_USER": $(json_quote "$PG_USER"),
+  "POSTGRES_PASSWORD": $(json_quote "$PG_PASSWORD"),
+  "POSTGRES_DB": $(json_quote "$PG_DB"),
+  "COMPOSE_PROFILES": $(json_quote "$COMPOSE_PROFILES")
 }
 EOF
   ensure_private_file "$ENV_JSON"
@@ -316,125 +484,39 @@ EOF
   TOML_JSON="$ROOT_DIR/state/render-config.json"
   cat > "$TOML_JSON" <<EOF
 {
-  "provider": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$PROVIDER"),
-  "model": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$MODEL"),
-  "password": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$PASSWORD"),
-  "apiKey": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$API_KEY"),
-  "authFile": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$AUTH_FILE"),
-  "publicHostname": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$PUBLIC_HOSTNAME"),
-  "customPrompt": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$CUSTOM_PROMPT"),
+  "provider": $(json_quote "$PROVIDER"),
+  "model": $(json_quote "$MODEL"),
+  "password": $(json_quote "$PASSWORD"),
+  "apiKey": $(json_quote "$API_KEY"),
+  "authFile": $(json_quote "$AUTH_FILE"),
+  "publicHostname": $(json_quote "$PUBLIC_HOSTNAME"),
+  "customPrompt": $(json_quote "$CUSTOM_PROMPT"),
   "owner": {
-    "name": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$OWNER_NAME"),
-    "signal": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$OWNER_SIGNAL"),
-    "telegram": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$OWNER_TELEGRAM"),
-    "whatsapp": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$OWNER_WHATSAPP"),
-    "email": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$OWNER_EMAIL")
+    "name": $(json_quote "$OWNER_NAME"),
+    "signal": $(json_quote "$OWNER_SIGNAL"),
+    "telegram": $(json_quote "$OWNER_TELEGRAM"),
+    "whatsapp": $(json_quote "$OWNER_WHATSAPP"),
+    "email": $(json_quote "$OWNER_EMAIL")
   },
   "coder": {
-    "model": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$CODER_MODEL")
+    "model": $(json_quote "$CODER_MODEL")
   },
   "signal": {
-    "account": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$SIGNAL_ACCOUNT")
+    "account": $(json_quote "$SIGNAL_ACCOUNT")
   },
   "telegram": {
-    "botToken": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$TELEGRAM_BOT_TOKEN")
+    "botToken": $(json_quote "$TELEGRAM_BOT_TOKEN")
   },
-  "whatsapp_enabled": $(python3 -c 'import json,sys; print("true" if sys.argv[1] == "1" else "false")' "$WHATSAPP_ENABLED")
+  "whatsapp_enabled": $(python3 -c 'import sys; print("true" if sys.argv[1] == "true" else "false")' "$WHATSAPP_ENABLED")
 }
 EOF
   ensure_private_file "$TOML_JSON"
   python3 "$ROOT_DIR/py/render_toml.py" < "$TOML_JSON" > "$CONFIG_PATH"
 fi
 
-PLUGIN_STATE_JSON="$ROOT_DIR/state/last-plugin-inputs.json"
-PLUGINS_SELECTED_COUNT=0
-PLUGINS_HANDLED=0
-PASSWORD_FOR_READY=""
-if [[ -f "$ROOT_DIR/state/render-config.json" ]]; then
-  PASSWORD_FOR_READY=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["password"])' "$ROOT_DIR/state/render-config.json" 2>/dev/null || true)
-fi
-
 if (( !SKIP_PLUGINS && !REFRESH_ONLY )); then
   if prompt_yes_no "Review plugin installation choices now?" "N"; then
-    python3 "$ROOT_DIR/py/catalog_normalize.py" "$ROOT_DIR/data/plugin-catalog.json" > "$PLUGIN_STATE_JSON"
-    ensure_private_file "$PLUGIN_STATE_JSON"
-    PLUGIN_TMP="$ROOT_DIR/state/plugin-selections.jsonl"
-    : > "$PLUGIN_TMP"
-    while IFS= read -r plugin_json; do
-      name=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["name"])' "$plugin_json")
-      description=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["description"])' "$plugin_json")
-      repo_url=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["repo_url"])' "$plugin_json")
-      default_yes=$(python3 -c 'import json,sys; print("Y" if json.loads(sys.argv[1]).get("enabled_by_default") else "N")' "$plugin_json")
-      if prompt_yes_no "Install plugin '$name' ($description)?" "$default_yes"; then
-        ((PLUGINS_SELECTED_COUNT+=1))
-        config_json='{}'
-        while IFS= read -r field_json; do
-          [[ -n "$field_json" ]] || continue
-          field_key=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["key"])' "$field_json")
-          field_prompt=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["prompt"])' "$field_json")
-          field_secret=$(python3 -c 'import json,sys; print("1" if json.loads(sys.argv[1]).get("secret") else "0")' "$field_json")
-          field_default=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("default", ""))' "$field_json")
-          if [[ "$field_secret" == "1" ]]; then
-            field_value=$(prompt_secret "$field_prompt" "$field_default")
-          else
-            field_value=$(prompt_text "$field_prompt" "$field_default")
-          fi
-          field_value=${field_value:-$field_default}
-          [[ -n "$field_value" ]] || die "Plugin '$name' requires '$field_key'"
-          config_json=$(python3 - "$config_json" "$field_key" "$field_value" <<'PY'
-import json, sys
-obj = json.loads(sys.argv[1])
-obj[sys.argv[2]] = sys.argv[3]
-print(json.dumps(obj))
-PY
-)
-        done < <(python3 -c 'import json,sys; plugin=json.loads(sys.argv[1]); [print(json.dumps(x)) for x in plugin.get("required_config", [])]' "$plugin_json")
-
-        while IFS= read -r field_json; do
-          [[ -n "$field_json" ]] || continue
-          field_key=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["key"])' "$field_json")
-          field_prompt=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["prompt"])' "$field_json")
-          field_secret=$(python3 -c 'import json,sys; print("1" if json.loads(sys.argv[1]).get("secret") else "0")' "$field_json")
-          field_default=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("default", ""))' "$field_json")
-          if [[ "$field_secret" == "1" ]]; then
-            field_value=$(prompt_secret "$field_prompt (optional; type SKIP to omit)" "$field_default")
-          else
-            field_value=$(prompt_text "$field_prompt (optional; type SKIP to omit)" "$field_default")
-          fi
-          if [[ "$field_value" == "SKIP" ]]; then
-            continue
-          fi
-          field_value=${field_value:-$field_default}
-          if [[ -n "$field_value" ]]; then
-            config_json=$(python3 - "$config_json" "$field_key" "$field_value" <<'PY'
-import json, sys
-obj = json.loads(sys.argv[1])
-obj[sys.argv[2]] = sys.argv[3]
-print(json.dumps(obj))
-PY
-)
-          fi
-        done < <(python3 -c 'import json,sys; plugin=json.loads(sys.argv[1]); [print(json.dumps(x)) for x in plugin.get("optional_config", [])]' "$plugin_json")
-
-        python3 - "$name" "$repo_url" "$config_json" >> "$PLUGIN_TMP" <<'PY'
-import json, sys
-print(json.dumps({"name": sys.argv[1], "repo_url": sys.argv[2], "config": json.loads(sys.argv[3])}))
-PY
-      fi
-    done < <(python3 -c 'import json,sys; [print(json.dumps(x)) for x in json.load(open(sys.argv[1]))]' "$ROOT_DIR/data/plugin-catalog.json")
-
-    python3 - "$PLUGIN_TMP" > "$PLUGIN_STATE_JSON" <<'PY'
-import json, sys
-entries = []
-with open(sys.argv[1]) as f:
-    for line in f:
-        line = line.strip()
-        if line:
-            entries.append(json.loads(line))
-print(json.dumps({"plugins": entries}, indent=2))
-PY
-    ensure_private_file "$PLUGIN_STATE_JSON"
-    rm -f "$PLUGIN_TMP"
+    prompt_plugin_selection
   fi
 fi
 
@@ -445,51 +527,23 @@ CONFIG_CHANGED=false
 [[ "$BEFORE_ENV_HASH" != "$AFTER_ENV_HASH" ]] && ENV_CHANGED=true
 [[ "$BEFORE_CONFIG_HASH" != "$AFTER_CONFIG_HASH" ]] && CONFIG_CHANGED=true
 
-print_run_summary "$BEFORE_HEAD" "$AFTER_HEAD" "$ENV_CHANGED" "$CONFIG_CHANGED" "$PLUGINS_SELECTED_COUNT"
+load_runtime_password
 
-LOCAL_BASE_URL="http://localhost:10567"
 if (( REFRESH_ONLY )) || [[ "$BEFORE_HEAD" != "$AFTER_HEAD" ]] || [[ "$ENV_CHANGED" == true ]] || [[ "$CONFIG_CHANGED" == true ]]; then
   info "Rebuilding and recreating stavrobot containers"
   docker_compose_up_recreate "$STAVROBOT_DIR"
-  if [[ -n "$PASSWORD_FOR_READY" ]]; then
-    if wait_for_http_basic_auth "$LOCAL_BASE_URL/" "$PASSWORD_FOR_READY" 120; then
-      info "Stavrobot is responding at $LOCAL_BASE_URL"
-      if stavrobot_list_plugins "$LOCAL_BASE_URL" "$PASSWORD_FOR_READY" >/dev/null 2>&1; then
-        info "Plugin settings endpoint is reachable"
-      else
-        warn "Plugin settings endpoint check failed"
-      fi
-    else
-      die "Stavrobot did not become ready within timeout"
-    fi
-  fi
+  wait_for_stavrobot_ready
 else
   info "No rebuild needed"
+  if [[ -n "$PASSWORD_FOR_READY" ]]; then
+    wait_for_stavrobot_ready
+  fi
 fi
 
-if [[ -f "$PLUGIN_STATE_JSON" ]] && [[ -n "$PASSWORD_FOR_READY" ]] && (( !SKIP_PLUGINS )); then
-  while IFS= read -r plugin_entry; do
-    [[ -n "$plugin_entry" ]] || continue
-    plugin_name=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["name"])' "$plugin_entry")
-    plugin_repo=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["repo_url"])' "$plugin_entry")
-    plugin_config=$(python3 -c 'import json,sys; print(json.dumps(json.loads(sys.argv[1])["config"]))' "$plugin_entry")
-    info "Installing plugin $plugin_name"
-    install_response=$(stavrobot_install_plugin "$LOCAL_BASE_URL" "$PASSWORD_FOR_READY" "$plugin_repo" || true)
-    if ! printf '%s' "$install_response" | python3 -c 'import json,sys; data=json.load(sys.stdin); import sys as s; s.exit(0 if ("error" not in data or "already installed" in str(data.get("error",""))) else 1)'; then
-      printf '%s\n' "$install_response" >&2
-      die "Failed to install plugin $plugin_name"
-    fi
-    if [[ "$plugin_config" != "{}" ]]; then
-      info "Configuring plugin $plugin_name"
-      configure_response=$(stavrobot_configure_plugin "$LOCAL_BASE_URL" "$PASSWORD_FOR_READY" "$plugin_name" "$plugin_config" || true)
-      if ! printf '%s' "$configure_response" | python3 -c 'import json,sys; data=json.load(sys.stdin); import sys as s; s.exit(0 if "error" not in data else 1)'; then
-        printf '%s\n' "$configure_response" >&2
-        die "Failed to configure plugin $plugin_name"
-      fi
-    fi
-    ((PLUGINS_HANDLED+=1))
-  done < <(python3 -c 'import json,sys; [print(json.dumps(x)) for x in json.load(open(sys.argv[1])).get("plugins", [])]' "$PLUGIN_STATE_JSON")
+if (( !SKIP_PLUGINS )); then
+  run_plugins_from_state
 fi
 
-info "Handled $PLUGINS_HANDLED plugin(s)"
+print_run_summary "$BEFORE_HEAD" "$AFTER_HEAD" "$ENV_CHANGED" "$CONFIG_CHANGED" "$PLUGINS_SELECTED_COUNT" "$PLUGINS_HANDLED"
+print_next_steps "$PUBLIC_HOSTNAME_FINAL" "$CODER_ENABLED" "$SIGNAL_ENABLED" "$WHATSAPP_ENABLED"
 info "See README.md and IMPLEMENTATION_PLAN.md"

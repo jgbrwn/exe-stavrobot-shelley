@@ -125,3 +125,7 @@ While implementing Phase 1, we verified that current upstream Stavrobot exposes 
 ## Implemented increment
 
 The installer now supports Phase 1 core config generation plus a first pass at plugin prompting and plugin installation/configuration through Stavrobot's authenticated HTTP endpoints.
+
+## Hardening updates
+
+The installer now supports `--plugins-only`, reusing saved plugin state from `state/last-plugin-inputs.json`. Prompt handling for optional owner fields was also tightened so skipped values are omitted from generated config output.

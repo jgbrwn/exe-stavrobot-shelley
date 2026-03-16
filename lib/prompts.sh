@@ -74,3 +74,19 @@ prompt_multiline() {
   done
   printf '%s\n' "${lines[*]}" | sed 's/ /\n/g'
 }
+
+prompt_optional_text() {
+  local label="$1"
+  local current="${2-}"
+  local response
+  if [[ -n "$current" ]]; then
+    read -r -p "$label [$current]: " response
+  else
+    read -r -p "$label: " response
+  fi
+  if [[ "$response" == "SKIP" ]]; then
+    printf '__SKIP__\n'
+    return 0
+  fi
+  printf '%s\n' "$response"
+}
