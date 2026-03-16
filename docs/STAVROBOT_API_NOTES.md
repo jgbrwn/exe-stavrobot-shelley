@@ -109,3 +109,14 @@ The next missing piece after the successful session/history/events/message-id sp
 A concrete additive upstream proposal lives in:
 
 - `docs/STAVROBOT_UPSTREAM_API_PROPOSAL.md`
+
+## Shelley-side integration shape recommendation
+
+After inspecting the official Shelley repo, the cleanest likely Shelley-side integration shape is to treat Stavrobot as an optional higher-level conversation/runtime mode rather than as just another direct model/provider entry.
+
+That recommendation follows from two facts:
+
+1. Stavrobot exposes conversation/history/event behavior beyond a raw model call.
+2. Shelley already has a richer native conversation/message/display/media model that can present markdown, screenshots, and other structured artifacts usefully.
+
+So future Shelley-side work should likely integrate at the conversation/runtime layer and use the canonical bridge as the boundary.

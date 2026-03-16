@@ -168,3 +168,29 @@ Implications:
 4. The bridge/wrapper layer should avoid overfitting around plain-text-only output if Shelley can productively render richer results.
 
 That does not immediately require a new upstream Stavrobot API change, but it does mean future Shelley-side mode work should prefer preserving structured responses and screenshot references where practical.
+
+## Likely Shelley-side implementation seam
+
+A deeper disposable inspection of the official Shelley repo suggests the cleanest future integration seam is above the LLM model layer, not inside it.
+
+Why:
+
+- Shelley's existing model layer is for true LLM providers and custom model endpoints.
+- Stavrobot is not just another raw model endpoint; it is a higher-level agent service with conversation/history/events behavior.
+- Shelley already has a richer message/content model, display data, and multi-modal handling than a plain text transport wrapper would imply.
+
+So the most plausible future Shelley implementation shape is:
+
+1. add an optional Shelley-side conversation/runtime mode such as "Stavrobot mode"
+2. keep normal direct-to-LLM conversations unchanged
+3. when Stavrobot mode is enabled for a conversation or server instance, route user turns through `shelley-stavrobot-bridge.sh`
+4. map the returned Stavrobot data into Shelley's own message/display structures rather than pretending Stavrobot is merely a model provider
+
+This is especially important because Shelley already has meaningful native support for:
+
+- markdown-friendly rendering
+- screenshots and image content
+- tool/display metadata
+- conversation streaming/state infrastructure
+
+That means the eventual Shelley-side implementation should aim to preserve rich content opportunities instead of squeezing everything through a fake model abstraction too early.

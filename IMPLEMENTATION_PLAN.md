@@ -235,3 +235,21 @@ What is still missing before that implementation step:
 - the exact local checkout/build location this repo should manage for Shelley
 - the concrete artifact/state file format for storing the upstream Shelley hash used for a rebuild
 - the exact config toggle or runtime flag that will represent optional "Stavrobot mode"
+
+## Shelley mode implementation recommendation
+
+Based on disposable inspection of the official Shelley repo, the likely clean implementation seam is above Shelley's model/provider layer.
+
+Recommendation:
+
+- do not model Stavrobot as just another LLM provider inside Shelley
+- instead add an optional higher-level Shelley runtime/conversation mode that delegates turns to `shelley-stavrobot-bridge.sh`
+- then map Stavrobot responses, conversation IDs, history, events, and future rich artifacts into Shelley's own conversation/message/display model
+
+Why this is the cleaner fit:
+
+- Shelley's model layer is oriented around direct LLM services
+- Stavrobot is an agent service with its own conversation and event semantics
+- Shelley already has richer UI/message/media/display capabilities than a plain model transport abstraction captures well
+
+This recommendation should guide both the future Shelley spike work and the eventual installer-assisted rebuild path.
