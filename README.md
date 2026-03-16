@@ -40,8 +40,8 @@ Still manual in this track:
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`
 - the client chat spike produced a real successful LLM-backed response with OpenRouter using model `z-ai/glm-4.5-air:free`
-- the upstream spike now also returns real `conversation_id` values and exposes conversation listing/history/events
-- live runtime passes against the rebuilt stack also validated health, first chat, conversation listing, message history, second-turn continuation on the same `conversation_id`, and machine-readable tool-call/tool-result events
+- the upstream spike now also returns real `conversation_id` values, real chat `message_id` values, and exposes conversation listing/history/events
+- live runtime passes against the rebuilt stack also validated health, first chat, conversation listing, message history, second-turn continuation on the same `conversation_id`, machine-readable tool-call/tool-result events, and a chat `message_id` that matched persisted history
 
 ## Intended layout
 

@@ -39,7 +39,7 @@ Observed behavior from the spike:
 - `GET /api/client/conversations` returns machine-readable conversation summaries.
 - `GET /api/client/conversations/:conversation_id/messages` returns machine-readable history.
 - `GET /api/client/conversations/:conversation_id/events` returns machine-readable tool-call and tool-result events derived from stored messages.
-- `message_id` in the chat response is still placeholder `null` for now.
+- `POST /api/client/chat` now returns a real chat `message_id` in the spike implementation.
 
 A follow-up live runtime validation pass against the rebuilt local stack also confirmed:
 
@@ -49,6 +49,7 @@ A follow-up live runtime validation pass against the rebuilt local stack also co
 - `GET /api/client/conversations/conv_1/messages` returned real message history with `message_id` values such as `msg_35` and `msg_36`.
 - a second `POST /api/client/chat` reusing `conversation_id: "conv_1"` appended additional history as expected.
 - `GET /api/client/conversations/conv_1/events` returned machine-readable tool events including `tool_call` and `tool_result` entries with names such as `send_signal_message` and `manage_interlocutors`.
+- a later live validation pass confirmed `POST /api/client/chat` returned a real assistant `message_id` such as `msg_42`, and that same ID matched the persisted assistant message returned by the history endpoint.
 
 One operational nuance from live validation: after rebuilding the upstream test stack, the app container had to be force-recreated before the running service picked up the newly built conversation-route code. The real installer in this repo already does this correctly via `docker compose up -d --build --force-recreate`.
 
@@ -75,8 +76,7 @@ Because the OpenRouter key used for testing was pasted interactively during prio
 
 The next missing piece after the successful session/history spike is now narrower.
 
-1. Real `message_id` in `POST /api/client/chat`
-2. Any further client ergonomics discovered during Shelley integration
+1. Any further client ergonomics discovered during Shelley integration
 
 ## Recommended order now
 
@@ -84,7 +84,7 @@ The next missing piece after the successful session/history spike is now narrowe
 2. Preserve the additive upstream `/api/client/*` direction.
 3. Treat conversation IDs, conversation listing, and conversation history as validated upstream direction.
 4. Treat the read-only events endpoint as validated upstream direction.
-5. Add real chat `message_id` only when Shelley has a concrete use for it.
+5. Treat real chat `message_id` support as validated upstream direction too.
 
 ## Concrete proposal
 

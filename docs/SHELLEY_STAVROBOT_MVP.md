@@ -80,8 +80,9 @@ Phase 2 testing has now moved beyond pure planning:
 - the upstream spike now also includes conversation listing and conversation history endpoints
 - a live runtime pass then confirmed the rebuilt stack could return `conv_1`, list that conversation, fetch its messages, and continue the same conversation on a second chat turn
 - the next upstream increment was completed too: `GET /api/client/conversations/:conversation_id/events` now returns read-only tool-call/tool-result events and was also live-validated
+- real chat `message_id` support was then completed too: `POST /api/client/chat` now returns a real assistant message ID that matches persisted history
 
-That means the additive `/api/client/*` direction is now materially validated both in the spike and in a live running stack, including event visibility. The next likely upstream increment is real chat `message_id` support if Shelley needs it, while the local adapter in this repo remains the lowest-risk integration path today.
+That means the additive `/api/client/*` direction is now materially validated both in the spike and in a live running stack, including event visibility and real chat message IDs. The next likely work is just incremental client ergonomics if Shelley needs them, while the local adapter in this repo remains the lowest-risk integration path today.
 
 ## Decision
 
