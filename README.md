@@ -170,3 +170,7 @@ Design notes live in:
 Additional API notes for Shelley follow-up:
 
 - `docs/STAVROBOT_API_NOTES.md`
+
+Upstream API proposal for better Shelley support:
+
+- `docs/STAVROBOT_UPSTREAM_API_PROPOSAL.md`

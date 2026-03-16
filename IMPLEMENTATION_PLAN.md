@@ -180,3 +180,7 @@ Rationale:
 ## Shelley follow-up notes
 
 After the adapter MVP, prefer validating real Shelley workflows against existing `/chat` behavior before proposing Stavrobot API changes. Track current API observations and likely future asks in `docs/STAVROBOT_API_NOTES.md`.
+
+## Shelley upstream API proposal
+
+A first additive proposal for machine-oriented Stavrobot endpoints now lives in `docs/STAVROBOT_UPSTREAM_API_PROPOSAL.md`. The proposal intentionally preserves current `/chat` behavior and introduces a separate `/api/client/*` namespace for Shelley and similar clients.

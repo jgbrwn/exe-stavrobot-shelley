@@ -37,3 +37,9 @@ These are not blockers for the MVP adapter, but they are the likely next asks.
 1. Keep using the local adapter now.
 2. Validate actual Shelley workflows against `/chat`.
 3. Only then propose upstream API additions based on concrete pain points.
+
+## Concrete proposal
+
+A concrete additive upstream proposal now lives in:
+
+- `docs/STAVROBOT_UPSTREAM_API_PROPOSAL.md`

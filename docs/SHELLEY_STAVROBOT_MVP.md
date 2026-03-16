@@ -83,3 +83,9 @@ The first adapter hardening pass should prefer local improvements before upstrea
 - stdin support for piping prompts from other tools
 
 These are now implemented in `chat-with-stavrobot.sh`.
+
+## Next planning artifact
+
+The proposed additive upstream API surface is documented in:
+
+- `docs/STAVROBOT_UPSTREAM_API_PROPOSAL.md`
