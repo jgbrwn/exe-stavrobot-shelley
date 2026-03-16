@@ -209,7 +209,9 @@ read_message
 (( RETRIES >= 1 )) || die "--retries must be at least 1"
 
 PAYLOAD=$(build_payload)
-if ! RESPONSE=$(perform_request "$PAYLOAD"); then
+if RESPONSE=$(perform_request "$PAYLOAD"); then
+  :
+else
   status=$?
   if (( status == 2 )); then
     die "Could not reach Stavrobot at $BASE_URL"

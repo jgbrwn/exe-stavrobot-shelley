@@ -184,3 +184,7 @@ After the adapter MVP, prefer validating real Shelley workflows against existing
 ## Shelley upstream API proposal
 
 A first additive proposal for machine-oriented Stavrobot endpoints now lives in `docs/STAVROBOT_UPSTREAM_API_PROPOSAL.md`. The proposal intentionally preserves current `/chat` behavior and introduces a separate `/api/client/*` namespace for Shelley and similar clients.
+
+## Shelley adapter validation
+
+A small local harness now exists in `smoke-test-stavrobot-adapter.sh` to validate the current adapter path and common failure modes before attempting upstream Stavrobot API work.

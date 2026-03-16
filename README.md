@@ -174,3 +174,15 @@ Additional API notes for Shelley follow-up:
 Upstream API proposal for better Shelley support:
 
 - `docs/STAVROBOT_UPSTREAM_API_PROPOSAL.md`
+
+## Shelley adapter smoke tests
+
+Quick validation harness:
+
+```bash
+./smoke-test-stavrobot-adapter.sh --stavrobot-dir /opt/stavrobot
+```
+
+Docs:
+
+- `docs/SHELLEY_ADAPTER_SMOKE_TESTS.md`
