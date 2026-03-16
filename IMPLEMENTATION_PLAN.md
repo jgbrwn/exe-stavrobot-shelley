@@ -129,6 +129,7 @@ Important scope constraint for Shelley work:
 - "Shelley Stavrobot mode" should be optional.
 - When that mode is not enabled, Shelley should continue to behave as it did originally.
 - The Shelley rebuild should target one canonical local bridge rather than depending directly on every helper script.
+- The eventual installer flow must know how to enable/refresh that optional Shelley mode without forcing it on every install.
 
 ## Discovered upstream limitation
 
@@ -204,3 +205,31 @@ The main repo now includes several Shelley-side local layers:
 - `smoke-test-stavrobot-client.sh` to exercise health, chat, conversation listing, history, and events against a live stack
 
 This means the next Shelley rebuild step should wire only the canonical bridge into the optional Shelley Stavrobot mode, while leaving the lower-level helper scripts as implementation details and operator/debug tools.
+
+## Planned Shelley rebuild + installer wiring
+
+The repo does not yet contain the actual Shelley source tree or rebuild pipeline. So the current work establishes the local integration contract first.
+
+When Shelley rebuild automation is added, the intended shape should be:
+
+1. Installer remains primarily a Stavrobot installer.
+2. Shelley integration remains optional and explicit.
+3. Installer gains a Phase 2 Shelley-aware path such as:
+   - disabled by default
+   - optional `--with-shelley-stavrobot-mode`
+   - optional `--refresh-shelley-mode`
+4. That Shelley-aware path should:
+   - locate or update the Shelley source/rebuild target
+   - configure Shelley to expose an optional "Stavrobot mode"
+   - wire that mode to invoke only `shelley-stavrobot-bridge.sh`
+   - leave normal Shelley behavior unchanged when the mode is not enabled
+5. The installer should not need to know the lower-level wrapper details beyond ensuring the canonical bridge is present and usable.
+
+Practical consequence:
+- the shell wrappers created in this repo are preparing the contract for the future Shelley rebuild
+- the eventual installer wiring should enable or refresh that mode against the canonical bridge rather than reproduce the integration logic itself
+
+What is still missing before that implementation step:
+- the Shelley codebase or rebuild target to modify
+- the concrete build/release path for that Shelley variant
+- the exact config toggle or runtime flag that will represent optional "Stavrobot mode"

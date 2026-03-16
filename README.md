@@ -42,6 +42,7 @@ Still manual in this track:
 - `shelley-stavrobot-session.sh` is a lower-level stateful convenience wrapper that persists and reuses the last `conversation_id`
 - `smoke-test-stavrobot-client.sh` validates the local client surface against the running stack
 - the intended future rebuild shape remains an optional Shelley "Stavrobot mode"; if that mode is not enabled, Shelley should continue behaving as before
+- the eventual installer follow-up should gain an explicit optional Shelley-aware rebuild/update path rather than making Shelley mode part of every normal install
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`
 - the client chat spike produced a real successful LLM-backed response with OpenRouter using model `z-ai/glm-4.5-air:free`

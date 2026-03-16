@@ -140,3 +140,17 @@ These are now implemented across `chat-with-stavrobot.sh`, `client-stavrobot.sh`
 The proposed additive upstream API surface is documented in:
 
 - `docs/STAVROBOT_UPSTREAM_API_PROPOSAL.md`
+
+## Installer wiring implications
+
+This repo still does not contain the actual Shelley source tree, so the current bridge/wrapper work is not the rebuild itself. It is the contract the rebuild should target later.
+
+That means the installer and rebuild story should eventually converge like this:
+
+1. `install-stavrobot.sh` remains the normal default path for Stavrobot deployment/update.
+2. A later optional installer path can enable or refresh Shelley "Stavrobot mode".
+3. That installer path should rebuild or refresh Shelley only when that optional mode is requested.
+4. The Shelley rebuild should call only `shelley-stavrobot-bridge.sh` for Stavrobot interaction.
+5. The installer should not duplicate lower-level client/session logic that already lives behind the canonical bridge.
+
+So the bridge/wrapper work is not drifting away from the installer plan. It is defining the stable local contract that the future installer-assisted Shelley rebuild should consume.
