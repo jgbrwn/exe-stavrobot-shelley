@@ -78,8 +78,9 @@ Phase 2 testing has now moved beyond pure planning:
 - the successful live model used in testing was `z-ai/glm-4.5-air:free`
 - the upstream spike now also includes real `conversation_id` support
 - the upstream spike now also includes conversation listing and conversation history endpoints
+- a live runtime pass then confirmed the rebuilt stack could return `conv_1`, list that conversation, fetch its messages, and continue the same conversation on a second chat turn
 
-That means the additive `/api/client/*` direction is now materially validated. The next likely upstream increment is event/trace visibility if Shelley needs it, while the local adapter in this repo remains the lowest-risk integration path today.
+That means the additive `/api/client/*` direction is now materially validated both in the spike and in a live running stack. The next likely upstream increment is event/trace visibility if Shelley needs it, while the local adapter in this repo remains the lowest-risk integration path today.
 
 ## Decision
 

@@ -41,6 +41,7 @@ Still manual in this track:
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, and `GET /api/client/conversations/:conversation_id/messages`
 - the client chat spike produced a real successful LLM-backed response with OpenRouter using model `z-ai/glm-4.5-air:free`
 - the upstream spike now also returns real `conversation_id` values and exposes conversation listing/history
+- a live runtime pass against the rebuilt stack also validated health, first chat, conversation listing, message history, and a second chat reusing the same `conversation_id`
 
 ## Intended layout
 

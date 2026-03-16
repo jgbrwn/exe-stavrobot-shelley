@@ -39,6 +39,16 @@ Observed behavior from the spike:
 - `GET /api/client/conversations/:conversation_id/messages` returns machine-readable history.
 - `message_id` in the chat response is still placeholder `null` for now.
 
+A follow-up live runtime validation pass against the rebuilt local stack also confirmed:
+
+- `GET /api/client/health` returned `ok: true` with provider `openrouter` and model `z-ai/glm-4.5-air:free`.
+- the first `POST /api/client/chat` returned `conversation_id: "conv_1"`.
+- `GET /api/client/conversations` included that same `conversation_id`.
+- `GET /api/client/conversations/conv_1/messages` returned real message history with `message_id` values such as `msg_35` and `msg_36`.
+- a second `POST /api/client/chat` reusing `conversation_id: "conv_1"` appended additional history as expected.
+
+One operational nuance from live validation: after rebuilding the upstream test stack, the app container had to be force-recreated before the running service picked up the newly built conversation-route code.
+
 ### OpenRouter compatibility finding
 
 A real live test against Stavrobot with provider `openrouter` succeeded without any Stavrobot patching.
