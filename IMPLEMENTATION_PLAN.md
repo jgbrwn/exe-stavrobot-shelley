@@ -125,6 +125,11 @@ Current Phase 2 starting points:
 - Keep Cloudflare Email Routing rule creation manual for now
 - Start Shelley integration with a thin adapter over existing Stavrobot `/chat` behavior
 
+Important scope constraint for Shelley work:
+- "Shelley Stavrobot mode" should be optional.
+- When that mode is not enabled, Shelley should continue to behave as it did originally.
+- The Shelley rebuild should target one canonical local bridge rather than depending directly on every helper script.
+
 ## Discovered upstream limitation
 
 While implementing Phase 1, we verified that current upstream Stavrobot exposes `provider`, `model`, `apiKey`, and `authFile` in `config.toml`, but no explicit base-URL field for arbitrary OpenAI-compatible endpoints. The installer can still present OpenRouter free-model suggestions and collect generic provider details, but full arbitrary OpenAI-compatible endpoint setup may require upstream Stavrobot changes in Phase 2.
@@ -191,4 +196,11 @@ A small local harness exists in `smoke-test-stavrobot-adapter.sh` to validate th
 
 ## Shelley client validation
 
-The main repo now also includes `client-stavrobot.sh` as a local wrapper around the validated `/api/client/*` surface, `shelley-stavrobot-session.sh` as a tiny stateful conversation helper, and `smoke-test-stavrobot-client.sh` to exercise health, chat, conversation listing, history, and events against a live stack.
+The main repo now includes several Shelley-side local layers:
+
+- `client-stavrobot.sh` as the lower-level wrapper around the validated `/api/client/*` surface
+- `shelley-stavrobot-session.sh` as a tiny stateful conversation helper
+- `shelley-stavrobot-bridge.sh` as the canonical Shelley-facing bridge for future rebuild work
+- `smoke-test-stavrobot-client.sh` to exercise health, chat, conversation listing, history, and events against a live stack
+
+This means the next Shelley rebuild step should wire only the canonical bridge into the optional Shelley Stavrobot mode, while leaving the lower-level helper scripts as implementation details and operator/debug tools.

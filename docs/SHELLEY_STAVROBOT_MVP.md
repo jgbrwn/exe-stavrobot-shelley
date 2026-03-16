@@ -98,6 +98,27 @@ That gives Shelley one preferred integration target while still preserving lower
 Start Shelley integration with the adapter script first.
 Do not block on upstream Stavrobot changes.
 
+## Original rebuild intent and current alignment
+
+The original intent for a future Shelley rebuild was not to permanently turn Shelley into Stavrobot. It was to add an optional Shelley "Stavrobot mode" while preserving normal Shelley behavior when that mode is not enabled.
+
+What we have learned since then fits that intent well:
+
+- Shelley should not need to know every helper script individually.
+- Shelley should target one canonical local integration surface.
+- That canonical surface is now `shelley-stavrobot-bridge.sh`.
+- Lower-level scripts remain useful for debugging, smoke tests, and manual operator workflows.
+- The existing `chat-with-stavrobot.sh` path remains a conservative fallback.
+
+That means the next actual rebuild step should look like this:
+
+1. add an explicit optional Shelley "Stavrobot mode"
+2. keep existing Shelley behavior unchanged when that mode is off
+3. when the mode is on, have Shelley invoke `shelley-stavrobot-bridge.sh`
+4. keep the lower-level wrappers out of Shelley's primary integration contract
+
+In other words, the bridge/wrapper work did not change the original intent. It clarified how to implement that intent cleanly.
+
 ## Adapter hardening notes
 
 The first adapter hardening pass should prefer local improvements before upstream changes:
