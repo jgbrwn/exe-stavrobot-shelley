@@ -120,3 +120,22 @@ That recommendation follows from two facts:
 2. Shelley already has a richer native conversation/message/display/media model that can present markdown, screenshots, and other structured artifacts usefully.
 
 So future Shelley-side work should likely integrate at the conversation/runtime layer and use the canonical bridge as the boundary.
+
+## Memory and recall implication for Shelley mode
+
+Per-conversation Shelley↔Stavrobot mode should not be confused with global memory by itself.
+
+The validated Stavrobot surface already makes some broader recall possible because Shelley can:
+
+- list Stavrobot conversations
+- fetch message history for a chosen conversation
+- inspect events for a chosen conversation
+
+So a future Shelley-side "remember when we did X?" workflow could plausibly work by:
+
+1. recognizing that the request is about older/global recall
+2. enumerating or selecting relevant Stavrobot conversations
+3. pulling history from one or more of them
+4. using that retrieved material to answer in the current Shelley conversation
+
+But that is a separate retrieval/memory behavior layered on top of per-conversation continuation. The current validated Stavrobot surface does not yet provide a dedicated global search or semantic memory API for that.

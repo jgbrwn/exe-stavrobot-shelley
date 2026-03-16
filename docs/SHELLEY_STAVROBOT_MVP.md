@@ -194,3 +194,63 @@ This is especially important because Shelley already has meaningful native suppo
 - conversation streaming/state infrastructure
 
 That means the eventual Shelley-side implementation should aim to preserve rich content opportunities instead of squeezing everything through a fake model abstraction too early.
+
+## Server-wide vs per-conversation mode
+
+After inspecting the official Shelley repo more deeply, per-conversation mode now looks like the cleaner likely target.
+
+Why per-conversation mode fits better:
+
+1. Shelley already stores extensible `conversation_options` JSON on each conversation.
+2. Shelley already treats conversations as durable first-class objects with their own state and metadata.
+3. A per-conversation mode preserves normal Shelley behavior in other conversations without needing a whole separate Shelley instance.
+4. It maps naturally to a future UI toggle like "use Stavrobot for this conversation".
+
+Why server-wide mode is still simpler but weaker:
+
+- simpler to implement first
+- easier to reason about operationally
+- but forces one behavior for all conversations in that Shelley instance
+- and fits Shelley's conversation-centric architecture less well
+
+Current recommendation:
+
+- long-term preferred shape: per-conversation optional Stavrobot mode
+- possible first spike shape: server-wide mode if that is materially easier to validate
+- but even a server-wide spike should be evaluated as a stepping stone toward per-conversation mode, not necessarily the final shape
+
+## Cross-conversation memory question
+
+A good question is whether per-conversation mode would make Shelley too narrow: if one conversation is tied to one Stavrobot conversation, can Shelley still answer questions like "remember when we did X two weeks ago?"
+
+Based on what we have validated so far, the answer is: potentially yes, but not automatically yet.
+
+What the current validated Stavrobot surface already gives us:
+
+- conversation listing
+- conversation message history
+- conversation events
+- stable conversation IDs
+- stable message IDs
+
+What that means:
+
+1. Per-conversation mode can cleanly preserve local continuity for an active thread.
+2. Cross-conversation recall could be layered on top by searching/listing/selecting other Stavrobot conversations when needed.
+3. That broader recall is conceptually different from ordinary within-thread continuation, so it should be treated as an additional memory/retrieval behavior, not assumed to happen for free.
+
+Most likely practical design:
+
+- normal per-conversation Stavrobot mode continues one mapped Stavrobot conversation
+- when the user asks for older/global recall, Shelley may need an explicit retrieval step over Stavrobot conversation history
+- that retrieval step could later use Stavrobot conversation listing/history and possibly message-content search if such ergonomics are added
+
+Important caveat:
+
+- the currently validated Stavrobot client surface includes listing and history retrieval, but not dedicated semantic/global memory search yet
+- so "remember when we did X weeks ago" is feasible as a future retrieval workflow, but not something we should pretend is solved purely by per-conversation mode alone
+
+That suggests the right mental model is:
+
+- per-conversation mode handles active thread continuity
+- cross-conversation recall is a separate memory/retrieval feature that can be layered on top later

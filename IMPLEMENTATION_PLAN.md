@@ -253,3 +253,19 @@ Why this is the cleaner fit:
 - Shelley already has richer UI/message/media/display capabilities than a plain model transport abstraction captures well
 
 This recommendation should guide both the future Shelley spike work and the eventual installer-assisted rebuild path.
+
+## Per-conversation mode and memory recommendation
+
+Official Shelley's existing conversation architecture suggests that optional Stavrobot mode should likely be stored per conversation rather than only as a server-wide switch.
+
+Recommendation:
+
+- use per-conversation mode as the target design
+- allow a simpler broader-scope spike only if it meaningfully reduces initial validation cost
+- keep in mind that active-thread continuity and global historical recall are different capabilities
+
+Implication for memory:
+
+- mapping one Shelley conversation to one Stavrobot conversation handles active continuity well
+- broader "remember when we did X weeks ago" behavior likely requires an additional retrieval layer over Stavrobot conversation listing/history
+- the currently validated Stavrobot API surface is sufficient for basic explicit retrieval workflows, but not yet for dedicated semantic/global memory search
