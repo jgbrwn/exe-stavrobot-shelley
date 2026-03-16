@@ -236,6 +236,85 @@ What is still missing before that implementation step:
 - the concrete artifact/state file format for storing the upstream Shelley hash used for a rebuild
 - the exact config toggle or runtime flag that will represent optional "Stavrobot mode"
 
+## Minimal per-conversation Shelley metadata recommendation
+
+For the likely per-conversation Shelley implementation, the first rebuild should keep the stored metadata small and explicit.
+
+Recommended minimum conversation-scoped shape:
+
+- `mode = "stavrobot"`
+- `stavrobot.enabled = true`
+- `stavrobot.conversation_id = "conv_<id>"`
+- `stavrobot.last_message_id = "msg_<id>"` when known
+- `stavrobot.bridge_profile = "local-default"`
+
+Rationale:
+
+- `mode` or equivalent conversation option enables the alternate runtime path cleanly
+- `conversation_id` is the durable mapping needed for normal continuation
+- `last_message_id` is useful as a sync/checkpoint hint without becoming mandatory for every turn
+- `bridge_profile` lets Shelley refer to an installer-managed local integration profile without embedding secrets or raw auth details inside conversation metadata
+
+Important limits for the first version:
+
+- keep secrets out of conversation metadata
+- do not require raw per-conversation base URLs if one installer-managed local bridge profile is enough
+- treat cross-conversation recall as separate from the active conversation mapping
+- continue treating `shelley-stavrobot-bridge.sh` as the only supported local contract
+
+## Long-running conversation and context-window recommendation
+
+A single Shelley conversation could reasonably remain mapped to one Stavrobot conversation for a very long time.
+
+That does not necessarily make Shelley slow if Stavrobot mode is implemented correctly.
+
+Key distinction:
+
+- in ordinary Shelley direct-model mode, a context indicator may reflect Shelley/provider prompt pressure
+- in Shelley Stavrobot mode, the active durable context should primarily live in Stavrobot, not in a repeatedly replayed Shelley-side transcript
+
+So the recommended behavior is:
+
+1. do not assume Shelley's ordinary direct-model context gauge is the authoritative measure in Stavrobot mode
+2. avoid implementing Stavrobot mode in a way that resends the full Shelley transcript through a normal model-provider path every turn
+3. prefer a mode-specific UI state such as "context managed by Stavrobot" unless or until Stavrobot exposes a meaningful context/window metric
+4. if Stavrobot later exposes a real estimate, Shelley can render a separate mode-aware gauge rather than a misleading direct-model one
+
+Operationally, this reinforces the higher-level runtime-mode design:
+
+- Shelley is the frontend and renderer
+- Stavrobot owns the active conversation state
+- long-lived conversation viability depends more on Stavrobot's own context/retrieval strategy than on the mere age or length of the Shelley conversation object
+
+## Installer-managed rebuild mapping
+
+The later installer-managed Shelley rebuild path should map to that metadata shape conservatively.
+
+Recommended installer responsibilities:
+
+1. fetch or refresh a local Shelley checkout from upstream
+2. record the upstream Shelley commit/hash used for the custom rebuild
+3. build a Shelley variant that understands the per-conversation `mode = "stavrobot"` metadata shape
+4. ensure that Stavrobot-mode conversations invoke only `shelley-stavrobot-bridge.sh`
+5. install or refresh one or more local bridge profiles outside conversation metadata
+6. leave normal Shelley conversations untouched when the mode is not enabled
+
+Recommended installer-managed local state shape later:
+
+- a rebuild status file recording at least:
+  - upstream Shelley repo URL
+  - upstream Shelley commit/hash built
+  - local rebuild timestamp
+  - local bridge script path
+  - available bridge profile names
+
+That separation is important:
+
+- conversation metadata answers "should this conversation use Stavrobot and which remote conversation is it mapped to?"
+- installer-managed rebuild state answers "which Shelley source was rebuilt locally and which local bridge profile(s) exist?"
+
+This keeps per-conversation mode lightweight while still giving the installer enough information to detect stale Shelley rebuilds and refresh them deliberately.
+
 ## Shelley mode implementation recommendation
 
 Based on disposable inspection of the official Shelley repo, the likely clean implementation seam is above Shelley's model/provider layer.

@@ -254,3 +254,77 @@ That suggests the right mental model is:
 
 - per-conversation mode handles active thread continuity
 - cross-conversation recall is a separate memory/retrieval feature that can be layered on top later
+
+## Minimal per-conversation metadata shape
+
+Given Shelley's existing `conversation_options` extensibility, the minimal Shelley-side shape for optional Stavrobot mode should stay small and conversation-scoped.
+
+Recommended minimum stored per Shelley conversation:
+
+```json
+{
+  "mode": "stavrobot",
+  "stavrobot": {
+    "enabled": true,
+    "conversation_id": "conv_123",
+    "last_message_id": "msg_456",
+    "bridge_profile": "local-default"
+  }
+}
+```
+
+Practical meaning of each field:
+
+- `mode = "stavrobot"`
+  - the conversation should route turns through the Stavrobot integration path rather than Shelley's ordinary direct model flow
+- `stavrobot.enabled = true`
+  - explicit boolean guard so Shelley can distinguish between stored historical metadata and active mode
+- `stavrobot.conversation_id`
+  - the mapped remote Stavrobot conversation for ordinary continuation
+- `stavrobot.last_message_id`
+  - optional sync/checkpoint hint for incremental history/event fetches and UI refresh behavior
+- `stavrobot.bridge_profile`
+  - stable local profile name, not raw credentials, describing which installer-managed bridge/base-url/auth bundle this conversation should use
+
+Recommended non-goals for the minimal shape:
+
+- do not store Stavrobot Basic Auth secrets inside Shelley conversation metadata
+- do not store raw base URLs per conversation unless a later real multi-backend use case demands it
+- do not overload the per-conversation mapping with cross-conversation memory state
+- do not assume the metadata itself is the source of truth for all context; Stavrobot remains the source of truth for the mapped remote thread
+
+A slightly richer but still reasonable optional shape later could add:
+
+- `source`
+- `sender`
+- `last_history_sync_at`
+- `last_event_sync_at`
+- `retrieval_enabled`
+
+But those should be treated as follow-on fields, not required for the first rebuild.
+
+## Long-running conversation implication
+
+A user absolutely could keep one Shelley conversation alive for a very long time.
+
+That is not inherently a problem if the Shelley-side Stavrobot mode is implemented as a frontend mapping to a durable Stavrobot conversation rather than as a giant local prompt transcript that Shelley keeps resending to a model provider each turn.
+
+Important distinction:
+
+- Shelley UI conversation length is not automatically the same thing as direct LLM prompt length
+- in Stavrobot mode, the durable active context should primarily live in Stavrobot's own conversation state and history
+- Shelley should avoid needing to replay the full historical transcript through its normal direct-model path on every turn
+
+So the context-pressure question changes:
+
+- the main scaling concern is Stavrobot's own context/window and retrieval behavior
+- not whether the Shelley conversation row has existed for months
+
+That means Shelley's built-in context indicator should probably be treated carefully in Stavrobot mode:
+
+- it may still be useful as a UI signal if Shelley can compute or estimate something meaningful
+- but it should not pretend Shelley's ordinary direct-provider token accounting is the source of truth when Stavrobot owns the active context
+- if Shelley cannot measure real Stavrobot context usage yet, the safest first version is to show a mode-specific indicator such as "external context managed by Stavrobot" rather than a fake precise gauge
+- if a later Stavrobot API exposes usable context/window estimates, Shelley could then render a more meaningful mode-specific gauge
+
+So: yes, one long-lived conversation is plausible, and no, that does not by itself imply Shelley becomes too slow, provided Shelley treats Stavrobot mode as remote conversation continuation rather than local transcript replay.
