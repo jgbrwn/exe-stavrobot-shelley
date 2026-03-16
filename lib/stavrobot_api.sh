@@ -18,3 +18,9 @@ stavrobot_api_request() {
       "$base_url$path"
   fi
 }
+
+stavrobot_list_plugins() {
+  local base_url="$1"
+  local password="$2"
+  stavrobot_api_request "$base_url" "$password" GET "/api/settings/plugins/list"
+}

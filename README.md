@@ -6,7 +6,8 @@ Phase 1 installer project for deploying and updating [stavrobot](https://github.
 
 - Pull latest upstream stavrobot first
 - Interactively generate `.env` and `data/main/config.toml`
-- Support Anthropic and generic OpenAI-compatible providers
+- Support Anthropic directly today
+- Surface OpenRouter free-model suggestions and gather generic OpenAI-compatible details for future/upstream-compatible setups
 - Live-fetch current OpenRouter free models as suggestions
 - Start/rebuild Stavrobot with Docker Compose
 - Collect plugin config values up front, then install/configure plugins against the running app
@@ -37,3 +38,18 @@ Phase 1 installer project for deploying and updating [stavrobot](https://github.
 ## Status
 
 Planning and scaffold phase.
+
+## Current implementation status
+
+Implemented so far:
+
+- Upstream Stavrobot repo validation and `git pull --ff-only`
+- OpenRouter free-model fetch and local caching
+- Interactive core config prompts
+- Clean generation of `.env` and `data/main/config.toml`
+- Docker Compose rebuild/recreate on change
+- Basic authenticated readiness check against Stavrobot
+
+Next step:
+
+- Interactive plugin selection plus install/configure flow against the running Stavrobot instance

@@ -44,3 +44,32 @@ mask_secret() {
     printf '%s****%s' "${value:0:2}" "${value: -2}"
   fi
 }
+
+json_get() {
+  local file="$1"
+  local path="$2"
+  python3 - "$file" "$path" <<'PY'
+import json, sys
+from functools import reduce
+file_path, path = sys.argv[1], sys.argv[2]
+with open(file_path) as f:
+    data = json.load(f)
+cur = data
+for part in path.split('.'):
+    if part == '':
+        continue
+    if isinstance(cur, dict) and part in cur:
+        cur = cur[part]
+    else:
+        print('')
+        raise SystemExit(0)
+if isinstance(cur, bool):
+    print('true' if cur else 'false')
+elif cur is None:
+    print('')
+elif isinstance(cur, (dict, list)):
+    print(json.dumps(cur))
+else:
+    print(cur)
+PY
+}

@@ -117,3 +117,7 @@ Soft warn on:
 - Shelley "Stavrobot mode"
 - Optional Stavrobot history/events API work to support Shelley as a better frontend
 - Shelley rebuild automation
+
+## Discovered upstream limitation
+
+While implementing Phase 1, we verified that current upstream Stavrobot exposes `provider`, `model`, `apiKey`, and `authFile` in `config.toml`, but no explicit base-URL field for arbitrary OpenAI-compatible endpoints. The installer can still present OpenRouter free-model suggestions and collect generic provider details, but full arbitrary OpenAI-compatible endpoint setup may require upstream Stavrobot changes in Phase 2.

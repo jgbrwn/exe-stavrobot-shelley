@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import json
-import os
 import sys
+import tomllib
 from pathlib import Path
 
 
@@ -18,12 +18,22 @@ def parse_env(path: Path) -> dict:
     return data
 
 
+def parse_toml(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    return tomllib.loads(path.read_text())
+
+
 def main() -> int:
-    if len(sys.argv) != 3:
-        raise SystemExit('usage: load_current_config.py ENV_PATH CURRENT_ENV_PATH')
-    example = parse_env(Path(sys.argv[1]))
-    current = parse_env(Path(sys.argv[2]))
-    print(json.dumps({"example": example, "current": current}, indent=2))
+    if len(sys.argv) != 5:
+        raise SystemExit('usage: load_current_config.py ENV_EXAMPLE ENV_CURRENT TOML_EXAMPLE TOML_CURRENT')
+    payload = {
+        'env_example': parse_env(Path(sys.argv[1])),
+        'env_current': parse_env(Path(sys.argv[2])),
+        'toml_example': parse_toml(Path(sys.argv[3])),
+        'toml_current': parse_toml(Path(sys.argv[4])),
+    }
+    print(json.dumps(payload, indent=2))
     return 0
 
 
