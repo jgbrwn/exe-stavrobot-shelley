@@ -11,6 +11,10 @@ PASSWORD=""
 MESSAGE=""
 SOURCE=""
 SENDER=""
+CONNECT_TIMEOUT=10
+REQUEST_TIMEOUT=300
+RETRIES=1
+RETRY_DELAY=2
 RAW_JSON=0
 
 usage() {
@@ -25,8 +29,20 @@ Flags:
   --message TEXT         Message to send; if omitted, read stdin
   --source NAME          Optional source field for /chat
   --sender NAME          Optional sender field for /chat
+  --connect-timeout SEC  Curl connect timeout in seconds (default: 10)
+  --request-timeout SEC  Total request timeout in seconds (default: 300)
+  --retries COUNT        Retry count on transport failure (default: 1)
+  --retry-delay SEC      Sleep between retries (default: 2)
   --raw-json             Print raw JSON response
   --help
+EOF
+}
+
+json_quote() {
+  python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"
+}
+
+resolve_config_path() {
 EOF
 }
 
@@ -73,6 +89,53 @@ print(json.dumps(payload))
 PY
 }
 
+request_once() {
+  local payload="$1"
+  local body_file http_code
+  body_file=$(mktemp)
+  http_code=$(curl -sS \
+    --connect-timeout "$CONNECT_TIMEOUT" \
+    --max-time "$REQUEST_TIMEOUT" \
+    -u "installer:$PASSWORD" \
+    -H 'Content-Type: application/json' \
+    -d "$payload" \
+    -o "$body_file" \
+    -w '%{http_code}' \
+    "$BASE_URL/chat") || {
+      rm -f "$body_file"
+      return 2
+    }
+  printf '%s\n%s\n' "$http_code" "$body_file"
+}
+
+perform_request() {
+  local payload="$1"
+  local attempt=1
+  local result http_code body_file
+  while (( attempt <= RETRIES )); do
+    result=$(request_once "$payload") || {
+      if (( attempt == RETRIES )); then
+        return 2
+      fi
+      warn "Transport failure talking to Stavrobot; retrying ($attempt/$RETRIES)"
+      sleep "$RETRY_DELAY"
+      ((attempt+=1))
+      continue
+    }
+    http_code=$(printf '%s' "$result" | sed -n '1p')
+    body_file=$(printf '%s' "$result" | sed -n '2p')
+    if [[ "$http_code" =~ ^2 ]]; then
+      cat "$body_file"
+      rm -f "$body_file"
+      return 0
+    fi
+    warn "Stavrobot returned HTTP $http_code"
+    cat "$body_file" >&2
+    rm -f "$body_file"
+    return 1
+  done
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --stavrobot-dir)
@@ -103,6 +166,22 @@ while [[ $# -gt 0 ]]; do
       SENDER="$2"
       shift 2
       ;;
+    --connect-timeout)
+      CONNECT_TIMEOUT="$2"
+      shift 2
+      ;;
+    --request-timeout)
+      REQUEST_TIMEOUT="$2"
+      shift 2
+      ;;
+    --retries)
+      RETRIES="$2"
+      shift 2
+      ;;
+    --retry-delay)
+      RETRY_DELAY="$2"
+      shift 2
+      ;;
     --raw-json)
       RAW_JSON=1
       shift
@@ -123,12 +202,20 @@ resolve_config_path
 load_password_from_config
 read_message
 [[ -n "$PASSWORD" ]] || die "Could not determine Stavrobot password"
+[[ "$CONNECT_TIMEOUT" =~ ^[0-9]+$ ]] || die "--connect-timeout must be an integer"
+[[ "$REQUEST_TIMEOUT" =~ ^[0-9]+$ ]] || die "--request-timeout must be an integer"
+[[ "$RETRIES" =~ ^[0-9]+$ ]] || die "--retries must be an integer"
+[[ "$RETRY_DELAY" =~ ^[0-9]+$ ]] || die "--retry-delay must be an integer"
+(( RETRIES >= 1 )) || die "--retries must be at least 1"
 
 PAYLOAD=$(build_payload)
-RESPONSE=$(curl -fsS -u "installer:$PASSWORD" \
-  -H 'Content-Type: application/json' \
-  -d "$PAYLOAD" \
-  "$BASE_URL/chat")
+if ! RESPONSE=$(perform_request "$PAYLOAD"); then
+  status=$?
+  if (( status == 2 )); then
+    die "Could not reach Stavrobot at $BASE_URL"
+  fi
+  die "Stavrobot request failed"
+fi
 
 if (( RAW_JSON )); then
   printf '%s\n' "$RESPONSE"

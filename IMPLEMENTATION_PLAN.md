@@ -176,3 +176,7 @@ Rationale:
 - This gives Shelley an immediate, low-risk integration surface.
 - It avoids blocking on upstream conversation/history/event APIs.
 - It keeps the first Shelley increment concrete and testable.
+
+## Shelley follow-up notes
+
+After the adapter MVP, prefer validating real Shelley workflows against existing `/chat` behavior before proposing Stavrobot API changes. Track current API observations and likely future asks in `docs/STAVROBOT_API_NOTES.md`.

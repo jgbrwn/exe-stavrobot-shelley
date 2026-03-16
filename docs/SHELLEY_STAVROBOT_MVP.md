@@ -71,3 +71,15 @@ If Shelley proves valuable as a frontend, the next likely Stavrobot API addition
 
 Start Shelley integration with the adapter script first.
 Do not block on upstream Stavrobot changes.
+
+## Adapter hardening notes
+
+The first adapter hardening pass should prefer local improvements before upstream changes:
+
+- configurable base URL
+- configurable connect/request timeouts
+- retry behavior for transport failures
+- raw JSON debug mode
+- stdin support for piping prompts from other tools
+
+These are now implemented in `chat-with-stavrobot.sh`.

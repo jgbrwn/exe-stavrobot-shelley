@@ -156,6 +156,17 @@ printf 'Summarize the last deployment status' | ./chat-with-stavrobot.sh --stavr
 
 By default the script prints only Stavrobot's `response` field. Use `--raw-json` to inspect the full API response.
 
+Useful adapter flags:
+
+- `--connect-timeout`
+- `--request-timeout`
+- `--retries`
+- `--retry-delay`
+
 Design notes live in:
 
 - `docs/SHELLEY_STAVROBOT_MVP.md`
+
+Additional API notes for Shelley follow-up:
+
+- `docs/STAVROBOT_API_NOTES.md`
