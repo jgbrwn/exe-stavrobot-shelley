@@ -348,3 +348,118 @@ Implication for memory:
 - mapping one Shelley conversation to one Stavrobot conversation handles active continuity well
 - broader "remember when we did X weeks ago" behavior likely requires an additional retrieval layer over Stavrobot conversation listing/history
 - the currently validated Stavrobot API surface is sufficient for basic explicit retrieval workflows, but not yet for dedicated semantic/global memory search
+
+
+## Draft installer-managed Shelley rebuild state
+
+To support optional Shelley rebuilds without overloading conversation metadata, the installer should eventually own a separate local state file for Shelley-mode rebuild tracking.
+
+A practical first file could be something like:
+
+- `state/shelley-mode-build.json`
+
+Recommended draft shape:
+
+```json
+{
+  "schema_version": 1,
+  "managed_by": "exe-stavrobot-shelley",
+  "shelley": {
+    "repo_url": "https://github.com/boldsoftware/shelley",
+    "branch": "main",
+    "upstream_commit": "5b072309d8a086b6a4fe8a550b473c5805d73ae5",
+    "checkout_path": "/opt/shelley",
+    "binary_path": "/opt/shelley/bin/shelley",
+    "rebuilt_at": "2025-01-01T12:34:56Z"
+  },
+  "stavrobot_mode": {
+    "enabled_in_build": true,
+    "bridge_script": "/opt/stavrobot-installer/shelley-stavrobot-bridge.sh",
+    "profiles": {
+      "local-default": {
+        "base_url": "http://localhost:8000",
+        "config_path": "/opt/stavrobot/data/main/config.toml"
+      }
+    }
+  }
+}
+```
+
+Why this file should exist separately from Shelley conversation data:
+
+- it records rebuild provenance and staleness information
+- it records installer-managed local bridge profile definitions
+- it avoids putting machine-local filesystem paths and auth-related config locations into per-conversation metadata
+- it lets many Shelley conversations reference one shared local bridge profile cleanly
+
+Recommended minimum fields:
+
+- `schema_version`
+- `managed_by`
+- `shelley.repo_url`
+- `shelley.branch`
+- `shelley.upstream_commit`
+- `shelley.checkout_path`
+- `shelley.binary_path`
+- `shelley.rebuilt_at`
+- `stavrobot_mode.enabled_in_build`
+- `stavrobot_mode.bridge_script`
+- `stavrobot_mode.profiles`
+
+Recommended staleness logic later:
+
+1. installer fetches remote Shelley upstream HEAD for the tracked branch
+2. compare remote HEAD to `shelley.upstream_commit`
+3. if equal, the local Shelley-mode rebuild is probably current from an upstream-source perspective
+4. if different, offer or perform `--refresh-shelley-mode`
+5. if the bridge path or selected profile definitions changed materially, treat that as a local rebuild/profile refresh trigger too
+
+Recommended profile semantics:
+
+- conversation metadata stores only a profile name such as `local-default`
+- installer-managed rebuild state resolves that profile name into machine-local config such as:
+  - base URL
+  - config path or stavrobot dir
+  - optional timeout defaults later
+- secrets should still preferably live in the Stavrobot config itself, not duplicated into this state file unless absolutely necessary
+
+Recommended future extension fields if needed:
+
+- `shelley.local_patch_commit`
+- `shelley.build_command`
+- `shelley.service_name`
+- `stavrobot_mode.default_profile`
+- `stavrobot_mode.profile_env`
+- `stavrobot_mode.bridge_version`
+
+But the minimal file should stay focused on provenance, bridge path, and profile mapping.
+
+## Recommended mapping between Shelley conversation metadata and installer-managed state
+
+The intended separation of concerns should be:
+
+### Shelley conversation metadata
+
+Stores only what is needed to drive one conversation:
+
+- whether this conversation is in Stavrobot mode
+- which remote Stavrobot conversation it is mapped to
+- which installer-managed local profile name to use
+- optionally the last known remote message ID
+
+### Installer-managed Shelley rebuild state
+
+Stores machine-local and rebuild-local facts:
+
+- which Shelley upstream commit was rebuilt
+- where the local Shelley checkout and binary live
+- whether Stavrobot mode support is present in that build
+- where the canonical bridge script lives
+- which local bridge profiles exist
+
+That gives a clean model:
+
+- many Shelley conversations can share one installer-managed bridge profile
+- refreshing the Shelley rebuild does not require rewriting all conversations
+- switching one conversation in or out of Stavrobot mode does not require changing installer state
+- upstream hash tracking remains local and operational rather than leaking into user conversation data

@@ -328,3 +328,83 @@ That means Shelley's built-in context indicator should probably be treated caref
 - if a later Stavrobot API exposes usable context/window estimates, Shelley could then render a more meaningful mode-specific gauge
 
 So: yes, one long-lived conversation is plausible, and no, that does not by itself imply Shelley becomes too slow, provided Shelley treats Stavrobot mode as remote conversation continuation rather than local transcript replay.
+
+
+## Draft Shelley `conversation_options` shape
+
+If the Shelley-side rebuild uses per-conversation metadata, the first practical contract could be represented in `conversation_options` roughly like this:
+
+```json
+{
+  "mode": "stavrobot",
+  "stavrobot": {
+    "enabled": true,
+    "conversation_id": "conv_123",
+    "last_message_id": "msg_456",
+    "bridge_profile": "local-default"
+  }
+}
+```
+
+Suggested field contract for the first version:
+
+- `mode`
+  - string
+  - `"stavrobot"` enables the alternate runtime path
+- `stavrobot.enabled`
+  - boolean
+  - explicit on/off flag for the conversation-scoped mode
+- `stavrobot.conversation_id`
+  - string
+  - remote Stavrobot conversation ID such as `conv_123`
+- `stavrobot.last_message_id`
+  - string, optional
+  - most recent known Stavrobot message ID such as `msg_456`
+- `stavrobot.bridge_profile`
+  - string
+  - installer-managed local profile name used to resolve bridge/base-url/auth details outside the conversation record
+
+Suggested validation rules:
+
+- when `mode != "stavrobot"`, the `stavrobot` block may be absent or ignored
+- when `mode == "stavrobot"`, require:
+  - `stavrobot.enabled = true`
+  - non-empty `stavrobot.bridge_profile`
+- `stavrobot.conversation_id` may be absent for a brand new conversation before the first successful remote turn
+- `stavrobot.last_message_id` is optional and should be treated as a hint, not the sole source of truth
+
+Suggested lifecycle:
+
+1. user creates or converts a Shelley conversation into Stavrobot mode
+2. Shelley writes:
+   - `mode = "stavrobot"`
+   - `stavrobot.enabled = true`
+   - `stavrobot.bridge_profile = "local-default"`
+3. first successful bridge-mediated remote turn returns a real `conversation_id`
+4. Shelley stores `stavrobot.conversation_id`
+5. subsequent turns reuse that mapping
+6. successful turns may update `stavrobot.last_message_id`
+
+Suggested future-but-not-required extensions:
+
+```json
+{
+  "mode": "stavrobot",
+  "stavrobot": {
+    "enabled": true,
+    "conversation_id": "conv_123",
+    "last_message_id": "msg_456",
+    "bridge_profile": "local-default",
+    "source": "shelley",
+    "sender": "default",
+    "last_history_sync_at": "2025-01-01T12:34:56Z",
+    "last_event_sync_at": "2025-01-01T12:34:56Z",
+    "retrieval": {
+      "enabled": false,
+      "mode": "explicit"
+    }
+  }
+}
+```
+
+But the first rebuild should not require those extra fields.
