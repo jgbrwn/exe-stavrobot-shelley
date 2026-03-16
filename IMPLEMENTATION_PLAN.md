@@ -119,10 +119,11 @@ Tracks:
 - Optional Stavrobot history/events API work to support Shelley as a better frontend
 - Shelley rebuild automation
 
-Current Phase 2 starting point:
+Current Phase 2 starting points:
 - Generate a Cloudflare Email Worker bundle from current Stavrobot config
 - Optionally deploy it with Wrangler when available
 - Keep Cloudflare Email Routing rule creation manual for now
+- Start Shelley integration with a thin adapter over existing Stavrobot `/chat` behavior
 
 ## Discovered upstream limitation
 
@@ -160,3 +161,18 @@ Rationale:
 - This captures the repetitive, error-prone parts first.
 - It does not require undocumented Cloudflare APIs.
 - It keeps the first Phase 2 increment testable without broadening scope into Shelley integration yet.
+
+## Phase 2 increment: Shelley integration MVP
+
+Implemented starter scope:
+
+1. Add `chat-with-stavrobot.sh` as a local adapter entrypoint.
+2. Read Stavrobot Basic Auth password from `data/main/config.toml` when available.
+3. Post prompts to authenticated `POST /chat`.
+4. Print the assistant `response` by default, with `--raw-json` available for debugging.
+5. Document the MVP and likely future upstream API requests in `docs/SHELLEY_STAVROBOT_MVP.md`.
+
+Rationale:
+- This gives Shelley an immediate, low-risk integration surface.
+- It avoids blocking on upstream conversation/history/event APIs.
+- It keeps the first Shelley increment concrete and testable.

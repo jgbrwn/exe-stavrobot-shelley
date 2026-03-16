@@ -21,18 +21,23 @@ Phase 1 installer project for deploying and updating [stavrobot](https://github.
 
 ## Phase 2 in progress
 
-Cloudflare email worker automation has now started as a Phase 2 track.
+Two Phase 2 tracks have now started:
 
-Current Phase 2 deliverable:
+### Cloudflare automation
 
 - `install-cloudflare-email-worker.sh` generates a deployable Cloudflare Email Worker bundle from existing Stavrobot config
 - output includes `worker.js`, `wrangler.toml`, `.dev.vars.example`, worker-specific `README.md`, and deployment `CHECKLIST.md`
 - optional `--deploy` support can run Wrangler deploy and upload `WEBHOOK_SECRET`
 
-Still manual even in this first Phase 2 step:
+Still manual in this track:
 
 - Cloudflare account auth/login if not already set up
 - Cloudflare Email Routing rule creation in the dashboard
+
+### Shelley integration MVP
+
+- `chat-with-stavrobot.sh` is a thin adapter around Stavrobot's authenticated `POST /chat` endpoint
+- `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 
 ## Intended layout
 
@@ -68,6 +73,7 @@ Implemented so far:
 - Saved plugin selections in `state/last-plugin-inputs.json`
 - Install and configure selected plugins against the running Stavrobot instance after startup
 - Phase 2 starter: Cloudflare email worker bundle generation
+- Phase 2 starter: Shelley-to-Stavrobot chat adapter script
 
 ## Plugin state
 
@@ -131,3 +137,25 @@ Contents:
 - `.dev.vars.example`
 - `README.md`
 - `CHECKLIST.md`
+
+## Shelley integration MVP
+
+Send a message to a running Stavrobot instance through the adapter:
+
+```bash
+./chat-with-stavrobot.sh \
+  --stavrobot-dir /opt/stavrobot \
+  --message "Hello from Shelley"
+```
+
+Or pipe stdin:
+
+```bash
+printf 'Summarize the last deployment status' | ./chat-with-stavrobot.sh --stavrobot-dir /opt/stavrobot
+```
+
+By default the script prints only Stavrobot's `response` field. Use `--raw-json` to inspect the full API response.
+
+Design notes live in:
+
+- `docs/SHELLEY_STAVROBOT_MVP.md`
