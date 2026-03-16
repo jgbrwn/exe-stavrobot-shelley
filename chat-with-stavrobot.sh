@@ -43,10 +43,6 @@ json_quote() {
 }
 
 resolve_config_path() {
-EOF
-}
-
-resolve_config_path() {
   if [[ -z "$CONFIG_PATH" && -n "$STAVROBOT_DIR" ]]; then
     CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
   fi
