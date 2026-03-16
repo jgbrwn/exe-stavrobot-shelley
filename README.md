@@ -26,7 +26,7 @@ Cloudflare email worker automation has now started as a Phase 2 track.
 Current Phase 2 deliverable:
 
 - `install-cloudflare-email-worker.sh` generates a deployable Cloudflare Email Worker bundle from existing Stavrobot config
-- output includes `worker.js`, `wrangler.toml`, `.dev.vars.example`, and worker-specific README
+- output includes `worker.js`, `wrangler.toml`, `.dev.vars.example`, worker-specific `README.md`, and deployment `CHECKLIST.md`
 - optional `--deploy` support can run Wrangler deploy and upload `WEBHOOK_SECRET`
 
 Still manual even in this first Phase 2 step:
@@ -130,3 +130,4 @@ Contents:
 - `wrangler.toml`
 - `.dev.vars.example`
 - `README.md`
+- `CHECKLIST.md`

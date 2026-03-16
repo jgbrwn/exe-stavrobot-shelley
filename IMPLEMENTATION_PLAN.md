@@ -151,8 +151,10 @@ Implemented starter scope:
    - `wrangler.toml`
    - `.dev.vars.example`
    - worker-specific `README.md`
+   - deployment-specific `CHECKLIST.md`
 4. Support optional `--deploy` flow using Wrangler plus `wrangler secret put WEBHOOK_SECRET`.
-5. Leave dashboard Email Routing rule creation manual until a later increment.
+5. Print domain-aware next steps and validation hints.
+6. Leave dashboard Email Routing rule creation manual until a later increment.
 
 Rationale:
 - This captures the repetitive, error-prone parts first.

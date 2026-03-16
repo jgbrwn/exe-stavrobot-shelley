@@ -10,12 +10,13 @@ CONFIG_PATH=""
 OUT_DIR="$ROOT_DIR/state/cloudflare-email-worker"
 WORKER_NAME="stavrobot-email-worker"
 ACCOUNT_ID=""
-COMPATIBILITY_DATE="$(date +%F)"
+COMPATIBILITY_DATE="$(date -u +%F)"
 DEPLOY=0
 SHOW_SECRETS=0
 PUBLIC_HOSTNAME=""
 WEBHOOK_SECRET=""
 WEBHOOK_URL=""
+EMAIL_DOMAIN=""
 
 usage() {
   cat <<'EOF'
@@ -33,6 +34,10 @@ Flags:
   --deploy                     Run wrangler deploy and secret upload after rendering
   --show-secrets               Show secret defaults in prompts
   --help
+
+Notes:
+  - Generates worker.js, wrangler.toml, .dev.vars.example, README.md, and CHECKLIST.md
+  - Cloudflare Email Routing rule creation is still manual
 EOF
 }
 
@@ -182,6 +187,12 @@ fi
 [[ -n "$WEBHOOK_SECRET" ]] || die "email.webhookSecret is required"
 
 WEBHOOK_URL="$PUBLIC_HOSTNAME/email/webhook"
+EMAIL_DOMAIN=$(python3 - "$PUBLIC_HOSTNAME" <<'PY'
+from urllib.parse import urlparse
+import sys
+print(urlparse(sys.argv[1]).hostname or '')
+PY
+)
 render_bundle
 
 cat <<EOF
@@ -189,15 +200,24 @@ Cloudflare email worker bundle rendered.
 
 Output directory: $OUT_DIR
 Worker name:      $WORKER_NAME
+Email domain:     $EMAIL_DOMAIN
 Webhook URL:      $WEBHOOK_URL
 Webhook secret:   $(mask_secret "$WEBHOOK_SECRET")
 
+Generated files:
+  - $OUT_DIR/worker.js
+  - $OUT_DIR/wrangler.toml
+  - $OUT_DIR/.dev.vars.example
+  - $OUT_DIR/README.md
+  - $OUT_DIR/CHECKLIST.md
+
 Next steps:
-  1. Review worker.js and wrangler.toml in $OUT_DIR
+  1. Review worker.js and CHECKLIST.md in $OUT_DIR
   2. Authenticate Wrangler if needed: wrangler login
   3. Deploy: (cd $OUT_DIR && wrangler deploy)
   4. Upload secret: (cd $OUT_DIR && wrangler secret put WEBHOOK_SECRET)
-  5. In Cloudflare Email Routing, route inbound mail to worker '$WORKER_NAME'
+  5. In Cloudflare Email Routing for $EMAIL_DOMAIN, route inbound mail to worker '$WORKER_NAME'
+  6. Send a test email and verify Stavrobot app logs
 EOF
 
 if (( DEPLOY )); then
