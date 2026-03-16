@@ -61,11 +61,23 @@ Purpose:
 
 If Shelley proves valuable as a frontend, the next likely Stavrobot API additions would be:
 
-1. Conversation/session identifiers for `/chat`
-2. Read-only conversation/history endpoint
-3. Read-only events or traces endpoint
-4. Health/status endpoint richer than basic auth page checks
-5. Maybe a stable machine-oriented API namespace distinct from the current web UI endpoints
+1. Real conversation/session identifiers for `/api/client/chat`
+2. Read-only conversation listing endpoint
+3. Read-only conversation/history endpoint
+4. Read-only events or traces endpoint later if needed
+5. Health/status endpoint richer than basic auth page checks
+6. A stable machine-oriented API namespace distinct from the current web UI endpoints
+
+## What Phase 2 testing has now validated
+
+Phase 2 testing has now moved beyond pure planning:
+
+- additive upstream `GET /api/client/health` and `POST /api/client/chat` were successfully spiked in a separate upstream test clone
+- a real live LLM-backed response was confirmed through `POST /api/client/chat`
+- Stavrobot worked with provider `openrouter` without needing an OpenRouter-specific patch
+- the successful live model used in testing was `z-ai/glm-4.5-air:free`
+
+That means the next upstream step is no longer "decide whether a machine API is worthwhile". The next step is to continue the additive `/api/client/*` path with real `conversation_id` support and then conversation listing/history.
 
 ## Decision
 

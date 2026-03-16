@@ -162,11 +162,17 @@ The installer currently infers health via authenticated page checks and plugin e
 
 ## Suggested implementation order
 
-1. `GET /api/client/health`
-2. `POST /api/client/chat` with `conversation_id` in/out
-3. `GET /api/client/conversations`
-4. `GET /api/client/conversations/:conversation_id/messages`
-5. `GET /api/client/conversations/:conversation_id/events`
+Status so far from upstream spike work:
+
+1. `GET /api/client/health` has been prototyped and validated.
+2. `POST /api/client/chat` has been prototyped and validated with a real LLM-backed response, but still returns placeholder metadata.
+
+Recommended next implementation steps:
+
+3. make `POST /api/client/chat` return a real `conversation_id`
+4. add `GET /api/client/conversations`
+5. add `GET /api/client/conversations/:conversation_id/messages`
+6. leave `GET /api/client/conversations/:conversation_id/events` for a later increment
 
 ## Backward-compatibility stance
 
