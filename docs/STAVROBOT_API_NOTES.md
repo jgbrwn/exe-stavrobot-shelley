@@ -72,11 +72,25 @@ Because the OpenRouter key used for testing was pasted interactively during prio
 - `POST /api/settings/plugins/configure`
 - detail/config helper endpoints also exist
 
+## Main-repo local consumption status
+
+The main repo now consumes this validated direction locally in two ways:
+
+1. `chat-with-stavrobot.sh` remains the thin lowest-risk adapter around existing authenticated `POST /chat`.
+2. `client-stavrobot.sh` now provides a local machine-oriented wrapper for:
+   - `GET /api/client/health`
+   - `POST /api/client/chat`
+   - `GET /api/client/conversations`
+   - `GET /api/client/conversations/:conversation_id/messages`
+   - `GET /api/client/conversations/:conversation_id/events`
+3. `smoke-test-stavrobot-client.sh` exercises health, chat, listing, history, and events together against a live stack.
+
 ## What is still missing for stronger Shelley integration
 
-The next missing piece after the successful session/history spike is now narrower.
+The next missing piece after the successful session/history/events/message-id spike is now narrower.
 
 1. Any further client ergonomics discovered during Shelley integration
+2. Possibly a higher-level Shelley-side state wrapper if conversation reuse/pinning becomes a frequent workflow
 
 ## Recommended order now
 

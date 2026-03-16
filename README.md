@@ -37,6 +37,8 @@ Still manual in this track:
 ### Shelley integration MVP
 
 - `chat-with-stavrobot.sh` is a thin adapter around Stavrobot's authenticated `POST /chat` endpoint
+- `client-stavrobot.sh` is a local machine-oriented wrapper around the validated authenticated `/api/client/*` surface
+- `smoke-test-stavrobot-client.sh` validates that local client wrapper against the running stack
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`
 - the client chat spike produced a real successful LLM-backed response with OpenRouter using model `z-ai/glm-4.5-air:free`
@@ -167,6 +169,16 @@ Useful adapter flags:
 - `--retries`
 - `--retry-delay`
 
+Machine-oriented client wrapper examples:
+
+```bash
+./client-stavrobot.sh --stavrobot-dir /opt/stavrobot health --pretty
+./client-stavrobot.sh --stavrobot-dir /opt/stavrobot conversations --pretty
+./client-stavrobot.sh --stavrobot-dir /opt/stavrobot chat --message "Summarize current status" --pretty
+./client-stavrobot.sh --stavrobot-dir /opt/stavrobot messages --conversation-id conv_1 --pretty
+./client-stavrobot.sh --stavrobot-dir /opt/stavrobot events --conversation-id conv_1 --pretty
+```
+
 Design notes live in:
 
 - `docs/SHELLEY_STAVROBOT_MVP.md`
@@ -181,10 +193,11 @@ Upstream API proposal for better Shelley support:
 
 ## Shelley adapter smoke tests
 
-Quick validation harness:
+Quick validation harnesses:
 
 ```bash
 ./smoke-test-stavrobot-adapter.sh --stavrobot-dir /opt/stavrobot
+./smoke-test-stavrobot-client.sh --stavrobot-dir /opt/stavrobot
 ```
 
 Default local base URL is now `http://localhost:8000`. Override with `--base-url` or `STAVROBOT_BASE_URL` when needed.

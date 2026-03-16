@@ -187,4 +187,8 @@ A first additive proposal for machine-oriented Stavrobot endpoints now lives in 
 
 ## Shelley adapter validation
 
-A small local harness now exists in `smoke-test-stavrobot-adapter.sh` to validate the current adapter path and common failure modes before attempting upstream Stavrobot API work.
+A small local harness exists in `smoke-test-stavrobot-adapter.sh` to validate the current adapter path and common failure modes.
+
+## Shelley client validation
+
+The main repo now also includes `client-stavrobot.sh` as a local wrapper around the validated `/api/client/*` surface plus `smoke-test-stavrobot-client.sh` to exercise health, chat, conversation listing, history, and events against a live stack.
