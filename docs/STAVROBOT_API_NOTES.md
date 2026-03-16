@@ -27,6 +27,7 @@ Validated endpoints/results so far:
 - `POST /api/client/chat`
 - `GET /api/client/conversations`
 - `GET /api/client/conversations/:conversation_id/messages`
+- `GET /api/client/conversations/:conversation_id/events`
 
 Observed behavior from the spike:
 
@@ -37,6 +38,7 @@ Observed behavior from the spike:
 - Supplying `conversation_id` continues an existing conversation.
 - `GET /api/client/conversations` returns machine-readable conversation summaries.
 - `GET /api/client/conversations/:conversation_id/messages` returns machine-readable history.
+- `GET /api/client/conversations/:conversation_id/events` returns machine-readable tool-call and tool-result events derived from stored messages.
 - `message_id` in the chat response is still placeholder `null` for now.
 
 A follow-up live runtime validation pass against the rebuilt local stack also confirmed:
@@ -46,8 +48,9 @@ A follow-up live runtime validation pass against the rebuilt local stack also co
 - `GET /api/client/conversations` included that same `conversation_id`.
 - `GET /api/client/conversations/conv_1/messages` returned real message history with `message_id` values such as `msg_35` and `msg_36`.
 - a second `POST /api/client/chat` reusing `conversation_id: "conv_1"` appended additional history as expected.
+- `GET /api/client/conversations/conv_1/events` returned machine-readable tool events including `tool_call` and `tool_result` entries with names such as `send_signal_message` and `manage_interlocutors`.
 
-One operational nuance from live validation: after rebuilding the upstream test stack, the app container had to be force-recreated before the running service picked up the newly built conversation-route code.
+One operational nuance from live validation: after rebuilding the upstream test stack, the app container had to be force-recreated before the running service picked up the newly built conversation-route code. The real installer in this repo already does this correctly via `docker compose up -d --build --force-recreate`.
 
 ### OpenRouter compatibility finding
 
@@ -72,16 +75,15 @@ Because the OpenRouter key used for testing was pasted interactively during prio
 
 The next missing piece after the successful session/history spike is now narrower.
 
-1. Read-only event/trace endpoint if Shelley needs tool visibility
-2. Real `message_id` in `POST /api/client/chat`
-3. Any further client ergonomics discovered during Shelley integration
+1. Real `message_id` in `POST /api/client/chat`
+2. Any further client ergonomics discovered during Shelley integration
 
 ## Recommended order now
 
 1. Keep using the local adapter in this repo for the Shelley MVP.
 2. Preserve the additive upstream `/api/client/*` direction.
 3. Treat conversation IDs, conversation listing, and conversation history as validated upstream direction.
-4. Leave event/trace work for a later increment.
+4. Treat the read-only events endpoint as validated upstream direction.
 5. Add real chat `message_id` only when Shelley has a concrete use for it.
 
 ## Concrete proposal

@@ -170,10 +170,10 @@ Status so far from upstream spike work:
 4. `GET /api/client/conversations` has been spiked.
 5. `GET /api/client/conversations/:conversation_id/messages` has been spiked.
 6. a live runtime pass against the rebuilt stack validated health, first chat, conversation listing, message history, and a second chat using the same `conversation_id`.
+7. `GET /api/client/conversations/:conversation_id/events` has now also been spiked and live-validated as a read-only tool-event feed.
 
 Recommended next implementation steps:
 
-7. leave `GET /api/client/conversations/:conversation_id/events` for a later increment
 8. add real `message_id` in `POST /api/client/chat` if a client needs it
 
 ## Backward-compatibility stance
