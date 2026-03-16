@@ -463,3 +463,184 @@ That gives a clean model:
 - refreshing the Shelley rebuild does not require rewriting all conversations
 - switching one conversation in or out of Stavrobot mode does not require changing installer state
 - upstream hash tracking remains local and operational rather than leaking into user conversation data
+
+
+## Draft installer CLI contract for optional Shelley mode
+
+When Shelley rebuild automation is eventually added, the installer should expose a small explicit CLI surface rather than silently changing normal installs.
+
+Recommended flags:
+
+### Primary mode flags
+
+- `--with-shelley-stavrobot-mode`
+  - fetch/build/refresh Shelley with optional Stavrobot-mode support enabled
+- `--refresh-shelley-mode`
+  - force a Shelley-mode refresh check and rebuild flow even if normal Stavrobot install/update work would not touch Shelley
+- `--print-shelley-mode-status`
+  - print current local Shelley-mode rebuild/profile state and whether it appears stale relative to upstream
+
+### Shelley source/build location flags
+
+- `--shelley-dir PATH`
+  - local Shelley checkout/build directory to manage
+- `--shelley-branch BRANCH`
+  - Shelley upstream branch to track, default likely `main`
+- `--shelley-repo-url URL`
+  - optional override for Shelley upstream repo URL
+
+### Bridge profile flags
+
+- `--shelley-profile-name NAME`
+  - installer-managed profile name to create or refresh, default likely `local-default`
+- `--shelley-base-url URL`
+  - base URL that the profile should use for Stavrobot, default likely `http://localhost:8000`
+- `--shelley-config-path PATH`
+  - explicit Stavrobot `config.toml` path for that profile
+- `--shelley-stavrobot-dir PATH`
+  - alternate convenience input from which the installer can derive `config.toml`
+
+### Behavior/policy flags
+
+- `--skip-shelley-upstream-check`
+  - use existing local Shelley checkout/build metadata without checking remote upstream freshness
+- `--force-shelley-rebuild`
+  - rebuild even if recorded upstream hash and local profile state look current
+- `--disable-shelley-mode`
+  - disable future installer-managed Shelley-mode refreshes and record that the local build should no longer be treated as an active managed Shelley-mode target
+
+Recommended behavior summary:
+
+- default installer runs should not touch Shelley
+- `--with-shelley-stavrobot-mode` opt-in should be explicit
+- `--print-shelley-mode-status` should be safe and read-only
+- `--refresh-shelley-mode` should use the stored rebuild state if present and fail clearly if required Shelley-mode metadata is missing
+- `--force-shelley-rebuild` should bypass staleness heuristics but still record fresh rebuild metadata afterward
+
+## Recommended command semantics
+
+### 1. First-time enable flow
+
+Example:
+
+```bash
+./install-stavrobot.sh \
+  --stavrobot-dir /opt/stavrobot \
+  --with-shelley-stavrobot-mode \
+  --shelley-dir /opt/shelley \
+  --shelley-profile-name local-default
+```
+
+Recommended effect:
+
+1. run normal Stavrobot install/update flow
+2. fetch or update Shelley checkout in `/opt/shelley`
+3. determine upstream Shelley HEAD for the selected branch
+4. apply/build the optional Shelley-side Stavrobot-mode variant
+5. verify the canonical bridge path exists and is executable
+6. create or refresh installer-managed profile `local-default`
+7. write `state/shelley-mode-build.json`
+8. print resulting Shelley upstream hash, local profile name, and next-step guidance
+
+### 2. Refresh flow
+
+Example:
+
+```bash
+./install-stavrobot.sh --refresh-shelley-mode
+```
+
+Recommended effect:
+
+1. load `state/shelley-mode-build.json`
+2. check whether the tracked Shelley upstream branch has advanced
+3. check whether bridge path/profile inputs changed materially
+4. rebuild if stale or requested
+5. rewrite state file with fresh timestamp/hash/profile state
+6. leave ordinary non-Stavrobot Shelley conversations untouched
+
+If no prior Shelley-mode state exists, this command should fail with a clear message instructing the operator to run `--with-shelley-stavrobot-mode` first.
+
+### 3. Status flow
+
+Example:
+
+```bash
+./install-stavrobot.sh --print-shelley-mode-status
+```
+
+Recommended output should include at least:
+
+- whether managed Shelley mode is configured locally
+- tracked Shelley repo URL and branch
+- recorded upstream Shelley commit/hash
+- local Shelley checkout path
+- local Shelley binary path
+- canonical bridge path
+- available profile names
+- whether an upstream check was performed
+- whether the local managed state appears current or stale
+
+### 4. Profile refresh / override flow
+
+Example:
+
+```bash
+./install-stavrobot.sh \
+  --with-shelley-stavrobot-mode \
+  --shelley-profile-name lab \
+  --shelley-base-url http://localhost:8001 \
+  --shelley-config-path /srv/stavrobot-lab/data/main/config.toml
+```
+
+Recommended effect:
+
+- preserve the Shelley rebuild if still current
+- create or update only the named installer-managed profile if the build itself does not need refresh
+- avoid rewriting conversation metadata directly; conversations should continue to refer to profile names and can switch later within Shelley
+
+## Recommended precedence rules
+
+1. explicit CLI flags override stored installer state
+2. stored installer state overrides inferred defaults
+3. inferred defaults override generic hardcoded defaults
+
+Specific recommendations:
+
+- if both `--shelley-config-path` and `--shelley-stavrobot-dir` are provided, prefer explicit `--shelley-config-path`
+- if `--shelley-profile-name` is omitted, default to `local-default`
+- if `--shelley-dir` is omitted on first enable, require an explicit path or choose one documented default consistently
+- if `--with-shelley-stavrobot-mode` and `--disable-shelley-mode` are both passed, fail fast as conflicting flags
+- if `--print-shelley-mode-status` is combined with mutating Shelley flags, either reject the combination or document a strict precedence clearly
+
+## Recommended failure policy
+
+Hard fail on:
+
+- missing Shelley checkout path for first-time enable when no default is available
+- Shelley upstream fetch failure during an enabled refresh path unless `--skip-shelley-upstream-check` was explicitly used
+- Shelley build failure
+- missing canonical bridge script
+- invalid profile inputs
+- unreadable Stavrobot config path when a profile requires it
+- malformed or unreadable `state/shelley-mode-build.json` during refresh/status unless operator explicitly requests reinitialization behavior later
+
+Soft warn on:
+
+- upstream check skipped deliberately
+- profile already exists and is being refreshed in place
+- Shelley upstream changed but operator only requested read-only status
+- additional profiles exist but are not referenced by any current Shelley conversations
+
+## Recommended relation to future Shelley conversation UX
+
+The installer CLI should prepare capability, not mutate user conversations directly.
+
+Meaning:
+
+- installer builds or refreshes the Shelley variant
+- installer records bridge profiles and upstream hash state
+- Shelley UI/runtime later lets the user choose Stavrobot mode per conversation
+- Shelley conversation metadata then stores only the chosen profile name and remote conversation mapping
+
+That keeps the installer operational and machine-scoped while keeping conversation selection and per-thread behavior inside Shelley where it belongs.

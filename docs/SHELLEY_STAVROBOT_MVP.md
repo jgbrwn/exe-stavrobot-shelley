@@ -408,3 +408,23 @@ Suggested future-but-not-required extensions:
 ```
 
 But the first rebuild should not require those extra fields.
+
+
+## Installer CLI implication
+
+The eventual installer-managed Shelley path should stay explicit and operational.
+
+Recommended future commands should look roughly like:
+
+```bash
+./install-stavrobot.sh --with-shelley-stavrobot-mode --shelley-dir /opt/shelley
+./install-stavrobot.sh --refresh-shelley-mode
+./install-stavrobot.sh --print-shelley-mode-status
+```
+
+Important principle:
+
+- the installer prepares the Shelley build and local bridge profiles
+- Shelley itself should still own conversation-level mode selection and per-conversation metadata
+
+So the installer should not directly rewrite user conversations. It should only make the optional Stavrobot-mode-capable Shelley build available and keep its local rebuild/profile state current.

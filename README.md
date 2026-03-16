@@ -46,6 +46,7 @@ Still manual in this track:
 - the actual optional Shelley "Stavrobot mode" likely belongs in the official Shelley repo itself, while this repo later orchestrates fetching from upstream, rebuilding locally, and recording the upstream Shelley hash used for that rebuild when requested
 - the currently preferred future Shelley shape is per-conversation mode using conversation-scoped metadata such as a Stavrobot `conversation_id`, optional last `message_id`, and an installer-managed local bridge profile name
 - installer-managed Shelley rebuilds should later track upstream Shelley commit/hash plus local bridge-profile state separately from per-conversation metadata
+- the likely future installer CLI should keep Shelley work explicit via opt-in/status/refresh flags rather than changing normal installs silently
 - long-lived Shelley conversations should remain viable if Stavrobot mode is implemented as frontend-to-Stavrobot continuation rather than replaying an ever-growing Shelley transcript through a normal model-provider path each turn
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`
