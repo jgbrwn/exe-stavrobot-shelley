@@ -219,7 +219,8 @@ When Shelley rebuild automation is added, the intended shape should be:
    - optional `--with-shelley-stavrobot-mode`
    - optional `--refresh-shelley-mode`
 4. That Shelley-aware path should:
-   - locate or update the Shelley source/rebuild target
+   - locate or update the Shelley source/rebuild target from upstream
+   - record the upstream Shelley commit/hash used for the local rebuild
    - configure Shelley to expose an optional "Stavrobot mode"
    - wire that mode to invoke only `shelley-stavrobot-bridge.sh`
    - leave normal Shelley behavior unchanged when the mode is not enabled
@@ -228,8 +229,9 @@ When Shelley rebuild automation is added, the intended shape should be:
 Practical consequence:
 - the shell wrappers created in this repo are preparing the contract for the future Shelley rebuild
 - the eventual installer wiring should enable or refresh that mode against the canonical bridge rather than reproduce the integration logic itself
+- the installer should be able to compare the stored upstream Shelley hash with upstream HEAD to decide whether a Shelley-mode rebuild is already current
 
 What is still missing before that implementation step:
-- the Shelley codebase or rebuild target to modify
-- the concrete build/release path for that Shelley variant
+- the exact local checkout/build location this repo should manage for Shelley
+- the concrete artifact/state file format for storing the upstream Shelley hash used for a rebuild
 - the exact config toggle or runtime flag that will represent optional "Stavrobot mode"

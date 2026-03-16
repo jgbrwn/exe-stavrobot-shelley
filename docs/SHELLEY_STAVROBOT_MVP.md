@@ -143,14 +143,28 @@ The proposed additive upstream API surface is documented in:
 
 ## Installer wiring implications
 
-This repo still does not contain the actual Shelley source tree, so the current bridge/wrapper work is not the rebuild itself. It is the contract the rebuild should target later.
+Even though the optional runtime mode likely belongs in Shelley proper, the rebuild/update orchestration can still live in this repo.
 
 That means the installer and rebuild story should eventually converge like this:
 
 1. `install-stavrobot.sh` remains the normal default path for Stavrobot deployment/update.
 2. A later optional installer path can enable or refresh Shelley "Stavrobot mode".
-3. That installer path should rebuild or refresh Shelley only when that optional mode is requested.
-4. The Shelley rebuild should call only `shelley-stavrobot-bridge.sh` for Stavrobot interaction.
-5. The installer should not duplicate lower-level client/session logic that already lives behind the canonical bridge.
+3. That installer path should fetch or update Shelley from its upstream repo, rebuild it, and record the upstream Shelley commit/hash it was built from.
+4. That recorded upstream hash should let the installer tell whether the locally rebuilt Shelley variant is already current or needs refresh.
+5. When optional Shelley mode is requested, the rebuilt Shelley variant should call only `shelley-stavrobot-bridge.sh` for Stavrobot interaction.
+6. The installer should not duplicate lower-level client/session logic that already lives behind the canonical bridge.
 
 So the bridge/wrapper work is not drifting away from the installer plan. It is defining the stable local contract that the future installer-assisted Shelley rebuild should consume.
+
+## Rich output implications
+
+Shelley is especially strong at presenting markdown and screenshots natively. That should influence the eventual mode design.
+
+Implications:
+
+1. The integration should preserve markdown-friendly response text rather than flattening it unnecessarily.
+2. The canonical bridge should remain capable of returning structured data when Shelley needs more than plain response text.
+3. Screenshot or image-oriented workflows should be treated as first-class future integration needs rather than an afterthought.
+4. The bridge/wrapper layer should avoid overfitting around plain-text-only output if Shelley can productively render richer results.
+
+That does not immediately require a new upstream Stavrobot API change, but it does mean future Shelley-side mode work should prefer preserving structured responses and screenshot references where practical.
