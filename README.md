@@ -71,3 +71,19 @@ This file may contain plugin secrets. It is written with mode `0600`.
 - Generic OpenAI-compatible provider prompting is present, but current upstream Stavrobot config still lacks an explicit arbitrary base-URL field.
 - Email worker automation is still not implemented.
 - Non-interactive automation is not finished yet.
+
+## Manual integrations still left to the operator
+
+The installer can generate config for these, but Phase 1 still leaves final activation manual:
+
+- `authFile` login flow
+- Signal registration/linking
+- WhatsApp QR linking
+- Cloudflare Email Worker deployment
+- Claude Code login for the coder container
+
+## Plugin run report
+
+The most recent plugin install/configure results are written to:
+
+- `state/last-plugin-report.txt`

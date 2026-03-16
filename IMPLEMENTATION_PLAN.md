@@ -129,3 +129,7 @@ The installer now supports Phase 1 core config generation plus a first pass at p
 ## Hardening updates
 
 The installer now supports `--plugins-only`, reusing saved plugin state from `state/last-plugin-inputs.json`. Prompt handling for optional owner fields was also tightened so skipped values are omitted from generated config output.
+
+## Final Phase 1 polish
+
+The installer now prints richer next-step guidance, tracks per-plugin outcomes in `state/last-plugin-report.txt`, supports email config prompting, and suppresses empty plugin-result sections in the final summary.

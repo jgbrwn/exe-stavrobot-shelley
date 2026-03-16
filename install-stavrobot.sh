@@ -23,12 +23,15 @@ PLUGIN_STATE_JSON=""
 OPENROUTER_OUT=""
 CURRENT_JSON=""
 PASSWORD_FOR_READY=""
-PUBLIC_HOSTNAME_FINAL=""
+PUBLIC_HOSTNAME_FINAL="[unchanged]"
+AUTH_MODE_FINAL="apiKey"
 CODER_ENABLED=false
 SIGNAL_ENABLED=false
 WHATSAPP_ENABLED=false
+EMAIL_ENABLED=false
 PLUGINS_SELECTED_COUNT=0
 PLUGINS_HANDLED=0
+PLUGIN_REPORT_FILE=""
 
 usage() {
   cat <<'EOF'
@@ -48,6 +51,11 @@ EOF
 
 json_quote() {
   python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"
+}
+
+append_plugin_report() {
+  local line="$1"
+  printf '%s\n' "$line" >> "$PLUGIN_REPORT_FILE"
 }
 
 render_current_state() {
@@ -86,6 +94,33 @@ PY
   fi
 }
 
+load_runtime_metadata() {
+  if [[ -f "$CONFIG_PATH" ]]; then
+    eval "$(python3 - "$CONFIG_PATH" <<'PY'
+import sys, tomllib
+try:
+    data = tomllib.loads(open(sys.argv[1]).read())
+except Exception:
+    data = {}
+password = data.get('password', '')
+public_hostname = data.get('publicHostname', '[unchanged]')
+auth_mode = 'apiKey' if data.get('apiKey') else ('authFile' if data.get('authFile') else 'unknown')
+coder_enabled = 'true' if data.get('coder') else 'false'
+signal_enabled = 'true' if data.get('signal') else 'false'
+whatsapp_enabled = 'true' if data.get('whatsapp') else 'false'
+email_enabled = 'true' if data.get('email') else 'false'
+print(f'PASSWORD_FOR_READY={password!r}')
+print(f'PUBLIC_HOSTNAME_FINAL={public_hostname!r}')
+print(f'AUTH_MODE_FINAL={auth_mode!r}')
+print(f'CODER_ENABLED={coder_enabled!r}')
+print(f'SIGNAL_ENABLED={signal_enabled!r}')
+print(f'WHATSAPP_ENABLED={whatsapp_enabled!r}')
+print(f'EMAIL_ENABLED={email_enabled!r}')
+PY
+)"
+  fi
+}
+
 wait_for_stavrobot_ready() {
   local local_base_url="http://localhost:10567"
   [[ -n "$PASSWORD_FOR_READY" ]] || die "Could not determine Stavrobot password for readiness checks"
@@ -112,16 +147,30 @@ run_plugins_from_state() {
     plugin_config=$(python3 -c 'import json,sys; print(json.dumps(json.loads(sys.argv[1])["config"]))' "$plugin_entry")
     info "Installing plugin $plugin_name"
     install_response=$(stavrobot_install_plugin "$local_base_url" "$PASSWORD_FOR_READY" "$plugin_repo" || true)
-    if ! printf '%s' "$install_response" | python3 -c 'import json,sys; data=json.load(sys.stdin); import sys as s; s.exit(0 if ("error" not in data or "already installed" in str(data.get("error",""))) else 1)'; then
+    install_status=$(printf '%s' "$install_response" | python3 -c 'import json,sys; data=json.load(sys.stdin); print("already installed" if "already installed" in str(data.get("error","")) else ("ok" if "error" not in data else "error"))')
+    if [[ "$install_status" == "error" ]]; then
       printf '%s\n' "$install_response" >&2
+      append_plugin_report "$plugin_name: install failed"
       die "Failed to install plugin $plugin_name"
+    fi
+    if [[ "$install_status" == "already installed" ]]; then
+      append_plugin_report "$plugin_name: already installed"
+    else
+      append_plugin_report "$plugin_name: installed"
     fi
     if [[ "$plugin_config" != "{}" ]]; then
       info "Configuring plugin $plugin_name"
       configure_response=$(stavrobot_configure_plugin "$local_base_url" "$PASSWORD_FOR_READY" "$plugin_name" "$plugin_config" || true)
       if ! printf '%s' "$configure_response" | python3 -c 'import json,sys; data=json.load(sys.stdin); import sys as s; s.exit(0 if "error" not in data else 1)'; then
         printf '%s\n' "$configure_response" >&2
+        append_plugin_report "$plugin_name: configure failed"
         die "Failed to configure plugin $plugin_name"
+      fi
+      warnings=$(printf '%s' "$configure_response" | python3 -c 'import json,sys; data=json.load(sys.stdin); print("; ".join(data.get("warnings", [])))')
+      if [[ -n "$warnings" ]]; then
+        append_plugin_report "$plugin_name: configured with warnings: $warnings"
+      else
+        append_plugin_report "$plugin_name: configured"
       fi
     fi
     ((PLUGINS_HANDLED+=1))
@@ -260,6 +309,8 @@ mkdir -p "$ROOT_DIR/state"
 ENV_PATH="$STAVROBOT_DIR/.env"
 CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
 PLUGIN_STATE_JSON="$ROOT_DIR/state/last-plugin-inputs.json"
+PLUGIN_REPORT_FILE="$ROOT_DIR/state/last-plugin-report.txt"
+: > "$PLUGIN_REPORT_FILE"
 mkdir -p "$(dirname "$CONFIG_PATH")"
 
 info "Documented plan: $ROOT_DIR/IMPLEMENTATION_PLAN.md"
@@ -278,12 +329,12 @@ fi
 fetch_openrouter_suggestions
 
 if (( PLUGINS_ONLY )); then
-  load_runtime_password
+  load_runtime_metadata
   [[ -f "$PLUGIN_STATE_JSON" ]] || die "No saved plugin state at $PLUGIN_STATE_JSON"
   wait_for_stavrobot_ready
   run_plugins_from_state
-  print_run_summary "$BEFORE_HEAD" "$AFTER_HEAD" false false 0 "$PLUGINS_HANDLED"
-  print_next_steps "[unchanged]" false false false
+  print_run_summary "$BEFORE_HEAD" "$AFTER_HEAD" false false 0 "$PLUGINS_HANDLED" "$PLUGIN_REPORT_FILE"
+  print_next_steps "$PUBLIC_HOSTNAME_FINAL" "$CODER_ENABLED" "$SIGNAL_ENABLED" "$WHATSAPP_ENABLED" "$EMAIL_ENABLED" "$AUTH_MODE_FINAL"
   exit 0
 fi
 
@@ -292,6 +343,7 @@ BEFORE_CONFIG_HASH=$(sha256_file "$CONFIG_PATH")
 
 if (( REFRESH_ONLY )); then
   info "Refresh mode: skipping config prompts"
+  load_runtime_metadata
 else
   render_current_state
 
@@ -339,6 +391,7 @@ else
     Anthropic)
       PROVIDER="anthropic"
       AUTH_MODE=$(prompt_choice "Anthropic auth mode:" "API key" "authFile")
+      AUTH_MODE_FINAL=$([[ "$AUTH_MODE" == "API key" ]] && echo apiKey || echo authFile)
       MODEL_DEFAULT=$(json_get "$CURRENT_JSON" toml_current.model)
       MODEL_DEFAULT=${MODEL_DEFAULT:-$(json_get "$CURRENT_JSON" toml_example.model)}
       MODEL=$(prompt_text "Anthropic model" "$MODEL_DEFAULT")
@@ -362,6 +415,7 @@ else
       ;;
     OpenAI-compatible)
       warn "Current upstream stavrobot config exposes provider and model, but no explicit base URL field. OpenAI-compatible setups may require upstream support beyond this installer."
+      AUTH_MODE_FINAL=apiKey
       printf 'OpenRouter endpoint suggestion: https://openrouter.ai/api/v1\n' >&2
       python3 - "$OPENROUTER_OUT" <<'PY' >&2 || true
 import json, sys
@@ -392,6 +446,9 @@ PY
         AUTH_FILE_DEFAULT=$(json_get "$CURRENT_JSON" toml_current.authFile)
         AUTH_FILE=$(prompt_text "Auth file path" "$AUTH_FILE_DEFAULT")
         AUTH_FILE=${AUTH_FILE:-$AUTH_FILE_DEFAULT}
+        AUTH_MODE_FINAL=authFile
+      else
+        AUTH_MODE_FINAL=apiKey
       fi
       [[ -n "$PROVIDER" ]] || die "Provider label is required"
       [[ -n "$MODEL" ]] || die "Model ID is required"
@@ -457,6 +514,26 @@ PY
     WHATSAPP_ENABLED=true
   fi
 
+  WEBHOOK_SECRET=""
+  SMTP_HOST=""
+  SMTP_PORT=""
+  SMTP_USER=""
+  SMTP_PASSWORD=""
+  FROM_ADDRESS=""
+  if prompt_yes_no "Enable email integration?" "N"; then
+    EMAIL_ENABLED=true
+    WEBHOOK_SECRET=$(prompt_secret "Email webhook secret" "")
+    SMTP_HOST=$(prompt_optional_text "SMTP host (optional; type SKIP to omit)" "")
+    [[ "$SMTP_HOST" == "__SKIP__" ]] && SMTP_HOST=""
+    SMTP_PORT=$(prompt_optional_text "SMTP port (optional; type SKIP to omit)" "587")
+    [[ "$SMTP_PORT" == "__SKIP__" ]] && SMTP_PORT=""
+    SMTP_USER=$(prompt_optional_text "SMTP username (optional; type SKIP to omit)" "")
+    [[ "$SMTP_USER" == "__SKIP__" ]] && SMTP_USER=""
+    SMTP_PASSWORD=$(prompt_secret "SMTP password (optional; press Enter to omit)" "")
+    FROM_ADDRESS=$(prompt_optional_text "From address (optional; type SKIP to omit)" "")
+    [[ "$FROM_ADDRESS" == "__SKIP__" ]] && FROM_ADDRESS=""
+  fi
+
   CODER_MODEL=""
   if prompt_yes_no "Enable coder container?" "N"; then
     CODER_ENABLED=true
@@ -507,11 +584,20 @@ EOF
   "telegram": {
     "botToken": $(json_quote "$TELEGRAM_BOT_TOKEN")
   },
+  "email": {
+    "webhookSecret": $(json_quote "$WEBHOOK_SECRET"),
+    "smtpHost": $(json_quote "$SMTP_HOST"),
+    "smtpPort": $(json_quote "$SMTP_PORT"),
+    "smtpUser": $(json_quote "$SMTP_USER"),
+    "smtpPassword": $(json_quote "$SMTP_PASSWORD"),
+    "fromAddress": $(json_quote "$FROM_ADDRESS")
+  },
   "whatsapp_enabled": $(python3 -c 'import sys; print("true" if sys.argv[1] == "true" else "false")' "$WHATSAPP_ENABLED")
 }
 EOF
   ensure_private_file "$TOML_JSON"
   python3 "$ROOT_DIR/py/render_toml.py" < "$TOML_JSON" > "$CONFIG_PATH"
+  load_runtime_metadata
 fi
 
 if (( !SKIP_PLUGINS && !REFRESH_ONLY )); then
@@ -527,7 +613,7 @@ CONFIG_CHANGED=false
 [[ "$BEFORE_ENV_HASH" != "$AFTER_ENV_HASH" ]] && ENV_CHANGED=true
 [[ "$BEFORE_CONFIG_HASH" != "$AFTER_CONFIG_HASH" ]] && CONFIG_CHANGED=true
 
-load_runtime_password
+load_runtime_metadata
 
 if (( REFRESH_ONLY )) || [[ "$BEFORE_HEAD" != "$AFTER_HEAD" ]] || [[ "$ENV_CHANGED" == true ]] || [[ "$CONFIG_CHANGED" == true ]]; then
   info "Rebuilding and recreating stavrobot containers"
@@ -544,6 +630,6 @@ if (( !SKIP_PLUGINS )); then
   run_plugins_from_state
 fi
 
-print_run_summary "$BEFORE_HEAD" "$AFTER_HEAD" "$ENV_CHANGED" "$CONFIG_CHANGED" "$PLUGINS_SELECTED_COUNT" "$PLUGINS_HANDLED"
-print_next_steps "$PUBLIC_HOSTNAME_FINAL" "$CODER_ENABLED" "$SIGNAL_ENABLED" "$WHATSAPP_ENABLED"
+print_run_summary "$BEFORE_HEAD" "$AFTER_HEAD" "$ENV_CHANGED" "$CONFIG_CHANGED" "$PLUGINS_SELECTED_COUNT" "$PLUGINS_HANDLED" "$PLUGIN_REPORT_FILE"
+print_next_steps "$PUBLIC_HOSTNAME_FINAL" "$CODER_ENABLED" "$SIGNAL_ENABLED" "$WHATSAPP_ENABLED" "$EMAIL_ENABLED" "$AUTH_MODE_FINAL"
 info "See README.md and IMPLEMENTATION_PLAN.md"
