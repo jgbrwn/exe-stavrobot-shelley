@@ -1,0 +1,80 @@
+{
+  "env": [
+    {
+      "key": "TZ",
+      "required": true,
+      "secret": false,
+      "prompt": "Timezone"
+    },
+    {
+      "key": "POSTGRES_USER",
+      "required": false,
+      "secret": false,
+      "prompt": "Postgres username"
+    },
+    {
+      "key": "POSTGRES_PASSWORD",
+      "required": false,
+      "secret": true,
+      "prompt": "Postgres password"
+    },
+    {
+      "key": "POSTGRES_DB",
+      "required": false,
+      "secret": false,
+      "prompt": "Postgres database name"
+    },
+    {
+      "key": "COMPOSE_PROFILES",
+      "required": false,
+      "secret": false,
+      "prompt": "Compose profiles"
+    }
+  ],
+  "config": {
+    "core": [
+      {
+        "path": "provider",
+        "required": true,
+        "secret": false,
+        "prompt": "Provider"
+      },
+      {
+        "path": "model",
+        "required": true,
+        "secret": false,
+        "prompt": "Model ID"
+      },
+      {
+        "path": "password",
+        "required": true,
+        "secret": true,
+        "prompt": "HTTP basic auth password"
+      },
+      {
+        "path": "apiKey",
+        "required": false,
+        "secret": true,
+        "prompt": "API key"
+      },
+      {
+        "path": "authFile",
+        "required": false,
+        "secret": false,
+        "prompt": "Auth file path"
+      },
+      {
+        "path": "publicHostname",
+        "required": true,
+        "secret": false,
+        "prompt": "Public HTTPS URL"
+      },
+      {
+        "path": "customPrompt",
+        "required": false,
+        "secret": false,
+        "prompt": "Custom prompt"
+      }
+    ]
+  }
+}

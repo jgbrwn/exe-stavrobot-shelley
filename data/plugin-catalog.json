@@ -1,0 +1,352 @@
+[
+  {
+    "name": "weather",
+    "repo_url": "https://github.com/stavrobot/plugin-weather.git",
+    "description": "Weather via Open-Meteo",
+    "category": "general",
+    "enabled_by_default": true,
+    "required_config": [],
+    "optional_config": [],
+    "notes": "No API key required"
+  },
+  {
+    "name": "web-fetch",
+    "repo_url": "https://github.com/stavrobot/plugin-web-fetch.git",
+    "description": "Fetch and analyze web pages with Anthropic",
+    "category": "research",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "api_key",
+        "prompt": "Anthropic API key",
+        "secret": true,
+        "required": true
+      },
+      {
+        "key": "model",
+        "prompt": "Anthropic model",
+        "secret": false,
+        "required": true,
+        "default": "claude-sonnet-4-20250514"
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "web-search",
+    "repo_url": "https://github.com/stavrobot/plugin-web-search.git",
+    "description": "Web search via Anthropic web search API",
+    "category": "research",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "anthropic_api_key",
+        "prompt": "Anthropic API key",
+        "secret": true,
+        "required": true
+      },
+      {
+        "key": "model",
+        "prompt": "Anthropic model",
+        "secret": false,
+        "required": true,
+        "default": "claude-sonnet-4-20250514"
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "brave-search",
+    "repo_url": "https://github.com/stavrobot/plugin-brave-search.git",
+    "description": "Web search via Brave Search",
+    "category": "research",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "api_key",
+        "prompt": "Brave Search API key",
+        "secret": true,
+        "required": true
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "github",
+    "repo_url": "https://github.com/stavrobot/plugin-github.git",
+    "description": "Run GitHub CLI commands",
+    "category": "developer",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "github_token",
+        "prompt": "GitHub personal access token",
+        "secret": true,
+        "required": true
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "gpt-audio",
+    "repo_url": "https://github.com/stavrobot/plugin-gpt-audio.git",
+    "description": "Text-to-speech and speech-to-text using OpenAI audio APIs",
+    "category": "media",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "api_key",
+        "prompt": "OpenAI API key",
+        "secret": true,
+        "required": true
+      },
+      {
+        "key": "voice",
+        "prompt": "TTS voice",
+        "secret": false,
+        "required": true,
+        "default": "alloy"
+      }
+    ],
+    "optional_config": [
+      {
+        "key": "stt_model",
+        "prompt": "Speech-to-text model",
+        "secret": false,
+        "required": false,
+        "default": "gpt-4o-transcribe"
+      }
+    ]
+  },
+  {
+    "name": "elevenlabs",
+    "repo_url": "https://github.com/stavrobot/plugin-elevenlabs.git",
+    "description": "Text-to-speech and speech-to-text using ElevenLabs",
+    "category": "media",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "api_key",
+        "prompt": "ElevenLabs API key",
+        "secret": true,
+        "required": true
+      }
+    ],
+    "optional_config": [
+      {
+        "key": "default_voice_id",
+        "prompt": "Default voice ID",
+        "secret": false,
+        "required": false
+      },
+      {
+        "key": "model_id",
+        "prompt": "Model ID",
+        "secret": false,
+        "required": false,
+        "default": "eleven_v3"
+      },
+      {
+        "key": "stability",
+        "prompt": "Voice stability",
+        "secret": false,
+        "required": false,
+        "default": "0.9"
+      },
+      {
+        "key": "stt_model_id",
+        "prompt": "Speech-to-text model ID",
+        "secret": false,
+        "required": false,
+        "default": "scribe_v2"
+      }
+    ]
+  },
+  {
+    "name": "google-places",
+    "repo_url": "https://github.com/stavrobot/plugin-googleplaces.git",
+    "description": "Google Places and directions",
+    "category": "maps",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "api_key",
+        "prompt": "Google API key",
+        "secret": true,
+        "required": true
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "google-calendar",
+    "repo_url": "https://github.com/stavrobot/plugin-google-calendar.git",
+    "description": "Manage Google Calendar events",
+    "category": "calendar",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "client_id",
+        "prompt": "Google OAuth client ID",
+        "secret": false,
+        "required": true
+      },
+      {
+        "key": "client_secret",
+        "prompt": "Google OAuth client secret",
+        "secret": true,
+        "required": true
+      },
+      {
+        "key": "refresh_token",
+        "prompt": "Google OAuth refresh token",
+        "secret": true,
+        "required": true
+      },
+      {
+        "key": "calendar_id",
+        "prompt": "Google Calendar ID",
+        "secret": false,
+        "required": true,
+        "default": "primary"
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "caldav",
+    "repo_url": "https://github.com/stavrobot/plugin-caldav.git",
+    "description": "Manage calendars, events, and todos on a CalDAV server",
+    "category": "calendar",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "server_url",
+        "prompt": "CalDAV server URL",
+        "secret": false,
+        "required": true
+      },
+      {
+        "key": "username",
+        "prompt": "CalDAV username",
+        "secret": false,
+        "required": true
+      },
+      {
+        "key": "password",
+        "prompt": "CalDAV password",
+        "secret": true,
+        "required": true
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "home-assistant",
+    "repo_url": "https://github.com/stavrobot/plugin-home-assistant.git",
+    "description": "Control and query Home Assistant",
+    "category": "home",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "url",
+        "prompt": "Home Assistant URL",
+        "secret": false,
+        "required": true
+      },
+      {
+        "key": "access_token",
+        "prompt": "Home Assistant long-lived access token",
+        "secret": true,
+        "required": true
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "newsapi",
+    "repo_url": "https://github.com/stavrobot/plugin-newsapi.git",
+    "description": "News search via NewsAPI.org",
+    "category": "news",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "api_key",
+        "prompt": "NewsAPI.org API key",
+        "secret": true,
+        "required": true
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "joplin",
+    "repo_url": "https://github.com/stavrobot/plugin-joplin.git",
+    "description": "Manage Joplin notes, notebooks, and tags",
+    "category": "notes",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "joplin_token",
+        "prompt": "Joplin API token",
+        "secret": true,
+        "required": true
+      },
+      {
+        "key": "joplin_url",
+        "prompt": "Joplin API base URL",
+        "secret": false,
+        "required": true
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "17track",
+    "repo_url": "https://github.com/stavrobot/plugin-17track.git",
+    "description": "Track packages via 17track",
+    "category": "utility",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "api_token",
+        "prompt": "17track API token",
+        "secret": true,
+        "required": true
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "privacy",
+    "repo_url": "https://github.com/stavrobot/plugin-privacy.git",
+    "description": "Manage Privacy.com virtual cards and transactions",
+    "category": "finance",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "api_key",
+        "prompt": "Privacy.com API key",
+        "secret": true,
+        "required": true
+      }
+    ],
+    "optional_config": []
+  },
+  {
+    "name": "splid",
+    "repo_url": "https://github.com/stavrobot/plugin-splid.git",
+    "description": "Manage shared expenses in Splid groups",
+    "category": "finance",
+    "enabled_by_default": false,
+    "required_config": [
+      {
+        "key": "invite_code",
+        "prompt": "Splid invite code",
+        "secret": false,
+        "required": true
+      }
+    ],
+    "optional_config": []
+  }
+]
