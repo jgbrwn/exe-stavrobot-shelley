@@ -113,10 +113,16 @@ Soft warn on:
 
 ## Phase 2
 
+Tracks:
 - Cloudflare email worker automation
 - Shelley "Stavrobot mode"
 - Optional Stavrobot history/events API work to support Shelley as a better frontend
 - Shelley rebuild automation
+
+Current Phase 2 starting point:
+- Generate a Cloudflare Email Worker bundle from current Stavrobot config
+- Optionally deploy it with Wrangler when available
+- Keep Cloudflare Email Routing rule creation manual for now
 
 ## Discovered upstream limitation
 
@@ -133,3 +139,22 @@ The installer now supports `--plugins-only`, reusing saved plugin state from `st
 ## Final Phase 1 polish
 
 The installer now prints richer next-step guidance, tracks per-plugin outcomes in `state/last-plugin-report.txt`, supports email config prompting, and suppresses empty plugin-result sections in the final summary.
+
+## Phase 2 increment: Cloudflare automation track
+
+Implemented starter scope:
+
+1. Add `install-cloudflare-email-worker.sh` as a separate Phase 2 entrypoint.
+2. Read `publicHostname` and `email.webhookSecret` from Stavrobot config when available.
+3. Render a ready-to-review Cloudflare worker bundle containing:
+   - `worker.js`
+   - `wrangler.toml`
+   - `.dev.vars.example`
+   - worker-specific `README.md`
+4. Support optional `--deploy` flow using Wrangler plus `wrangler secret put WEBHOOK_SECRET`.
+5. Leave dashboard Email Routing rule creation manual until a later increment.
+
+Rationale:
+- This captures the repetitive, error-prone parts first.
+- It does not require undocumented Cloudflare APIs.
+- It keeps the first Phase 2 increment testable without broadening scope into Shelley integration yet.

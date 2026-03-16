@@ -15,10 +15,24 @@ Phase 1 installer project for deploying and updating [stavrobot](https://github.
 
 ## Not in Phase 1
 
-- Cloudflare email worker automation
 - Shelley custom rebuilds
 - Shelley "Stavrobot mode"
 - Stavrobot code changes
+
+## Phase 2 in progress
+
+Cloudflare email worker automation has now started as a Phase 2 track.
+
+Current Phase 2 deliverable:
+
+- `install-cloudflare-email-worker.sh` generates a deployable Cloudflare Email Worker bundle from existing Stavrobot config
+- output includes `worker.js`, `wrangler.toml`, `.dev.vars.example`, and worker-specific README
+- optional `--deploy` support can run Wrangler deploy and upload `WEBHOOK_SECRET`
+
+Still manual even in this first Phase 2 step:
+
+- Cloudflare account auth/login if not already set up
+- Cloudflare Email Routing rule creation in the dashboard
 
 ## Intended layout
 
@@ -37,7 +51,7 @@ Phase 1 installer project for deploying and updating [stavrobot](https://github.
 
 ## Status
 
-Planning and scaffold phase.
+Phase 1 is implemented and usable. Phase 2 has started with the Cloudflare automation track.
 
 ## Current implementation status
 
@@ -49,13 +63,11 @@ Implemented so far:
 - Clean generation of `.env` and `data/main/config.toml`
 - Docker Compose rebuild/recreate on change
 - Basic authenticated readiness check against Stavrobot
-
-Implemented next:
-
 - Interactive plugin selection
 - Required and optional plugin config prompts
 - Saved plugin selections in `state/last-plugin-inputs.json`
 - Install and configure selected plugins against the running Stavrobot instance after startup
+- Phase 2 starter: Cloudflare email worker bundle generation
 
 ## Plugin state
 
@@ -69,17 +81,17 @@ This file may contain plugin secrets. It is written with mode `0600`.
 
 - `--plugins-only` reuses `state/last-plugin-inputs.json` if present.
 - Generic OpenAI-compatible provider prompting is present, but current upstream Stavrobot config still lacks an explicit arbitrary base-URL field.
-- Email worker automation is still not implemented.
+- Cloudflare email worker automation currently generates/deploys the worker bundle, but Email Routing rule creation is still manual.
 - Non-interactive automation is not finished yet.
 
 ## Manual integrations still left to the operator
 
-The installer can generate config for these, but Phase 1 still leaves final activation manual:
+The installer can generate config for these, but some final activation steps are still manual:
 
 - `authFile` login flow
 - Signal registration/linking
 - WhatsApp QR linking
-- Cloudflare Email Worker deployment
+- Cloudflare Email Routing rule creation
 - Claude Code login for the coder container
 
 ## Plugin run report
@@ -87,3 +99,34 @@ The installer can generate config for these, but Phase 1 still leaves final acti
 The most recent plugin install/configure results are written to:
 
 - `state/last-plugin-report.txt`
+
+## Cloudflare email worker automation
+
+Generate a worker bundle from existing Stavrobot config:
+
+```bash
+./install-cloudflare-email-worker.sh --stavrobot-dir /opt/stavrobot
+```
+
+Override values or deploy directly:
+
+```bash
+./install-cloudflare-email-worker.sh \
+  --stavrobot-dir /opt/stavrobot \
+  --worker-name stavrobot-email-worker \
+  --account-id YOUR_CF_ACCOUNT_ID \
+  --deploy
+```
+
+This reads `publicHostname` and `email.webhookSecret` from `data/main/config.toml` when available.
+
+Generated bundle location by default:
+
+- `state/cloudflare-email-worker/`
+
+Contents:
+
+- `worker.js`
+- `wrangler.toml`
+- `.dev.vars.example`
+- `README.md`
