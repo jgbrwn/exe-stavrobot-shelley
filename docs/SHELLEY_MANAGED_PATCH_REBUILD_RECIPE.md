@@ -710,3 +710,50 @@ Current rules:
 - `--refresh-shelley-mode` is Shelley-refresh-only and cannot be mixed with normal Stavrobot install/config/plugin flags
 - `--allow-dirty-shelley` and `--skip-shelley-smoke` require `--refresh-shelley-mode`
 - `--json` cannot be used outside `--print-shelley-mode-status`
+
+## Operator quick checklist
+
+Use this as the compact operator-facing flow for the current managed Shelley mode path.
+
+### 1. Check status
+
+```bash
+./install-stavrobot.sh --print-shelley-mode-status
+```
+
+Or for automation:
+
+```bash
+./install-stavrobot.sh --print-shelley-mode-status --json
+```
+
+### 2. If rebuild is needed, refresh
+
+```bash
+./install-stavrobot.sh --refresh-shelley-mode
+```
+
+### 3. If local `/opt/shelley` is intentionally dirty, refresh explicitly
+
+```bash
+./install-stavrobot.sh --refresh-shelley-mode --allow-dirty-shelley
+```
+
+### 4. If only rebuild is wanted and smoke can be deferred
+
+```bash
+./install-stavrobot.sh --refresh-shelley-mode --skip-shelley-smoke
+```
+
+### 5. Confirm status afterward
+
+```bash
+./install-stavrobot.sh --print-shelley-mode-status
+```
+
+Expected healthy result for the current S1 managed path:
+
+- `upstream_status: current`
+- `profiles_status: current`
+- `bridge_paths_ok: yes`
+- `rebuild_required: no`

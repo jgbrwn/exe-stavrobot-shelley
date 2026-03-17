@@ -91,6 +91,47 @@ Still manual in this track:
 ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --plugins-only
 ```
 
+## Managed Shelley mode commands
+
+Current installer-facing Shelley mode commands:
+
+```bash
+./install-stavrobot.sh --print-shelley-mode-status
+./install-stavrobot.sh --print-shelley-mode-status --json
+./install-stavrobot.sh --refresh-shelley-mode
+./install-stavrobot.sh --refresh-shelley-mode --allow-dirty-shelley
+./install-stavrobot.sh --refresh-shelley-mode --skip-shelley-smoke
+```
+
+What they do:
+
+- `--print-shelley-mode-status`
+  - read-only human status for managed Shelley mode
+- `--print-shelley-mode-status --json`
+  - machine-readable status for automation
+- `--refresh-shelley-mode`
+  - apply/skip the owned Shelley patch series, rebuild Shelley, and run isolated smoke validation
+- `--allow-dirty-shelley`
+  - allow refresh against an already-modified `/opt/shelley` checkout
+- `--skip-shelley-smoke`
+  - skip the isolated Shelley smoke pass during refresh
+
+Common status interpretation:
+
+- `upstream_status: current`
+  - recorded rebuild commit matches the current managed checkout
+- `profiles_status: current`
+  - recorded bridge-profile snapshot still matches current profile state
+- `rebuild_required: no`
+  - managed Shelley mode currently looks up to date enough for the S1 workflow
+- `rebuild_required: yes`
+  - refresh is recommended because checkout/binary/profile/build state no longer matches expectations
+
+Guardrails:
+
+- Shelley status/refresh flags are intentionally separate from normal Stavrobot install/config/plugin flows
+- ambiguous mixes are rejected by the installer rather than silently choosing precedence
+
 ## Status
 
 Phase 1 is implemented and usable. Phase 2 has started with the Cloudflare automation track.
