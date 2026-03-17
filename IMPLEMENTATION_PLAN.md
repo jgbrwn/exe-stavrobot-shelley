@@ -969,5 +969,5 @@ The split prototype series has now also been replay/apply validated in order aga
 - managed Shelley status reporting now distinguishes `current` vs `current-dirty` checkout state so rebuild-needed output reflects dirty managed checkouts too
 - managed rebuild state now also records `build.checkout_dirty_at_rebuild` so operator intent/history is visible in later status output
 - human-readable managed status now surfaces dirty recorded rebuild provenance as an explicit warning, and reports `unknown` for older state files that predate that field
-- a lightweight repo-owned `tests/run.sh` driver now exists for helper/status regression checks, including managed-status output-shape coverage
+- a lightweight repo-owned `tests/run.sh` driver now exists for helper/status regression checks, including managed-status output-shape coverage, installer guardrails/config modes/OpenRouter flow, and bridge-profile helper coverage
 - the installer now also enforces explicit conflict/precedence guardrails for Shelley-only vs normal installer mutation flows
