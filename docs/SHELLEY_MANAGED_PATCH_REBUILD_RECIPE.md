@@ -658,6 +658,7 @@ The live service should continue using its normal systemd-managed runtime config
 The repo now also includes:
 
 - `print-shelley-managed-status.sh`
+- `tests/run.sh` for lightweight helper/status test execution
 
 That helper reads the managed rebuild state plus bridge-profile state and reports:
 
@@ -670,6 +671,12 @@ That helper reads the managed rebuild state plus bridge-profile state and report
 - rebuild required vs not required
 
 It also supports `--json` for machine-readable status output.
+
+For lightweight regression coverage of helper/status output shape, run:
+
+```bash
+./tests/run.sh
+```
 
 ## Installer-facing Shelley mode entrypoints
 

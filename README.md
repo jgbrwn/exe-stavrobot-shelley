@@ -66,6 +66,7 @@ Still manual in this track:
 - the managed `/opt/shelley` rebuild path has now also been revalidated end-to-end in isolated mode: rebuild, isolated serve, normal conversation smoke, Stavrobot first turn, Stavrobot continuation, and persisted mapping verification
 - `refresh-shelley-managed-s1.sh` now provides a repo-owned managed refresh helper that reapplies/skips `0001` → `0004`, rebuilds Shelley, optionally runs isolated smoke validation, and writes `state/shelley-mode-build.json`
 - `print-shelley-managed-status.sh` now provides a repo-owned read-only status view over managed Shelley rebuild state, bridge-profile state, checkout/binary presence, and whether a rebuild appears required
+- `tests/run.sh` now provides a lightweight repo-owned validation driver for helper/status tests under `tests/`
 - `install-stavrobot.sh` now exposes explicit Shelley-mode entrypoints for the current managed flow via `--print-shelley-mode-status` and `--refresh-shelley-mode`, supports `--print-shelley-mode-status --json` for machine-readable status, and rejects ambiguous mixes with normal installer mutation flags
 - `patches/shelley/series/0004-stavrobot-runtime-unit.patch-plan.md` now gives a concrete function-by-function apply scaffold for the focused Shelley runtime-unit extraction
 - `patches/shelley/s1-stavrobot-mode-cleaned-runtime-prototype.patch` now captures the first real cleaned-runtime prototype diff from a managed `/opt/shelley` checkout, including the first prototype-hardening pass for a less text-locked `server/stavrobot.go` result shape
@@ -138,6 +139,13 @@ Guardrails:
 
 - Shelley status/refresh flags are intentionally separate from normal Stavrobot install/config/plugin flows
 - ambiguous mixes are rejected by the installer rather than silently choosing precedence
+
+Lightweight helper/status validation:
+
+```bash
+./tests/run.sh
+./tests/run.sh test-print-shelley-managed-status.sh
+```
 
 ## Status
 
