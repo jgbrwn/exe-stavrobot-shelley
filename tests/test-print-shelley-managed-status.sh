@@ -10,7 +10,7 @@ assert_contains() {
   local needle="$2"
   if ! grep -Fq "$needle" <<<"$haystack"; then
     printf 'expected output to contain: %s\n' "$needle" >&2
-    printf '--- output ---\n%s\n------------\n' "$haystack" >&2
+    printf -- '--- output ---\n%s\n------------\n' "$haystack" >&2
     exit 1
   fi
 }
@@ -20,7 +20,7 @@ assert_not_contains() {
   local needle="$2"
   if grep -Fq "$needle" <<<"$haystack"; then
     printf 'expected output to not contain: %s\n' "$needle" >&2
-    printf '--- output ---\n%s\n------------\n' "$haystack" >&2
+    printf -- '--- output ---\n%s\n------------\n' "$haystack" >&2
     exit 1
   fi
 }
@@ -118,3 +118,4 @@ assert_contains "$older_output" '  - recorded rebuild provenance does not includ
 assert_not_contains "$older_output" 'warnings:'
 
 printf 'print-shelley-managed-status tests passed\n'
+

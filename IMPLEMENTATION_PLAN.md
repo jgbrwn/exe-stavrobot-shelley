@@ -9,8 +9,8 @@ Build a standalone, Bash-first installer for Stavrobot on exe.dev VMs. The insta
 1. Keep this installer in a separate repo from the upstream Stavrobot clone.
 2. Use Bash for orchestration and Python for structured parsing/rendering.
 3. Generate clean `.env` and `data/main/config.toml` files rather than patching example files in place.
-4. Live-fetch OpenRouter free models from `https://openrouter.ai/api/v1/models` and present them as optional suggestions.
-5. Always allow manual provider, base URL, and model entry for any OpenAI-compatible setup.
+4. Live-fetch OpenRouter free models from `https://openrouter.ai/api/v1/models` and present them in a first-class OpenRouter provider flow.
+5. Still allow manual provider and model entry for broader OpenAI-compatible setups, noting that upstream Stavrobot currently lacks an explicit arbitrary base-URL field.
 6. Collect plugin configuration values during prompting, then install and configure plugins after Stavrobot is running.
 7. Use Stavrobot's authenticated HTTP plugin-management endpoints instead of asking the LLM to install plugins.
 8. Rebuild with `docker compose up -d --build --force-recreate` whenever repo HEAD or generated config changes.
@@ -133,7 +133,7 @@ Important scope constraint for Shelley work:
 
 ## Discovered upstream limitation
 
-While implementing Phase 1, we verified that current upstream Stavrobot exposes `provider`, `model`, `apiKey`, and `authFile` in `config.toml`, but no explicit base-URL field for arbitrary OpenAI-compatible endpoints. The installer can still present OpenRouter free-model suggestions and collect generic provider details, but full arbitrary OpenAI-compatible endpoint setup may require upstream Stavrobot changes in Phase 2.
+While implementing Phase 1, we verified that current upstream Stavrobot exposes `provider`, `model`, `apiKey`, and `authFile` in `config.toml`, but no explicit base-URL field for arbitrary OpenAI-compatible endpoints. The installer should therefore treat OpenRouter as a first-class provider path with live free-model selection, while broader arbitrary OpenAI-compatible endpoint setup may still require upstream Stavrobot changes in Phase 2.
 
 ## Implemented increment
 

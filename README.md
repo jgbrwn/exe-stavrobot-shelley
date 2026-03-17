@@ -7,8 +7,9 @@ Phase 1 installer project for deploying and updating [stavrobot](https://github.
 - Pull latest upstream stavrobot first
 - Interactively generate `.env` and `data/main/config.toml`
 - Support Anthropic directly today
-- Surface OpenRouter free-model suggestions and gather generic OpenAI-compatible details for future/upstream-compatible setups
-- Live-fetch current OpenRouter free models as suggestions
+- Offer a first-class OpenRouter provider path in the installer
+- Live-fetch current OpenRouter free models as selectable suggestions for that provider path
+- Still gather generic OpenAI-compatible details for future/upstream-compatible setups
 - Start/rebuild Stavrobot with Docker Compose
 - Collect plugin config values up front, then install/configure plugins against the running app
 - Print clear post-install next steps for manual integrations
@@ -66,7 +67,7 @@ Still manual in this track:
 - the managed `/opt/shelley` rebuild path has now also been revalidated end-to-end in isolated mode: rebuild, isolated serve, normal conversation smoke, Stavrobot first turn, Stavrobot continuation, and persisted mapping verification
 - `refresh-shelley-managed-s1.sh` now provides a repo-owned managed refresh helper that reapplies/skips `0001` → `0004`, rebuilds Shelley, optionally runs isolated smoke validation, and writes `state/shelley-mode-build.json`
 - `print-shelley-managed-status.sh` now provides a repo-owned read-only status view over managed Shelley rebuild state, bridge-profile state, checkout/binary presence, and whether a rebuild appears required
-- `tests/run.sh` now provides a lightweight repo-owned validation driver for helper/status tests under `tests/`
+- `tests/run.sh` now provides a lightweight repo-owned validation driver for helper/status tests under `tests/`, including installer OpenRouter-path coverage
 - `install-stavrobot.sh` now exposes explicit Shelley-mode entrypoints for the current managed flow via `--print-shelley-mode-status` and `--refresh-shelley-mode`, supports `--print-shelley-mode-status --json` for machine-readable status, and rejects ambiguous mixes with normal installer mutation flags
 - `patches/shelley/series/0004-stavrobot-runtime-unit.patch-plan.md` now gives a concrete function-by-function apply scaffold for the focused Shelley runtime-unit extraction
 - `patches/shelley/s1-stavrobot-mode-cleaned-runtime-prototype.patch` now captures the first real cleaned-runtime prototype diff from a managed `/opt/shelley` checkout, including the first prototype-hardening pass for a less text-locked `server/stavrobot.go` result shape
@@ -145,6 +146,7 @@ Lightweight helper/status validation:
 ```bash
 ./tests/run.sh
 ./tests/run.sh test-print-shelley-managed-status.sh
+./tests/run.sh test-install-stavrobot-openrouter-path.sh
 ```
 
 ## Status
@@ -156,6 +158,7 @@ Phase 1 is implemented and usable. Phase 2 has started with the Cloudflare autom
 Implemented so far:
 
 - Upstream Stavrobot repo validation and `git pull --ff-only`
+- First-class OpenRouter provider prompting in the installer
 - OpenRouter free-model fetch and local caching
 - Interactive core config prompts
 - Clean generation of `.env` and `data/main/config.toml`
@@ -179,7 +182,7 @@ This file may contain plugin secrets. It is written with mode `0600`.
 ## Current caveats
 
 - `--plugins-only` reuses `state/last-plugin-inputs.json` if present.
-- Generic OpenAI-compatible provider prompting is present, but current upstream Stavrobot config still lacks an explicit arbitrary base-URL field.
+- The installer now has a first-class OpenRouter provider path with live free-model selection, but current upstream Stavrobot config still lacks an explicit arbitrary base-URL field for broader arbitrary OpenAI-compatible endpoint setup.
 - Cloudflare email worker automation currently generates/deploys the worker bundle, but Email Routing rule creation is still manual.
 - Non-interactive automation is not finished yet.
 

@@ -94,9 +94,47 @@ fetch_openrouter_suggestions() {
   if python3 "$ROOT_DIR/py/openrouter_models.py" > "$OPENROUTER_OUT"; then
     ensure_private_file "$OPENROUTER_OUT"
     info "Fetched OpenRouter free model suggestions into $OPENROUTER_OUT"
-  else
-    warn "Failed to fetch OpenRouter free model suggestions"
+    return 0
   fi
+  warn "Failed to fetch OpenRouter free model suggestions"
+  return 1
+}
+
+prompt_openrouter_model() {
+  local current_model="$1"
+  local default_model="${current_model:-openrouter/free}"
+  local openrouter_catalog="${OPENROUTER_OUT:-$ROOT_DIR/state/openrouter-free-models.json}"
+  local -a model_choices=()
+
+  if [[ -f "$openrouter_catalog" ]]; then
+    mapfile -t model_choices < <(python3 - "$openrouter_catalog" <<'PY'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        data = json.load(f)
+except Exception:
+    raise SystemExit(0)
+for item in data.get('models', [])[:12]:
+    model_id = item.get('id', '').strip()
+    if model_id:
+        print(model_id)
+PY
+)
+  fi
+
+  if (( ${#model_choices[@]} > 0 )); then
+    printf '[info] OpenRouter free-model choices are from the current live catalog\n' >&2
+    selection=$(prompt_choice "OpenRouter model:" "${model_choices[@]}" "Manual entry")
+    if [[ "$selection" == "Manual entry" ]]; then
+      selection=$(prompt_text "OpenRouter model ID" "$default_model")
+    fi
+  else
+    selection=$(prompt_text "OpenRouter model ID" "$default_model")
+  fi
+
+  selection=${selection:-$default_model}
+  [[ -n "$selection" ]] || die "OpenRouter model ID is required"
+  printf '%s\n' "$selection"
 }
 
 load_runtime_password() {
@@ -400,18 +438,25 @@ mkdir -p "$(dirname "$CONFIG_PATH")"
 
 info "Documented plan: $ROOT_DIR/IMPLEMENTATION_PLAN.md"
 info "Validating upstream stavrobot repo"
-check_repo_clean_for_pull "$STAVROBOT_DIR"
 BEFORE_HEAD=$(get_repo_head "$STAVROBOT_DIR")
-pull_latest_stavrobot "$STAVROBOT_DIR"
-AFTER_HEAD=$(get_repo_head "$STAVROBOT_DIR")
-
-if [[ "$BEFORE_HEAD" != "$AFTER_HEAD" ]]; then
-  info "Updated stavrobot from $BEFORE_HEAD to $AFTER_HEAD"
+if (( CONFIG_ONLY || SKIP_CONFIG )); then
+  AFTER_HEAD="$BEFORE_HEAD"
+  info "Config-only path: skipping upstream stavrobot pull"
 else
-  info "Stavrobot already up to date at $AFTER_HEAD"
+  check_repo_clean_for_pull "$STAVROBOT_DIR"
+  pull_latest_stavrobot "$STAVROBOT_DIR"
+  AFTER_HEAD=$(get_repo_head "$STAVROBOT_DIR")
+
+  if [[ "$BEFORE_HEAD" != "$AFTER_HEAD" ]]; then
+    info "Updated stavrobot from $BEFORE_HEAD to $AFTER_HEAD"
+  else
+    info "Stavrobot already up to date at $AFTER_HEAD"
+  fi
 fi
 
-fetch_openrouter_suggestions
+if (( !PLUGINS_ONLY )) && [[ -z "${SHELLEY_INSTALLER_TEST_SKIP_OPENROUTER_FETCH:-}" ]]; then
+  fetch_openrouter_suggestions || true
+fi
 
 if (( PLUGINS_ONLY )); then
   load_runtime_metadata
@@ -428,6 +473,9 @@ BEFORE_CONFIG_HASH=$(sha256_file "$CONFIG_PATH")
 
 if (( REFRESH_ONLY )); then
   info "Refresh mode: skipping config prompts"
+  load_runtime_metadata
+elif (( SKIP_CONFIG )); then
+  info "Skip-config mode: reusing existing config files"
   load_runtime_metadata
 else
   render_current_state
@@ -463,7 +511,7 @@ else
     PG_DB=$(json_get "$CURRENT_JSON" env_example.POSTGRES_DB)
   fi
 
-  PROVIDER_MODE=$(prompt_choice "Provider setup:" "Anthropic" "OpenAI-compatible" "Manual/custom")
+  PROVIDER_MODE=$(prompt_choice "Provider setup:" "Anthropic" "OpenRouter" "OpenAI-compatible" "Manual/custom")
 
   PROVIDER=""
   MODEL=""
@@ -498,20 +546,35 @@ else
         [[ -n "$AUTH_FILE" ]] || die "authFile path is required when using authFile auth"
       fi
       ;;
+    OpenRouter)
+      PROVIDER="openrouter"
+      AUTH_MODE=$(prompt_choice "OpenRouter auth mode:" "API key" "authFile")
+      AUTH_MODE_FINAL=$([[ "$AUTH_MODE" == "API key" ]] && echo apiKey || echo authFile)
+      MODEL_DEFAULT=$(json_get "$CURRENT_JSON" toml_current.model)
+      if [[ "$(json_get "$CURRENT_JSON" toml_current.provider)" != "openrouter" ]]; then
+        MODEL_DEFAULT="openrouter/free"
+      fi
+      MODEL=$(prompt_openrouter_model "$MODEL_DEFAULT")
+      if [[ "$AUTH_MODE" == "API key" ]]; then
+        API_KEY_DEFAULT=$(json_get "$CURRENT_JSON" toml_current.apiKey)
+        if (( SHOW_SECRETS )); then
+          API_KEY=$(prompt_secret "OpenRouter API key" "$API_KEY_DEFAULT")
+        else
+          API_KEY=$(prompt_secret "OpenRouter API key" "$(mask_secret "$API_KEY_DEFAULT")")
+        fi
+        API_KEY=${API_KEY:-$API_KEY_DEFAULT}
+        [[ -n "$API_KEY" ]] || die "OpenRouter API key is required when using API key auth"
+      else
+        AUTH_FILE_DEFAULT=$(json_get "$CURRENT_JSON" toml_current.authFile)
+        AUTH_FILE_DEFAULT=${AUTH_FILE_DEFAULT:-/app/data/auth.json}
+        AUTH_FILE=$(prompt_text "OpenRouter auth file path" "$AUTH_FILE_DEFAULT")
+        AUTH_FILE=${AUTH_FILE:-$AUTH_FILE_DEFAULT}
+        [[ -n "$AUTH_FILE" ]] || die "OpenRouter authFile path is required when using authFile auth"
+      fi
+      ;;
     OpenAI-compatible)
-      warn "Current upstream stavrobot config exposes provider and model, but no explicit base URL field. OpenAI-compatible setups may require upstream support beyond this installer."
+      warn "Current upstream stavrobot config exposes provider and model, but no explicit base URL field. Arbitrary OpenAI-compatible setups may require upstream support beyond this installer."
       AUTH_MODE_FINAL=apiKey
-      printf 'OpenRouter endpoint suggestion: https://openrouter.ai/api/v1\n' >&2
-      python3 - "$OPENROUTER_OUT" <<'PY' >&2 || true
-import json, sys
-try:
-    with open(sys.argv[1]) as f:
-        data = json.load(f)
-    for index, model in enumerate(data.get('models', [])[:12], start=1):
-        print(f"  {index}) {model['id']}")
-except Exception:
-    pass
-PY
       PROVIDER_DEFAULT=$(json_get "$CURRENT_JSON" toml_current.provider)
       PROVIDER=$(prompt_text "Provider label" "$PROVIDER_DEFAULT")
       MODEL=$(prompt_text "Model ID" "")
@@ -685,7 +748,11 @@ EOF
   load_runtime_metadata
 fi
 
-if (( !SKIP_PLUGINS && !REFRESH_ONLY )); then
+if (( CONFIG_ONLY )); then
+  SKIP_PLUGINS=1
+fi
+
+if (( !SKIP_PLUGINS && !REFRESH_ONLY && !SKIP_CONFIG )); then
   if prompt_yes_no "Review plugin installation choices now?" "N"; then
     prompt_plugin_selection
   fi
@@ -700,7 +767,9 @@ CONFIG_CHANGED=false
 
 load_runtime_metadata
 
-if (( REFRESH_ONLY )) || [[ "$BEFORE_HEAD" != "$AFTER_HEAD" ]] || [[ "$ENV_CHANGED" == true ]] || [[ "$CONFIG_CHANGED" == true ]]; then
+if (( CONFIG_ONLY )); then
+  info "Config-only mode: wrote config files without rebuilding containers or running plugins"
+elif (( REFRESH_ONLY )) || [[ "$BEFORE_HEAD" != "$AFTER_HEAD" ]] || [[ "$ENV_CHANGED" == true ]] || [[ "$CONFIG_CHANGED" == true ]]; then
   info "Rebuilding and recreating stavrobot containers"
   docker_compose_up_recreate "$STAVROBOT_DIR"
   wait_for_stavrobot_ready
@@ -711,7 +780,7 @@ else
   fi
 fi
 
-if (( !SKIP_PLUGINS )); then
+if (( !SKIP_PLUGINS && !CONFIG_ONLY )); then
   run_plugins_from_state
 fi
 
