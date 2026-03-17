@@ -45,11 +45,11 @@ Usage: ./install-stavrobot.sh --stavrobot-dir PATH [flags]
 
 Flags:
   --stavrobot-dir PATH
-  --refresh
-  --plugins-only
-  --config-only
-  --skip-config
-  --skip-plugins
+  --refresh                     Pull/rebuild/restart when repo or config changed
+  --plugins-only                Reuse saved plugin selections against a running stack
+  --config-only                 Write .env/config only; skip pull, rebuild, and plugins
+  --skip-config                 Reuse existing .env/config instead of prompting
+  --skip-plugins                Skip plugin prompt/install steps
   --show-secrets
   --print-shelley-mode-status
   --json

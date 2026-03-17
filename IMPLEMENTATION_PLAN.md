@@ -66,15 +66,24 @@ Prompt for:
 - model
 - auth mode: `apiKey` or `authFile`
 
+### OpenRouter
+
+Prompt for:
+- provider = `openrouter`
+- auth mode: `apiKey` or `authFile`
+- model from live OpenRouter free-model choices when available
+- manual model entry fallback
+
+Include `openrouter/free` in the selectable list.
+
 ### OpenAI-compatible
 
 Prompt for:
 - provider label
-- base URL
 - model ID
 - API key
 
-Before prompting, try to fetch current OpenRouter free models and show them as suggestions alongside the OpenRouter v1 endpoint URL.
+This path remains generic/manual because current upstream Stavrobot config still lacks an explicit arbitrary base-URL field.
 
 ## Prompt semantics
 
@@ -141,7 +150,7 @@ The installer now supports Phase 1 core config generation plus a first pass at p
 
 ## Hardening updates
 
-The installer now supports `--plugins-only`, reusing saved plugin state from `state/last-plugin-inputs.json`. Prompt handling for optional owner fields was also tightened so skipped values are omitted from generated config output.
+The installer now supports `--plugins-only`, reusing saved plugin state from `state/last-plugin-inputs.json`. It also now honors `--config-only` and `--skip-config` explicitly rather than leaving them as stale flag surface. Prompt handling for optional owner fields was also tightened so skipped values are omitted from generated config output.
 
 ## Final Phase 1 polish
 

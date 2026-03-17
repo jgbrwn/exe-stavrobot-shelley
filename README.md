@@ -91,7 +91,22 @@ Still manual in this track:
 ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot
 ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --refresh
 ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --plugins-only
+./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --config-only
+./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --skip-config --skip-plugins
 ```
+
+Current core installer flag semantics:
+
+- `--refresh`
+  - pull upstream and rebuild/restart if repo or generated config changed
+- `--plugins-only`
+  - reuse saved plugin selections against an already-running Stavrobot stack
+- `--config-only`
+  - write `.env` and `data/main/config.toml` only; skip pull, rebuild, and plugin work
+- `--skip-config`
+  - reuse existing `.env` and `data/main/config.toml` instead of prompting again
+- `--skip-plugins`
+  - skip plugin prompting/install/configure steps for this run
 
 ## Managed Shelley mode commands
 
@@ -183,6 +198,8 @@ This file may contain plugin secrets. It is written with mode `0600`.
 ## Current caveats
 
 - `--plugins-only` reuses `state/last-plugin-inputs.json` if present.
+- `--config-only` is a write-only config path and intentionally skips pull/rebuild/plugin actions.
+- `--skip-config` reuses the current `.env` and `data/main/config.toml`; pair it with `--skip-plugins` when you want a mostly no-op validation pass.
 - The installer now has a first-class OpenRouter provider path with live free-model selection, but current upstream Stavrobot config still lacks an explicit arbitrary base-URL field for broader arbitrary OpenAI-compatible endpoint setup.
 - Cloudflare email worker automation currently generates/deploys the worker bundle, but Email Routing rule creation is still manual.
 - Non-interactive automation is not finished yet.
