@@ -689,3 +689,23 @@ Important consequence for the shell integration contract:
 - but that bridge should be allowed to evolve beyond plain response text into a stable structured output mode when Shelley is ready to preserve richer markdown/media/tool semantics
 
 That preserves the current minimal integration while keeping a clear path toward Shelley-native rich rendering and trace visibility later.
+
+
+## Draft Shelley UX recommendation for Stavrobot mode
+
+The first Shelley-side UX can stay compact while still being clear.
+
+Recommended minimum UX elements:
+
+- conversation mode selector with `Default` and `Stavrobot`
+- installer-managed Stavrobot profile selector when Stavrobot mode is chosen
+- reuse of Shelley's existing `Agent Working...` indicator while waiting on the bridge/result
+- a mode-aware context label such as `Context managed by Stavrobot`
+- explicit degraded-state messaging with actionable recovery options
+- explicit `Reset remote mapping` action
+
+Recommended UX discipline:
+
+- keep Stavrobot-specific controls mostly in conversation settings/details, not scattered throughout the composer
+- make retrieval/cross-conversation recall explicit when used
+- design future rich markdown/media/tool rendering to flow through Shelley's native content UI rather than a separate raw bridge/debug surface

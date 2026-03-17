@@ -49,6 +49,7 @@ Still manual in this track:
 - the likely future installer CLI should keep Shelley work explicit via opt-in/status/refresh flags rather than changing normal installs silently
 - the likely future Shelley-side implementation should treat Stavrobot mode as a small per-conversation lifecycle/state machine rather than only a boolean toggle
 - the likely official Shelley patch seam is above the normal model/provider layer, reusing Shelley's existing working-state UX while waiting on Stavrobot and later evolving the canonical bridge toward richer structured output for markdown/media/tool fidelity
+- the likely first Shelley UX for Stavrobot mode should stay compact: explicit mode/profile selection, reused `Agent Working...`, a mode-aware context label, actionable degraded-state recovery, and explicit reset/remap controls
 - long-lived Shelley conversations should remain viable if Stavrobot mode is implemented as frontend-to-Stavrobot continuation rather than replaying an ever-growing Shelley transcript through a normal model-provider path each turn
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`

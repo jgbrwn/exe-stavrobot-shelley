@@ -910,3 +910,247 @@ So future bridge work should likely add or refine capabilities such as:
 - keep plain response-text mode as the conservative default, but preserve a structured mode for Shelley-native rich rendering later
 
 That is how we make sure the earlier observation about markdown/media/tool fidelity actually turns into implementation work instead of remaining just a warning in the docs.
+
+
+## Draft Shelley UX for Stavrobot mode
+
+A later pass should absolutely cover the exact user-facing UX, and the current planning is now specific enough to sketch that shape.
+
+Recommended UX goals:
+
+- make Stavrobot mode feel native, not bolted on
+- preserve ordinary Shelley behavior in normal conversations
+- keep failure states actionable rather than mysterious
+- make cross-conversation recall explicit when used
+- avoid misleading context/token indicators in Stavrobot mode
+
+## Recommended user-facing controls
+
+### Conversation mode selector
+
+Recommended user-facing choices:
+
+- `Default`
+- `Stavrobot`
+
+Alternative wording if Shelley prefers more descriptive labels:
+
+- `Default (direct model)`
+- `Stavrobot mode`
+
+Recommendation:
+
+- keep the first version simple and explicit
+- avoid euphemistic labels that hide which backend/runtime path is in use
+
+### Bridge profile selector
+
+Only shown when Stavrobot mode is selected.
+
+Recommended label:
+
+- `Stavrobot profile`
+
+Recommended behavior:
+
+- show installer-managed profile names such as `local-default`
+- optionally allow a friendlier display label later
+- if only one profile exists, Shelley may preselect it automatically
+- if no profile exists, disable the mode switch and show setup guidance
+
+### Conversation actions menu
+
+For Stavrobot-mode conversations, recommended explicit actions are:
+
+- `Reset remote mapping`
+- `Change Stavrobot profile`
+- `Disable Stavrobot mode`
+- later optionally: `Inspect remote events`
+- later optionally: `Refresh remote history`
+
+These actions should live in a conversation settings/details area rather than crowding the main composer.
+
+## Recommended visible status states
+
+### 1. Configured, not yet mapped
+
+Recommended status text:
+
+- `Stavrobot mode enabled`
+- `Not yet connected to remote conversation`
+
+Possible helper text:
+
+- `Your first successful message will create the remote Stavrobot conversation.`
+
+### 2. Waiting on response
+
+Reuse Shelley's existing working state.
+
+Recommended visible text:
+
+- existing `Agent Working...`
+
+Optional later refinement:
+
+- `Agent Working... (Stavrobot)`
+- detail text: `Waiting for Stavrobot response`
+
+### 3. Active mapped conversation
+
+Recommended compact badge or status text:
+
+- `Stavrobot mode`
+- `Connected`
+
+Debug/details panel may also show:
+
+- remote conversation ID
+- profile name
+- last known remote message ID
+
+### 4. Degraded / attention-needed
+
+Recommended compact badge or status text:
+
+- `Stavrobot attention needed`
+
+Recommended expandable details:
+
+- `Profile not found`
+- `Bridge unavailable`
+- `Authentication failed`
+- `Remote conversation unavailable`
+- `Remote request failed`
+
+Recommended actions in degraded state:
+
+- `Retry`
+- `Reset remote mapping`
+- `Change Stavrobot profile`
+- `Disable Stavrobot mode`
+
+## Recommended context indicator UX
+
+Because Stavrobot owns the active durable thread context, Shelley should avoid pretending its ordinary direct-model context gauge is authoritative.
+
+Recommended first UX:
+
+- badge/label: `Context managed by Stavrobot`
+
+Optional helper text:
+
+- `This conversation uses Stavrobot-managed context rather than Shelley's direct model context tracking.`
+
+Recommended anti-pattern to avoid:
+
+- do not show a fake precise token gauge just because Shelley normally has one for direct-model conversations
+
+Possible later enhancement:
+
+- if Stavrobot exposes a meaningful context estimate, Shelley can render a separate mode-aware indicator
+
+## Recommended retrieval / cross-conversation recall UX
+
+This should still be covered later in more detail, but the first sensible user-facing shape is explicit.
+
+When user asks something like:
+
+- `remember when we did X two weeks ago?`
+
+Recommended first UX behavior:
+
+1. Shelley recognizes that this may require broader recall
+2. Shelley shows an explicit temporary state such as:
+   - `Searching Stavrobot conversation history...`
+   - or `Looking through older Stavrobot conversations...`
+3. Shelley performs retrieval/reconciliation steps
+4. Shelley answers in the current conversation with the retrieved context incorporated
+
+Recommended principle:
+
+- do not make cross-conversation recall appear magical if it required a separate retrieval pass
+- make it legible that Shelley consulted older Stavrobot history
+
+Potential later UX affordances:
+
+- `Search older conversations` action
+- a small recall/results panel
+- source/reference chips for retrieved conversations
+
+## Recommended confirmation/warning UX for state changes
+
+### On enabling Stavrobot mode
+
+If a profile exists:
+
+- switch quietly or with lightweight confirmation
+
+If no profile exists:
+
+- block the switch
+- show guidance like:
+  - `Stavrobot mode is not configured on this machine yet.`
+  - `Ask the operator to enable Shelley Stavrobot mode first.`
+
+### On resetting remote mapping
+
+Recommended confirmation text:
+
+- `Reset remote Stavrobot mapping?`
+- `This keeps the Shelley conversation but starts a new remote Stavrobot thread on the next message.`
+
+### On changing profile
+
+Recommended warning text:
+
+- `Changing the Stavrobot profile may make the current remote mapping invalid.`
+- `You may need to reset the remote mapping after switching profiles.`
+
+### On disabling Stavrobot mode
+
+Recommended confirmation text:
+
+- `Disable Stavrobot mode for this conversation?`
+- `Future turns will use Shelley's normal behavior instead of the Stavrobot bridge.`
+
+## Recommended composition-area behavior
+
+The main composer should remain as normal as possible.
+
+Recommended additions near the composer/thread header are enough:
+
+- mode badge
+- context badge
+- working state
+- degraded warning if present
+
+Avoid first-version clutter such as too many Stavrobot-specific controls directly inside the composer.
+
+## Recommended rich-output UX implication
+
+Because Shelley already handles markdown, tools, and media well, the UX should be designed so that future bridge evolution can plug into native Shelley rendering rather than inventing a parallel mini-UI.
+
+That means:
+
+- markdown responses should render as ordinary Shelley markdown content
+- tool traces or summaries should appear through Shelley's existing display/trace affordances where possible
+- image/screenshot/media references should be rendered through Shelley's existing content model once the bridge can supply structured data for them
+
+In other words:
+
+- the UX plan should assume richer output will eventually become native-looking Shelley content
+- not a separate raw JSON/debug dump in the normal user flow
+
+## Recommended first-version UX discipline
+
+For the earliest Shelley-side spike, the UX can stay intentionally small:
+
+- mode selector: `Default` / `Stavrobot`
+- profile selector when needed
+- existing `Agent Working...` indicator reused
+- status badge: `Context managed by Stavrobot`
+- degraded warning with actionable buttons
+- explicit `Reset remote mapping` action
+
+That is enough to validate usability without prematurely designing the entire advanced retrieval/history/media surface.
