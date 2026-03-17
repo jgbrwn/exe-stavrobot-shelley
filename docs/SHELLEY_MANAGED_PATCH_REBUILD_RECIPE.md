@@ -436,6 +436,18 @@ That helper:
 
 So the rebuild recipe now has a repo-owned validation command for the patch-series layer before the higher-level isolated runtime smoke flow.
 
+The repo now also includes a first managed refresh helper:
+
+- `refresh-shelley-managed-s1.sh`
+
+That helper:
+
+- reapplies or skips the owned `0001` → `0004` series against a managed Shelley checkout
+- regenerates sqlc output
+- rebuilds UI assets, templates, and `bin/shelley`
+- optionally runs `smoke-test-shelley-managed-s1.sh`
+- writes repo-owned rebuild provenance to `state/shelley-mode-build.json`
+
 A higher-level isolated rebuild/smoke pass has now also been revalidated against the managed `/opt/shelley` checkout on this VM after rebuilding UI/sqlc/templates/binary and pointing smoke validation at `/var/lib/stavrobot-installer/shelley-bridge-profiles.json`.
 
 That pass confirmed:

@@ -92,6 +92,11 @@ Recommended meanings:
 - `state/shelley-upstream/`
   - optional managed checkout/worktree location for official Shelley source later
 
+Current repo-owned helper coverage now includes:
+
+- `validate-shelley-patch-series.sh` for replay/apply + build/test validation against a fresh upstream checkout
+- `refresh-shelley-managed-s1.sh` for managed checkout patch/rebuild/smoke refreshes plus state-file updates
+
 ## State file 1: rebuild provenance
 
 Recommended file:
