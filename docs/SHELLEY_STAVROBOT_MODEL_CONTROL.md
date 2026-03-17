@@ -487,3 +487,18 @@ If this direction is accepted, the next practical artifact should be a small ope
 - whether `openrouter/free` works cleanly in practice
 
 That would turn this from feasibility review into a concrete implementation/testing plan.
+
+
+## Validation update
+
+A concrete disposable runtime validation now exists in:
+
+- `docs/SHELLEY_STAVROBOT_MODEL_CONTROL_VALIDATION.md`
+
+Most important validated result:
+
+- for a tested OpenRouter model change, Stavrobot did **not** require a full rebuild
+- changing `model` in `config.toml` plus `docker compose restart app` was enough
+- `openrouter/free` also passed a basic live first-turn and continuation check
+
+That means future Shelley-side model control should be framed as a **runtime config mutation + restart/recreate** feature, not primarily as a rebuild flow.

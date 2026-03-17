@@ -849,3 +849,8 @@ Current recommendation:
 Concrete review artifact:
 
 - `docs/SHELLEY_STAVROBOT_MODEL_CONTROL.md`
+
+Validation follow-up:
+
+- `docs/SHELLEY_STAVROBOT_MODEL_CONTROL_VALIDATION.md` now records that a tested Stavrobot model change worked via `config.toml` mutation plus `docker compose restart app`, without requiring a full image rebuild
+- this suggests future Shelley-side model control should be treated as runtime admin control rather than as part of the Shelley rebuild path
