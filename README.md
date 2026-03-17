@@ -55,6 +55,7 @@ Still manual in this track:
 - the docs now also include a compact handoff summary so a future session can restart from the current recommendation stack quickly
 - a disposable official-Shelley S1 spike has now also validated the core seam: per-conversation Stavrobot mode works above the normal model/provider layer using `conversation_options` plus existing Shelley message/working-state plumbing
 - `docs/SHELLEY_S1_SPIKE_EXTRACTION.md` now captures the exact disposable patch shape, the real design signal, and what must change before that shape becomes a managed rebuild target
+- `docs/SHELLEY_MANAGED_REBUILD_CONTRACT.md` now captures the installer-owned rebuild state, bridge profile state, refresh logic, and future Shelley-mode flag behavior needed to make that path repeatable
 - long-lived Shelley conversations should remain viable if Stavrobot mode is implemented as frontend-to-Stavrobot continuation rather than replaying an ever-growing Shelley transcript through a normal model-provider path each turn
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`

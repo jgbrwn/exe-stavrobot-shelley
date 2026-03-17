@@ -821,3 +821,14 @@ Use that artifact as the reference for:
 - what the spike proved architecturally
 - what was disposable scaffolding and must be replaced
 - what the managed S1 rebuild path should reproduce cleanly
+
+Managed rebuild contract artifact:
+
+- `docs/SHELLEY_MANAGED_REBUILD_CONTRACT.md`
+
+Use that artifact as the reference for:
+
+- installer-owned rebuild provenance state
+- installer-owned bridge profile state
+- refresh/staleness logic
+- future Shelley-mode installer flag behavior

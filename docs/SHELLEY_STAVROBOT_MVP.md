@@ -1691,3 +1691,7 @@ That should materially reduce uncertainty for the eventual real Shelley rebuild 
 The compact implementation-facing extraction of that disposable spike now lives in:
 
 - `docs/SHELLEY_S1_SPIKE_EXTRACTION.md`
+
+The concrete managed rebuild/state contract that should reproduce that validated shape now lives in:
+
+- `docs/SHELLEY_MANAGED_REBUILD_CONTRACT.md`
