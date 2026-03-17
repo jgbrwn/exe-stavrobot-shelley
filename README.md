@@ -63,6 +63,7 @@ Still manual in this track:
 - the repo now also includes a prototype managed bridge-profile asset and loader at `state/shelley-bridge-profiles.json`, `py/shelley_bridge_profiles.py`, and `manage-shelley-bridge-profiles.sh`
 - `patches/shelley/series/` now captures the first repo-owned cleaned managed patch-series skeleton for the eventual Shelley-side implementation split
 - `patches/shelley/series/0004-stavrobot-runtime-unit.patch-plan.md` now gives a concrete function-by-function apply scaffold for the focused Shelley runtime-unit extraction
+- `patches/shelley/s1-stavrobot-mode-cleaned-runtime-prototype.patch` now captures the first real cleaned-runtime prototype diff from a managed `/opt/shelley` checkout
 - long-lived Shelley conversations should remain viable if Stavrobot mode is implemented as frontend-to-Stavrobot continuation rather than replaying an ever-growing Shelley transcript through a normal model-provider path each turn
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`

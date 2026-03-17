@@ -188,3 +188,20 @@ That file maps the disposable handler-local runtime helpers into the intended cl
 - disposable-to-clean function mapping
 - expected handler call-site shape after extraction
 - suggested implementation order for the first maintained upstream patch
+
+## First cleaned runtime prototype patch artifact
+
+The repo now also includes a first real cleaned-runtime prototype diff captured from a managed `/opt/shelley` checkout:
+
+- `s1-stavrobot-mode-cleaned-runtime-prototype.patch`
+
+Current meaning of this artifact:
+
+- it is the first concrete maintained diff that introduces a focused `server/stavrobot.go` runtime unit
+- it keeps handler changes thin compared with the disposable helper-heavy shape
+- it targets installer-managed bridge-profile resolution via a stable profile-state path and contract-version checks
+
+Current limitation:
+
+- it is still a prototype artifact, not yet the final refresh-hardened managed patch series
+- the runtime file-location rule currently uses an environment-variable override plus a stable fallback path rather than a fully integrated Shelley runtime config surface

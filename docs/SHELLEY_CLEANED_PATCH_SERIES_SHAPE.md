@@ -350,3 +350,20 @@ to:
 - a maintained `server/stavrobot.go`-style runtime unit
 
 It is still not an apply-ready patch hunk file yet, but it should now be possible to write the first real maintained patch for patch 4 without re-deriving the function split or helper responsibilities from scratch.
+
+## First managed upstream runtime prototype status
+
+The repo now also contains a first real cleaned-runtime prototype diff captured from a managed `/opt/shelley` checkout:
+
+- `patches/shelley/s1-stavrobot-mode-cleaned-runtime-prototype.patch`
+
+What this prototype now proves:
+
+- a focused `server/stavrobot.go` runtime unit can replace the disposable handler-local helper functions
+- `server/handlers.go` can stay at the route-branching layer
+- the runtime unit can target installer-managed profile-state loading/resolution instead of hardcoded disposable `local-default` mapping logic
+
+Current limitation:
+
+- this is still a prototype diff, not yet the final patch-series split into apply-ready hunks
+- the runtime path currently uses a stable fallback path plus env override for the profile-state file until a fuller Shelley runtime config hook is chosen

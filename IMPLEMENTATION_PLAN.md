@@ -932,3 +932,22 @@ That scaffold defines the likely first maintained implementation move inside She
 - move bridge execution there
 - move turn orchestration there
 - leave `server/handlers.go` as thin branching + HTTP response translation only
+
+## First managed `/opt/shelley` runtime prototype
+
+A managed upstream checkout under `/opt/shelley` has now been used to produce the first cleaned-runtime prototype diff:
+
+- `patches/shelley/s1-stavrobot-mode-cleaned-runtime-prototype.patch`
+
+That prototype currently includes:
+
+- metadata / SQL / UI support needed for Stavrobot mode
+- conversation-manager support
+- thin handler branching
+- a focused `server/stavrobot.go` runtime unit
+
+It has also been through targeted validation in the managed checkout via:
+
+- `go test ./server/... ./db/...`
+
+with the note that local UI assets had to be built in the managed checkout for server tests to pass.
