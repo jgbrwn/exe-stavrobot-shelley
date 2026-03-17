@@ -866,3 +866,8 @@ Disposable helper follow-up:
 - `manage-stavrobot-model.sh` and `py/stavrobot_model_control.py` now provide a validated first local prototype for Stavrobot model inspection/list/apply flows
 - the prototype was validated against `/tmp/stavrobot` for `get-current`, gated `list-openrouter-free`, `apply --model openrouter/free`, and restore back to the prior model
 - it should still be treated as a prototype pending TOML-edit hardening, privilege-boundary hardening, and Shelley UI wiring
+
+Managed recipe follow-up:
+
+- `docs/SHELLEY_MANAGED_PATCH_REBUILD_RECIPE.md` now serves as the concrete operational recipe for reproducing the validated S1 patch shape in an official Shelley checkout
+- it records the recommended managed checkout path, exact build commands, patch-owned upstream files, and minimum runtime smoke validation flow

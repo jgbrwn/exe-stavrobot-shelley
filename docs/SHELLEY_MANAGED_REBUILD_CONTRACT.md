@@ -432,15 +432,17 @@ Likely later additions, but not required now:
 
 ## Immediate next implementation artifact after this document
 
-The next useful artifact should be a concrete managed patch/rebuild recipe describing:
+That concrete operational recipe now lives in:
+
+- `docs/SHELLEY_MANAGED_PATCH_REBUILD_RECIPE.md`
+
+It describes:
 
 - where the official Shelley checkout should live
 - exact fetch/update/build commands
 - exact patch application strategy
 - minimum smoke validation commands
 - what files in official Shelley the managed S1 patch owns
-
-That recipe should be operational, not speculative.
 
 
 ## Related but separate future feature: Stavrobot backend model control
