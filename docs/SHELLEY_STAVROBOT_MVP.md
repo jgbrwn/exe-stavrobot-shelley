@@ -1154,3 +1154,147 @@ For the earliest Shelley-side spike, the UX can stay intentionally small:
 - explicit `Reset remote mapping` action
 
 That is enough to validate usability without prematurely designing the entire advanced retrieval/history/media surface.
+
+
+## Draft phased Shelley patch roadmap
+
+The planning is now detailed enough to collapse into a compact execution roadmap.
+
+## Phase S1: minimal per-conversation Stavrobot mode
+
+Goal:
+
+- prove that official Shelley can host optional per-conversation Stavrobot mode without breaking ordinary Shelley behavior
+
+Scope:
+
+- add per-conversation mode selection
+- store minimal conversation metadata in `conversation_options`
+- select installer-managed bridge profile
+- route turns through `shelley-stavrobot-bridge.sh`
+- persist returned `conversation_id` and optional `last_message_id`
+- reuse existing `Agent Working...`
+- show compact mode-aware context/status UI
+- support degraded-state handling and explicit `Reset remote mapping`
+
+Non-goals:
+
+- no broad history/event reconciliation yet
+- no complex retrieval UX yet
+- no requirement for rich structured bridge output beyond what is needed for minimal correctness
+
+Success criteria:
+
+- normal Shelley conversations remain unchanged
+- Stavrobot-mode conversations can create and continue a mapped remote conversation
+- errors are actionable and do not silently fall back to normal mode
+
+## Phase S2: richer structured bridge output
+
+Goal:
+
+- preserve more of Shelley's native markdown/media/tool/display strengths without changing the canonical local contract away from `shelley-stavrobot-bridge.sh`
+
+Scope:
+
+- add or stabilize a structured JSON output mode in the canonical bridge
+- preserve markdown-friendly content cleanly
+- return stable IDs and structured metadata without requiring Shelley to shell out to lower-level wrappers directly
+- begin mapping bridge-returned richer fields into Shelley's native content/display model
+
+Potential outputs to support:
+
+- response text
+- conversation/message IDs
+- tool/event summaries or references
+- image/screenshot/media references
+- later possibly structured content blocks
+
+Success criteria:
+
+- Shelley can consume richer bridge output without abandoning the single-bridge contract
+- markdown/media/tool fidelity improves compared with plain response-only mode
+
+## Phase S3: remote history/event reconciliation
+
+Goal:
+
+- enrich Shelley's display and recovery behavior by using validated Stavrobot history/event surfaces when needed
+
+Scope:
+
+- optional remote history refresh
+- optional remote event inspection
+- better reconciliation when local metadata and remote state diverge
+- richer degraded-state diagnostics
+- improved trace visibility for tool/event-heavy conversations
+
+Important discipline:
+
+- keep history/event reconciliation separate from the core send-turn path
+- do not make every ordinary turn depend on full remote sync
+
+Success criteria:
+
+- recovery/debugging improves
+- trace visibility improves
+- ordinary conversation sending remains simple and reliable
+
+## Phase S4: cross-conversation recall validation before extra retrieval machinery
+
+Goal:
+
+- determine whether Shelley needs to build explicit retrieval orchestration at all, or whether Stavrobot itself already handles cross-conversation recall well enough when asked naturally
+
+This phase should begin with validation, not assumptions.
+
+Why:
+
+- it is possible Stavrobot may already do a good enough job answering prompts like `remember when we did X two weeks ago?`
+- if that is true in practice, Shelley may not need a dedicated cross-conversation retrieval feature immediately
+- that would reduce integration complexity substantially
+
+Recommended first work in S4:
+
+1. run deeper real-world tests against Stavrobot through the Shelley/Stavrobot path
+2. specifically probe cross-conversation memory-style prompts
+3. observe whether Stavrobot:
+   - handles them well natively
+   - handles them inconsistently
+   - or clearly needs explicit Shelley-side retrieval help
+
+Only after that validation should the plan fork.
+
+### S4A: Stavrobot-native recall is good enough
+
+If testing shows Stavrobot already handles broader recall well enough:
+
+- keep Shelley UX simple
+- treat cross-conversation recall mostly as ordinary conversation behavior
+- possibly add only light explanatory UI or diagnostics later
+- avoid premature explicit retrieval machinery
+
+### S4B: Stavrobot-native recall is insufficient
+
+If testing shows recall is weak or inconsistent:
+
+- add explicit Shelley-side retrieval/reconciliation UX
+- use conversation listing/history/event APIs as building blocks
+- make the retrieval step legible to the user
+- treat this as an additive memory/retrieval layer, not part of the base active-thread mapping
+
+Success criteria:
+
+- cross-conversation recall strategy is chosen based on validation, not guesswork
+- Shelley only builds extra retrieval machinery if real testing shows it is necessary
+
+## Roadmap dependency summary
+
+Recommended order:
+
+1. S1 first: prove the minimal optional conversation mode
+2. S2 next: improve rich structured bridge fidelity
+3. S3 after that: add reconciliation/history/event enrichment
+4. S4 only after deeper real-world validation of Stavrobot's own recall behavior
+
+That ordering keeps the project grounded in validated behavior and avoids prematurely solving a memory problem that Stavrobot may already handle acceptably on its own.

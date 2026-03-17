@@ -709,3 +709,36 @@ Recommended UX discipline:
 - keep Stavrobot-specific controls mostly in conversation settings/details, not scattered throughout the composer
 - make retrieval/cross-conversation recall explicit when used
 - design future rich markdown/media/tool rendering to flow through Shelley's native content UI rather than a separate raw bridge/debug surface
+
+
+## Draft phased Shelley execution roadmap
+
+Recommended sequence for the eventual Shelley-side work:
+
+### S1
+
+- minimal per-conversation Stavrobot mode
+- canonical bridge invocation
+- conversation mapping persistence
+- reused `Agent Working...`
+- compact mode-aware UX
+
+### S2
+
+- richer structured output from `shelley-stavrobot-bridge.sh`
+- improved markdown/media/tool fidelity
+
+### S3
+
+- optional remote history/event reconciliation
+- richer diagnostics and trace visibility
+
+### S4
+
+- first validate whether Stavrobot itself already handles cross-conversation recall well enough when asked naturally
+- only add explicit Shelley-side retrieval orchestration if testing shows that native Stavrobot recall is insufficient
+
+Important recommendation:
+
+- do not assume Shelley must own cross-conversation retrieval before testing Stavrobot's native behavior more deeply
+- if Stavrobot already answers broader recall prompts well enough, that is one less integration layer to build and maintain
