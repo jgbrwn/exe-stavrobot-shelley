@@ -441,3 +441,172 @@ Current role of each:
 - validates persisted `conversation_options` remote mapping metadata
 
 So the project now has both the operational recipe and first repo-owned assets that can evolve into the actual managed rebuild/update path.
+
+
+## Target-VM cutover recipe for replacing live upstream Shelley
+
+When this eventually moves from isolated rebuild testing into actual installer-managed deployment on the target exe VM, the cutover needs to handle the live systemd-managed Shelley instance explicitly.
+
+Validated current target shape on this VM:
+
+- live binary path: `/usr/local/bin/shelley`
+- service unit: `shelley.service`
+- socket unit: `shelley.socket`
+- socket listens on `127.0.0.1:9999`
+
+That means the installer-managed Shelley rebuild flow should include a deployment/cutover phase separate from the isolated build/smoke phase.
+
+## Recommended cutover sequence
+
+### 1. Build and validate in isolation first
+
+Do **not** replace the live Shelley binary before:
+
+- patch application succeeds
+- rebuild succeeds
+- isolated smoke validation succeeds on a non-live port and DB
+
+This keeps the live Shelley service untouched until the replacement binary is already known-good enough for S1.
+
+### 2. Stop live Shelley socket and service
+
+Recommended order:
+
+```bash
+sudo systemctl stop shelley.socket
+sudo systemctl stop shelley.service
+```
+
+Why stop the socket too:
+
+- socket activation could otherwise immediately re-trigger service startup
+- the binary replacement window should be quiet and explicit
+
+### 3. Create one-time backup of the original upstream binary
+
+Recommended first-cutover backup path pattern:
+
+- `/usr/local/bin/shelley.pre-stavrobot-backup`
+
+Recommended behavior:
+
+- if no prior backup exists, copy current `/usr/local/bin/shelley` there first
+- later refreshes of the custom Shelley build do not necessarily need to overwrite that original backup
+
+Suggested commands:
+
+```bash
+if [[ ! -f /usr/local/bin/shelley.pre-stavrobot-backup ]]; then
+  sudo cp /usr/local/bin/shelley /usr/local/bin/shelley.pre-stavrobot-backup
+fi
+```
+
+### 4. Install rebuilt Shelley binary
+
+Suggested command:
+
+```bash
+sudo install -m 0755 /opt/shelley/bin/shelley /usr/local/bin/shelley
+```
+
+Why `install` is preferred:
+
+- preserves explicit mode
+- avoids partial-copy ambiguity
+- works cleanly in installer scripts
+
+### 5. Start socket and service again
+
+Recommended order:
+
+```bash
+sudo systemctl start shelley.socket
+sudo systemctl start shelley.service
+```
+
+If the unit model remains socket-activated, `start shelley.socket` may be sufficient operationally, but the explicit start of both units is clearer for installer cutover and validation.
+
+### 6. Validate running service after cutover
+
+Minimum post-cutover checks should include:
+
+```bash
+systemctl is-active shelley.socket
+systemctl is-active shelley.service
+systemctl status shelley.service --no-pager
+systemctl status shelley.socket --no-pager
+```
+
+Also validate the live local endpoint that the service actually uses.
+
+Given the currently observed unit shape on this VM, that means checking the local socket-activated port:
+
+```bash
+curl -I http://127.0.0.1:9999/
+```
+
+And ideally also one minimal Shelley HTTP/API sanity check appropriate to the live runtime.
+
+## Recommended rollback behavior on failed cutover
+
+If the rebuilt binary fails post-cutover validation:
+
+1. stop `shelley.socket`
+2. stop `shelley.service`
+3. restore `/usr/local/bin/shelley.pre-stavrobot-backup` to `/usr/local/bin/shelley`
+4. restart `shelley.socket`
+5. restart `shelley.service`
+6. validate service recovery
+
+Suggested restore command:
+
+```bash
+sudo install -m 0755 /usr/local/bin/shelley.pre-stavrobot-backup /usr/local/bin/shelley
+```
+
+## Separation of phases
+
+The full installer-managed Shelley path should therefore be thought of as three phases:
+
+### Phase A: source/build phase
+
+- update official Shelley checkout
+- apply managed patch set
+- rebuild UI/templates/binary
+
+### Phase B: isolated validation phase
+
+- run patched Shelley on safe test port with separate DB
+- validate normal conversation path
+- validate Stavrobot-mode first turn and continuation
+
+### Phase C: live cutover phase
+
+- stop live `shelley.socket` and `shelley.service`
+- backup original `/usr/local/bin/shelley` if needed
+- install rebuilt binary to `/usr/local/bin/shelley`
+- restart units
+- validate live service health
+
+This phase separation is important because only Phase C touches the user’s real Shelley service.
+
+## Recommended installer state additions for live cutover
+
+When installer-managed Shelley deployment is eventually wired end-to-end, rebuild state should also record facts like:
+
+- live binary install path
+- whether original upstream backup binary exists
+- service unit name
+- socket unit name
+- last successful cutover timestamp
+- last successful live validation timestamp
+
+These are operational deployment facts and belong in installer-managed state, not in conversation metadata.
+
+## Important implementation caution
+
+Do not point the live `shelley.service` at an isolated test DB or test port used during smoke validation.
+
+The isolated smoke server is only to validate the rebuilt binary before cutover.
+
+The live service should continue using its normal systemd-managed runtime configuration after binary replacement.

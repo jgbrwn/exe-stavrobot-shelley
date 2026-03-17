@@ -876,3 +876,9 @@ Managed asset follow-up:
 
 - `patches/shelley/s1-stavrobot-mode-disposable-shape.patch` now captures the validated disposable upstream S1 diff as a repo-owned starting patch artifact
 - `smoke-test-shelley-managed-s1.sh` now captures the minimum isolated normal+Stavrobot-mode smoke flow as a repo-owned validation driver
+
+Live-cutover follow-up:
+
+- the managed Shelley rebuild path should eventually include an explicit systemd cutover phase for the real `/usr/local/bin/shelley` runtime
+- that phase should stop `shelley.socket` and `shelley.service`, preserve a one-time original-binary backup, install the rebuilt binary, restart both units, and perform live post-cutover validation
+- this deployment/cutover phase should remain distinct from the isolated build and smoke-validation phase

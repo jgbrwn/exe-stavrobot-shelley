@@ -458,3 +458,20 @@ It should not be modeled as ordinary upstream Shelley behavior, and it should no
 See:
 
 - `docs/SHELLEY_STAVROBOT_MODEL_CONTROL.md`
+
+
+## Live deployment/cutover note
+
+When the managed Shelley rebuild is eventually deployed onto the target VM's real Shelley runtime, the installer should treat binary replacement as a separate cutover phase.
+
+At minimum that phase should handle:
+
+- stop `shelley.socket`
+- stop `shelley.service`
+- preserve a one-time backup of the original `/usr/local/bin/shelley`
+- install the rebuilt binary to `/usr/local/bin/shelley`
+- start `shelley.socket`
+- start `shelley.service`
+- validate live service health afterward
+
+This is separate from the isolated build/smoke validation phase and should be recorded in installer-managed deployment state rather than in conversation metadata.
