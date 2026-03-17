@@ -904,7 +904,7 @@ The repo now also contains a first owned patch-series skeleton under:
 
 - `patches/shelley/series/`
 
-This is not the final apply-ready patch set yet.
+This is not the final smoke-validated maintained patch set yet, though the split prototype series has now been replay/apply validated in order against a fresh upstream Shelley checkout.
 
 It exists to lock in the intended maintained split:
 
@@ -953,3 +953,10 @@ It has also been through targeted validation in the managed checkout via:
 - `go test ./server/... ./db/...`
 
 with the note that local UI assets had to be built in the managed checkout for server tests to pass.
+
+The split prototype series has now also been replay/apply validated in order against a fresh upstream Shelley checkout from `/tmp/shelley-official` commit `5b07230`:
+
+- `0001` → `0004` each passed `git apply --check`
+- all four patches applied cleanly in sequence
+- the final applied owned files matched the managed `/opt/shelley` prototype state
+- fresh-checkout `go test ./server/... ./db/...` still requires the normal upstream UI build prerequisite because `ui/embedfs.go` expects `ui/dist/*`

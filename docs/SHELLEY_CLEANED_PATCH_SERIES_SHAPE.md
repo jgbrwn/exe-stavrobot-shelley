@@ -332,8 +332,8 @@ Current purpose of that skeleton:
 
 Current limitation:
 
-- these are design/implementation skeleton files, not apply-ready patch hunks yet
-- the next step after the skeleton is to convert at least patch 4 into concrete maintained patch material or a scripted patch applier
+- these started as design/implementation skeleton files rather than final maintained patch hunks
+- they have now been replay/apply validated as prototype patch files, but still need normal Shelley smoke validation and any last artifact hygiene cleanup before being treated as the maintained patch set
 
 ## Repo-owned patch-4 apply scaffold status
 
@@ -365,7 +365,7 @@ What this prototype now proves:
 
 Current limitation:
 
-- this is still a prototype diff, not yet the final patch-series split into apply-ready hunks
+- this is still a prototype diff, not yet the final maintained patch-series artifact set
 - the runtime path currently uses a stable fallback path plus env override for the profile-state file until a fuller Shelley runtime config hook is chosen
 
 Current prototype-hardening status:

@@ -19,7 +19,16 @@ This directory now contains both:
 
 The `*.patch` files are repo-owned review/apply artifacts split out of the single cleaned runtime prototype captured from `/opt/shelley`.
 
-They are closer to apply-ready than the earlier skeleton, but should still be treated as prototype patch material until refresh/apply validation is done against a clean upstream checkout.
+They have now also been replay/apply validated in order (`0001` → `0004`) against a fresh upstream Shelley checkout created from `/tmp/shelley-official` commit `5b07230`.
+
+Current validation result:
+
+- each patch passes `git apply --check`
+- each patch applies cleanly in sequence with no ordering surprises
+- the final applied tree matches the managed `/opt/shelley` prototype files for the owned Shelley surfaces
+- fresh-checkout Go validation still needs the normal Shelley UI build prerequisite before `go test ./server/...` can pass, because upstream `ui/embedfs.go` requires `ui/dist/*`
+
+So these are now sequence-validated prototype patches, but not yet a fully smoke-validated final maintained patch set.
 
 ## Current series shape
 
