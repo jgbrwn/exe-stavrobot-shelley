@@ -263,6 +263,8 @@ Algorithm:
    - configured / not configured
    - upstream current / current-dirty / stale / unknown
    - profiles current / stale / missing
+   - recorded dirty-rebuild provenance as yes / no / unknown
+   - warning block when the last recorded rebuild used a dirty checkout
    - rebuild likely required / not required
 
 Current repo-owned helper for this path:

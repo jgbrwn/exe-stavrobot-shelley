@@ -124,6 +124,9 @@ Common status interpretation:
   - recorded rebuild commit matches, but the managed checkout has local modifications
 - `recorded_checkout_dirty_at_rebuild: yes`
   - the most recent managed rebuild itself was performed from a dirty checkout
+  - human-readable status will also emit a warning block for this case
+- `recorded_checkout_dirty_at_rebuild: unknown`
+  - status is reading an older rebuild-state file that predates this provenance field
 - `profiles_status: current`
   - recorded bridge-profile snapshot still matches current profile state
 - `rebuild_required: no`

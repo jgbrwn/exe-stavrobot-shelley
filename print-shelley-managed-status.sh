@@ -80,6 +80,7 @@ result = {
     'checkout_exists': False,
     'binary_exists': False,
     'rebuild_required': True,
+    'warnings': [],
     'notes': [],
 }
 
@@ -167,7 +168,7 @@ elif result['upstream_current'] in ('stale', 'current-dirty') or result['profile
 result['rebuild_required'] = rebuild_required
 
 if result['recorded_checkout_dirty_at_rebuild_known'] and result['recorded_checkout_dirty_at_rebuild']:
-    result['notes'].append('warning: the last recorded managed rebuild was performed from a dirty checkout')
+    result['warnings'].append('last recorded managed rebuild used a dirty checkout')
 elif result['configured'] and state and not result['recorded_checkout_dirty_at_rebuild_known']:
     result['notes'].append('recorded rebuild provenance does not include checkout_dirty_at_rebuild (older state file)')
 
@@ -191,8 +192,10 @@ if result['recorded_checkout_dirty_at_rebuild_known']:
     print(f"recorded_checkout_dirty_at_rebuild: {'yes' if result['recorded_checkout_dirty_at_rebuild'] else 'no'}")
 else:
     print("recorded_checkout_dirty_at_rebuild: unknown")
-if result['recorded_checkout_dirty_at_rebuild_known'] and result['recorded_checkout_dirty_at_rebuild']:
-    print("warning: last recorded managed rebuild used a dirty checkout")
+if result['warnings']:
+    print('warnings:')
+    for warning in result['warnings']:
+        print(f"  - {warning}")
 if result['checkout_exists']:
     print(f"checkout_dirty: {'yes' if result['checkout_dirty'] else 'no'}")
 print(f"upstream_status: {result['upstream_current']}")

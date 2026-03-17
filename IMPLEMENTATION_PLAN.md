@@ -968,4 +968,5 @@ The split prototype series has now also been replay/apply validated in order aga
 - README and rebuild docs now also include a compact operator-facing command/checklist section for the managed Shelley mode flow
 - managed Shelley status reporting now distinguishes `current` vs `current-dirty` checkout state so rebuild-needed output reflects dirty managed checkouts too
 - managed rebuild state now also records `build.checkout_dirty_at_rebuild` so operator intent/history is visible in later status output
+- human-readable managed status now surfaces dirty recorded rebuild provenance as an explicit warning, and reports `unknown` for older state files that predate that field
 - the installer now also enforces explicit conflict/precedence guardrails for Shelley-only vs normal installer mutation flows
