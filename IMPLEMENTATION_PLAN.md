@@ -832,3 +832,20 @@ Use that artifact as the reference for:
 - installer-owned bridge profile state
 - refresh/staleness logic
 - future Shelley-mode installer flag behavior
+
+
+## Stavrobot-mode-only backend model control note
+
+A possible later Shelley feature is operator-facing Stavrobot backend model control from within Shelley.
+
+Current recommendation:
+
+- treat it as a **Stavrobot-mode-only** admin/operator feature
+- do not change ordinary upstream Shelley behavior when Stavrobot mode is off
+- do not store shared backend model choice in per-conversation metadata unless Stavrobot later supports true per-conversation model selection
+- prefer a controlled local helper/service boundary for config mutation and restart/recreate actions
+- reuse this repo's existing OpenRouter free-model fetch/filter logic rather than duplicating it in Shelley
+
+Concrete review artifact:
+
+- `docs/SHELLEY_STAVROBOT_MODEL_CONTROL.md`

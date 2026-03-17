@@ -48,6 +48,7 @@ Still manual in this track:
 - installer-managed Shelley rebuilds should later track upstream Shelley commit/hash plus local bridge-profile state separately from per-conversation metadata
 - the likely future installer CLI should keep Shelley work explicit via opt-in/status/refresh flags rather than changing normal installs silently
 - the likely future Shelley-side implementation should treat Stavrobot mode as a small per-conversation lifecycle/state machine rather than only a boolean toggle
+- any future Shelley-side Stavrobot backend model control should be available only from Stavrobot mode context and should still preserve upstream Shelley behavior unchanged when Stavrobot mode is off
 - the likely official Shelley patch seam is above the normal model/provider layer, reusing Shelley's existing working-state UX while waiting on Stavrobot and later evolving the canonical bridge toward richer structured output for markdown/media/tool fidelity
 - the likely first Shelley UX for Stavrobot mode should stay compact: explicit mode/profile selection, reused `Agent Working...`, a mode-aware context label, actionable degraded-state recovery, and explicit reset/remap controls
 - the current phased roadmap is S1 minimal per-conversation mode, S2 richer structured bridge output, S3 optional history/event reconciliation, and S4 recall validation first before assuming Shelley needs its own cross-conversation retrieval layer

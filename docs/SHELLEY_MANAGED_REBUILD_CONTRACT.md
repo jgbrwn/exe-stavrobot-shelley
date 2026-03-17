@@ -441,3 +441,18 @@ The next useful artifact should be a concrete managed patch/rebuild recipe descr
 - what files in official Shelley the managed S1 patch owns
 
 That recipe should be operational, not speculative.
+
+
+## Related but separate future feature: Stavrobot backend model control
+
+A future Shelley-side control for changing the shared Stavrobot backend model should be treated as:
+
+- available only from Stavrobot mode context
+- separate from per-conversation routing metadata
+- backed by an installer-managed local helper/service boundary
+
+It should not be modeled as ordinary upstream Shelley behavior, and it should not imply that backend model choice is per-conversation unless Stavrobot later supports that natively.
+
+See:
+
+- `docs/SHELLEY_STAVROBOT_MODEL_CONTROL.md`
