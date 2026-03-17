@@ -333,3 +333,25 @@ These should be decided when writing the actual upstream patch:
 ## Definition of done for this apply plan
 
 This plan is successful when a future implementation session can take it and write the first concrete maintained `server/stavrobot.go` patch without needing to rediscover how the disposable helper functions should be split or what each new function should own.
+
+## S2 widening note for helper signatures
+
+When refining the prototype runtime patch, prefer helper boundaries that can widen without a major rewrite.
+
+For example:
+
+- `ExecuteStavrobotTurn(...)` should ideally evolve from returning only parsed S1 text fields toward returning either:
+  - a richer structured result type
+  - or a raw bridge payload plus normalized fields
+- `ProcessStavrobotConversationTurn(...)` should remain the place that maps bridge output into Shelley-native recorded message content and display metadata
+
+Why this matters:
+
+Shelley already has native notions of content blocks, tool output, and display metadata. Even though the current `llm.Content` model is still limited, patch 0004 should avoid making `ResponseText` the only permanent conceptual output of the runtime layer.
+
+That keeps the path open for later support of:
+
+- markdown-preserving responses
+- richer display metadata
+- tool/event summaries or references
+- media/screenshot/HTML-oriented adaptation work when Shelley and the bridge are ready

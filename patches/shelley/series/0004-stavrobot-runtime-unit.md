@@ -48,7 +48,7 @@ type ResolvedStavrobotProfile struct {
 }
 ```
 
-Conceptual bridge result shape:
+Conceptual bridge result shape for S1:
 
 ```go
 type StavrobotTurnResult struct {
@@ -57,6 +57,12 @@ type StavrobotTurnResult struct {
     MessageID      string
 }
 ```
+
+Important S2 guardrail:
+
+- this S1 shape is intentionally minimal
+- but patch 0004 should not freeze the runtime boundary into a permanent text-only abstraction
+- when the bridge grows stable structured output, this result shape should be allowed to evolve so Shelley can preserve native markdown/media/tool/display semantics rather than flattening everything into `ResponseText`
 
 ## Recommended internal helper boundaries
 
@@ -158,3 +164,37 @@ Until that is wired in Shelley itself, this repo's prototype loader behavior is 
 - no disposable `/tmp/stavrobot/...` mapping assumptions remain in Shelley source
 - normal Shelley behavior remains unchanged when Stavrobot mode is off
 - Stavrobot mode still satisfies the managed smoke expectations
+
+## Current S1 limitations to keep explicit
+
+The captured prototype runtime patch currently does these S1-specific things:
+
+- requires the incoming user message to start with `llm.ContentTypeText`
+- invokes the bridge expecting a minimal JSON shape with:
+  - `response`
+  - `conversation_id`
+  - `message_id`
+- records the returned assistant content as a single Shelley text content block
+
+These are acceptable S1 constraints, but they should stay documented as current limitations rather than becoming hidden architectural assumptions.
+
+## Future-safe adaptation boundary guidance
+
+Patch 0004 should be treated as the Shelley-side adaptation seam for richer bridge output.
+
+Preferred direction when the bridge evolves:
+
+1. preserve the raw structured bridge payload long enough to adapt it deliberately
+2. map richer bridge fields into Shelley-native `llm.Content` / display structures where possible
+3. keep markdown-friendly text as markdown-friendly text rather than destructively flattening or escaping it
+4. preserve room for tool/display/media references in Shelley message content or associated display metadata
+5. avoid forcing future S2 work to reverse a `ResponseText`-only abstraction baked too deeply into helper signatures
+
+A practical consequence is that `ExecuteStavrobotTurn(...)` and `ProcessStavrobotConversationTurn(...)` should remain easy to widen from:
+
+- `response text only`
+
+toward:
+
+- structured payload in
+- Shelley-native content/display mapping out
