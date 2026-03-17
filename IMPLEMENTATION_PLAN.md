@@ -887,3 +887,8 @@ Managed patch cleanup follow-up:
 
 - `patches/shelley/README.md` now explains why the captured disposable-shape patch is only a starting artifact and what must be cleaned before it becomes the real managed patch set
 - `docs/SHELLEY_MANAGED_PATCH_CLEANUP_PLAN.md` now defines the concrete cleanup targets, especially replacing hardcoded bridge/profile assumptions and isolating Stavrobot runtime integration from bulky route handlers
+
+Bridge-resolution follow-up:
+
+- `docs/SHELLEY_BRIDGE_PROFILE_RESOLUTION_CONTRACT.md` now defines the narrow installer-managed profile-state contract the cleaned Shelley patch should read to resolve `bridge_profile` into bridge path, base URL, config path, and default args
+- this is the key contract needed to remove the disposable patch's hardcoded bridge path and `local-default` mapping assumptions

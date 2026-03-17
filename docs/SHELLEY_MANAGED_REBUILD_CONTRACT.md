@@ -475,3 +475,18 @@ At minimum that phase should handle:
 - validate live service health afterward
 
 This is separate from the isolated build/smoke validation phase and should be recorded in installer-managed deployment state rather than in conversation metadata.
+
+
+## Bridge profile resolution contract note
+
+The concrete narrow contract the cleaned Shelley patch should use for installer-managed bridge profile lookup now lives in:
+
+- `docs/SHELLEY_BRIDGE_PROFILE_RESOLUTION_CONTRACT.md`
+
+That contract narrows the Shelley-side dependency to:
+
+- profile-name lookup
+- bridge-path resolution
+- base URL resolution
+- config-path resolution
+- installer-managed default argv resolution

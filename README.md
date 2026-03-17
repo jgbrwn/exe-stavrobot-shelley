@@ -59,6 +59,7 @@ Still manual in this track:
 - `docs/SHELLEY_MANAGED_REBUILD_CONTRACT.md` now captures the installer-owned rebuild state, bridge profile state, refresh logic, and future Shelley-mode flag behavior needed to make that path repeatable
 - `docs/SHELLEY_MANAGED_PATCH_REBUILD_RECIPE.md` now captures the concrete official-Shelley checkout/build commands, managed S1 patch ownership, and minimum smoke validation flow needed to make that path operational
 - `docs/SHELLEY_MANAGED_PATCH_CLEANUP_PLAN.md` now captures how the captured disposable S1 patch must be cleaned into a maintainable managed patch set, especially around bridge/profile resolution and runtime code boundaries
+- `docs/SHELLEY_BRIDGE_PROFILE_RESOLUTION_CONTRACT.md` now defines the narrow installer-managed profile file and lookup behavior the cleaned Shelley patch should depend on instead of hardcoded local bridge/config/base-url assumptions
 - long-lived Shelley conversations should remain viable if Stavrobot mode is implemented as frontend-to-Stavrobot continuation rather than replaying an ever-growing Shelley transcript through a normal model-provider path each turn
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`

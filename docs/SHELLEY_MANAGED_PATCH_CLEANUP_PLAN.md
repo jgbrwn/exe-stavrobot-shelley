@@ -213,8 +213,12 @@ The next useful artifact would be one of:
 2. a scripted patch applier owned by this repo
 3. a small prototype of installer-managed bridge profile state that the cleaned Shelley patch would resolve
 
-Of those, the highest-value next step is probably:
+Of those, the highest-value next step was:
 
 - define the smallest concrete installer-managed bridge profile resolution contract that the cleaned Shelley patch can depend on
 
-That would let the patch cleanup remove the biggest disposable assumption first.
+That contract now lives in:
+
+- `docs/SHELLEY_BRIDGE_PROFILE_RESOLUTION_CONTRACT.md`
+
+That should let the next patch-cleanup step remove the biggest disposable assumption first.
