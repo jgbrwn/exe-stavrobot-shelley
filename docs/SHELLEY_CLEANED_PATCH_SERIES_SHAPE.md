@@ -395,3 +395,13 @@ In practice, that means `server/stavrobot.go` should be treated as:
 - and the likely S2 adaptation boundary later for structured bridge output that can preserve Shelley-native markdown/media/tool/HTML/display capabilities
 
 So any cleanup of `ExecuteStavrobotTurn(...)` / `ProcessStavrobotConversationTurn(...)` should prefer shapes that can later accept richer bridge payloads and map them into Shelley-native content rather than forcing future work to undo a text-only abstraction.
+
+## Mobile / responsive UI preservation rule
+
+All Shelley managed rebuild work should preserve upstream Shelley's existing strong mobile/responsive presentation.
+
+That applies especially to later S2 work around richer structured output:
+
+- prefer adapting Stavrobot output into Shelley-native content and display surfaces
+- avoid inventing a parallel Stavrobot-specific UI path that could drift from upstream responsive behavior
+- keep Stavrobot-specific controls compact and conversation-scoped so the normal composer/mobile layout stays as close to upstream Shelley as possible

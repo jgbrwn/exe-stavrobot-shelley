@@ -1,9 +1,9 @@
 diff --git a/server/stavrobot.go b/server/stavrobot.go
 new file mode 100644
-index 0000000..b12cbc7
+index 0000000..f2fd349
 --- /dev/null
 +++ b/server/stavrobot.go
-@@ -0,0 +1,237 @@
+@@ -0,0 +1,249 @@
 +package server
 +
 +import (
@@ -51,9 +51,12 @@ index 0000000..b12cbc7
 +
 +// StavrobotTurnResult is the parsed bridge response for one S1 turn.
 +type StavrobotTurnResult struct {
-+	ResponseText   string
-+	ConversationID string
-+	MessageID      string
++	RawPayload       json.RawMessage
++	ResponseText     string
++	ConversationID   string
++	MessageID        string
++	AssistantContent []llm.Content
++	Display          any
 +}
 +
 +func (s *Server) stavrobotProfileStatePath() string {
@@ -171,9 +174,11 @@ index 0000000..b12cbc7
 +		return nil, fmt.Errorf("failed to parse stavrobot bridge output: %w", err)
 +	}
 +	return &StavrobotTurnResult{
-+		ResponseText:   payload.Response,
-+		ConversationID: payload.ConversationID,
-+		MessageID:      payload.MessageID,
++		RawPayload:       append(json.RawMessage(nil), output...),
++		ResponseText:     payload.Response,
++		ConversationID:   payload.ConversationID,
++		MessageID:        payload.MessageID,
++		AssistantContent: []llm.Content{{Type: llm.ContentTypeText, Text: payload.Response}},
 +	}, nil
 +}
 +
@@ -220,11 +225,14 @@ index 0000000..b12cbc7
 +		}
 +	}
 +
++	assistantContent := result.AssistantContent
++	if len(assistantContent) == 0 {
++		assistantContent = []llm.Content{{Type: llm.ContentTypeText, Text: result.ResponseText}}
++	}
++
 +	assistantMessage := llm.Message{
-+		Role: llm.MessageRoleAssistant,
-+		Content: []llm.Content{
-+			{Type: llm.ContentTypeText, Text: result.ResponseText},
-+		},
++		Role:      llm.MessageRoleAssistant,
++		Content:   assistantContent,
 +		EndOfTurn: true,
 +	}
 +	userData := map[string]any{
@@ -232,7 +240,11 @@ index 0000000..b12cbc7
 +			"conversation_id": result.ConversationID,
 +			"message_id":      result.MessageID,
 +			"bridge_profile":  opts.BridgeProfile,
++			"raw_payload":     json.RawMessage(result.RawPayload),
 +		},
++	}
++	if result.Display != nil {
++		userData["display"] = result.Display
 +	}
 +	if err := s.recordMessage(ctx, manager.conversationID, assistantMessage, llm.Usage{}, userData); err != nil {
 +		return fmt.Errorf("failed to record stavrobot assistant message: %w", err)

@@ -92,3 +92,10 @@ That means the current `server/stavrobot.go` shape is acceptable for S1, but sho
 A quick review of upstream Shelley's current `llm.Content` model shows that Shelley already has more structure than plain text alone, including tool-use/result and display-oriented fields.
 
 So while the current prototype `0004` patch is acceptable for S1, its helper/result shapes should continue to be reviewed as temporary text-first simplifications rather than as the final long-term Shelley↔Stavrobot content boundary.
+
+
+## Additional UI preservation rule
+
+All Shelley-side Stavrobot integration work should preserve upstream Shelley's existing excellent mobile/responsive presentation.
+
+So even future richer-output work should prefer native Shelley content/display mapping over any separate Stavrobot-specific rendering path.

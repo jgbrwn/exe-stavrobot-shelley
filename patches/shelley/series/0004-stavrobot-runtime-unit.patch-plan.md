@@ -355,3 +355,25 @@ That keeps the path open for later support of:
 - richer display metadata
 - tool/event summaries or references
 - media/screenshot/HTML-oriented adaptation work when Shelley and the bridge are ready
+
+## Mobile / responsive presentation guardrail
+
+Any future widening of patch 0004 should preserve upstream Shelley's existing mobile/responsive presentation quality.
+
+Practical implication:
+
+- prefer mapping richer Stavrobot output into existing Shelley-native message/content/display affordances
+- avoid introducing a parallel Stavrobot-only rendering surface that would need separate mobile/responsive behavior
+- keep the runtime patch focused on producing data that upstream Shelley UI can already present well, or can extend naturally without regressing small-screen behavior
+
+## Prototype-hardening note captured after split review
+
+The current managed `/opt/shelley` prototype has now been lightly refined so `StavrobotTurnResult` is less text-locked even while preserving S1 behavior.
+
+Current improved shape includes room for:
+
+- raw bridge payload retention
+- assistant-content blocks prepared for Shelley recording
+- optional display metadata
+
+This is still S1 behaviorally text-first, but it is a better S2 starting point because the runtime result no longer implies that plain response text is the only meaningful output of the bridge/runtime boundary.

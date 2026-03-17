@@ -174,7 +174,11 @@ The captured prototype runtime patch currently does these S1-specific things:
   - `response`
   - `conversation_id`
   - `message_id`
-- records the returned assistant content as a single Shelley text content block
+- defaults the returned assistant content to a single Shelley text content block
+- but now also keeps room for a richer runtime result shape carrying:
+  - raw bridge payload
+  - pre-adapted assistant content blocks
+  - optional display metadata
 
 These are acceptable S1 constraints, but they should stay documented as current limitations rather than becoming hidden architectural assumptions.
 
@@ -188,7 +192,8 @@ Preferred direction when the bridge evolves:
 2. map richer bridge fields into Shelley-native `llm.Content` / display structures where possible
 3. keep markdown-friendly text as markdown-friendly text rather than destructively flattening or escaping it
 4. preserve room for tool/display/media references in Shelley message content or associated display metadata
-5. avoid forcing future S2 work to reverse a `ResponseText`-only abstraction baked too deeply into helper signatures
+5. preserve Shelley's existing excellent mobile/responsive presentation by adapting into native Shelley content/UI surfaces rather than inventing a parallel Stavrobot-specific presentation layer
+6. avoid forcing future S2 work to reverse a `ResponseText`-only abstraction baked too deeply into helper signatures
 
 A practical consequence is that `ExecuteStavrobotTurn(...)` and `ProcessStavrobotConversationTurn(...)` should remain easy to widen from:
 
