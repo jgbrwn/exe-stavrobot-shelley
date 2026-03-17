@@ -733,3 +733,180 @@ For the earliest Shelley-side spike, keep the state machine minimal:
 - degraded
 
 That is enough to validate the behavior cleanly without overcommitting to premature retrieval/history-sync complexity.
+
+
+## Draft official Shelley implementation seam map
+
+Based on upstream inspection, the likely clean implementation path in official Shelley is not to add Stavrobot as a normal model provider. It is to add a conversation/runtime branch that sits above the ordinary provider layer.
+
+Recommended seam map:
+
+### 1. Conversation metadata layer
+
+Responsibility:
+
+- read/write per-conversation `conversation_options`
+- determine whether a conversation is in normal mode or Stavrobot mode
+- store the selected installer-managed `bridge_profile`
+- store the mapped remote `conversation_id` and optional `last_message_id`
+
+Why this layer matters:
+
+- it is the durable source of per-conversation mode selection
+- it lets one Shelley instance host both ordinary and Stavrobot-backed conversations side by side
+
+### 2. Conversation send/runtime dispatch layer
+
+Responsibility:
+
+- when a user sends a turn, decide whether this conversation should:
+  - go through Shelley's normal LLM/provider path
+  - or go through the Stavrobot-mode path
+
+Recommended behavior:
+
+- if `mode != "stavrobot"`, preserve current Shelley behavior unchanged
+- if `mode == "stavrobot"`, dispatch to a dedicated Stavrobot conversation runner that invokes `shelley-stavrobot-bridge.sh`
+
+This is the most important seam because it avoids pretending Stavrobot is merely another direct model endpoint.
+
+### 3. In-flight status / streaming/wait-state layer
+
+Responsibility:
+
+- expose the existing Shelley user-visible working state while a turn is being processed
+
+Recommendation:
+
+- reuse Shelley's existing `Agent Working...` behavior while Shelley is waiting for the Stavrobot bridge/remote response
+- treat this as the natural wait-state for Stavrobot mode as well
+- if Shelley later gains finer-grained mode-specific status text, the first useful extension would be something like:
+  - `Agent Working... (Stavrobot)`
+  - or a detail/status pane that says `Waiting for Stavrobot response`
+
+Important note:
+
+- the first Shelley-side spike does not need custom streaming semantics to benefit from the existing working indicator
+- even if the bridge currently behaves more like request/response than true stream passthrough, the existing working state is still useful and should be leveraged
+
+### 4. Message/content mapping layer
+
+Responsibility:
+
+- map returned Stavrobot payloads into Shelley's native message/content/display structures
+
+This is the layer where the rich-output concern becomes real.
+
+Recommended first version:
+
+- accept plain response text cleanly
+- preserve markdown as markdown-friendly content rather than flattening/escaping unnecessarily
+- store returned IDs and optional metadata alongside Shelley's local message records
+
+Recommended follow-on direction:
+
+- support bridge-returned structured payloads that can map into Shelley's richer native content model
+- support tool/event summaries or references in a way that Shelley can present legibly
+- support screenshot/image/media references rather than collapsing everything to one flat text blob
+
+### 5. Optional history/event reconciliation layer
+
+Responsibility:
+
+- pull remote Stavrobot history/events when Shelley needs to reconcile state, enrich display, or inspect tool traces
+
+Recommended first version:
+
+- keep this separate from the send-turn path
+- allow future use of:
+  - conversation history endpoint
+  - events endpoint
+- treat remote history/event sync as enrichment/reconciliation, not as a precondition for every ordinary user turn
+
+## Recommended first Shelley-side code ownership shape
+
+Conceptually, the implementation likely wants:
+
+- conversation option parsing/validation near Shelley's conversation metadata handling
+- a dedicated Stavrobot-mode dispatcher/runner near the conversation execution path
+- bridge invocation isolated behind a small internal interface so Shelley is not tightly coupled to shell command details everywhere
+- message/content mapping centralized rather than spread across UI handlers
+
+In practical terms, that means the future Shelley patch should likely add something like:
+
+- a Stavrobot mode detector/helper
+- a Stavrobot turn executor
+- a bridge result mapper
+- optional remote history/event fetch helpers later
+
+Not necessarily with those exact filenames, but that ownership split is the one to preserve.
+
+## `Agent Working...` implication
+
+Your observation is good.
+
+Shelley's existing `Agent Working...` behavior should absolutely be reused for Stavrobot mode waiting states.
+
+Recommended rule:
+
+- once Shelley accepts a user turn and dispatches it through the Stavrobot runner, show the same existing in-flight working signal it already uses for ordinary agent/model processing
+- clear that state only when Shelley has either:
+  - received a successful bridge result and rendered it
+  - or reached a terminal failure state for that turn
+
+Why this is the right fit:
+
+- it preserves a familiar user affordance
+- it avoids inventing a second waiting UX too early
+- it keeps Stavrobot mode feeling like a native conversation mode rather than a bolted-on side channel
+
+A later refinement could add mode-aware detail text, but the existing working indicator is enough for the first implementation.
+
+## Rich markdown/media/tool handling implication for the shell wrappers
+
+Yes: this absolutely still needs to be accounted for later, and it should now be treated as a concrete future bridge requirement rather than just a note.
+
+Current reality:
+
+- the canonical bridge currently defaults to response-only output, which is correct for a minimal first integration surface
+- but Shelley already has stronger native rendering and tool/media affordances than a plain-text bridge can express
+
+So the future requirement should be explicit:
+
+### Current minimal bridge role
+
+Good for:
+
+- basic request/response chat
+- stable remote conversation continuation
+- simple response text display
+
+### Required bridge evolution later
+
+The canonical bridge should remain the only Shelley-facing contract, but it will likely need a richer machine-readable mode that can return more than plain response text.
+
+That likely means preserving support for outputs such as:
+
+- markdown response text without destructive flattening
+- conversation/message IDs
+- tool/event references or summaries
+- image/screenshot/media references when Stavrobot can provide them
+- possibly structured content blocks if Shelley can map them natively
+
+### Practical implication for wrapper design
+
+The lower-level wrappers should remain implementation details, but the canonical bridge should be allowed to evolve upward into structured output.
+
+So future bridge work should likely add or refine capabilities such as:
+
+- a stable JSON output mode for Shelley consumption
+- richer extraction or pass-through of structured response fields
+- optional history/event fetch helpers exposed through the bridge contract rather than forcing Shelley to call lower-level wrappers directly
+
+### Important discipline
+
+- do not force Shelley to integrate separately with `client-stavrobot.sh` and `shelley-stavrobot-session.sh`
+- evolve `shelley-stavrobot-bridge.sh` itself when richer output is needed
+- keep plain response-text mode as the conservative default, but preserve a structured mode for Shelley-native rich rendering later
+
+That is how we make sure the earlier observation about markdown/media/tool fidelity actually turns into implementation work instead of remaining just a warning in the docs.

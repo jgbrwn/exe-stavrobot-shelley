@@ -671,3 +671,21 @@ Recommended operational rule:
 - Shelley owns per-conversation state transitions and remote mapping lifecycle
 
 This keeps the installer and Shelley responsibilities cleanly separated while preserving a usable conversation-centric mode design.
+
+
+## Draft official Shelley seam recommendation
+
+When the actual Shelley-side patch is attempted, the cleanest likely ownership split is:
+
+1. conversation metadata/options handling decides whether a conversation is in Stavrobot mode
+2. conversation runtime dispatch sends Stavrobot-mode turns to a dedicated runner rather than the normal provider path
+3. the existing Shelley in-flight `Agent Working...` behavior is reused while waiting on the Stavrobot bridge/result
+4. a message/content mapping layer converts bridge results into Shelley's native message/display structures
+5. optional remote history/event reconciliation remains a separate later layer
+
+Important consequence for the shell integration contract:
+
+- `shelley-stavrobot-bridge.sh` should remain the only Shelley-facing local contract
+- but that bridge should be allowed to evolve beyond plain response text into a stable structured output mode when Shelley is ready to preserve richer markdown/media/tool semantics
+
+That preserves the current minimal integration while keeping a clear path toward Shelley-native rich rendering and trace visibility later.
