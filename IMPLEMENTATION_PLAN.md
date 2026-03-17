@@ -793,3 +793,20 @@ Shortest execution-oriented summary:
 - validate Stavrobot's native cross-conversation recall behavior before building an extra Shelley retrieval layer
 
 Recommended first implementation target remains S1 only.
+
+
+## S1 disposable spike status update
+
+A real disposable S1 spike in `/tmp/shelley-official` has now validated the core seam.
+
+Validated outcome:
+
+- optional per-conversation Stavrobot mode can be implemented in official Shelley by branching in the conversation handler/runtime path
+- `conversation_options` can carry the minimal Stavrobot metadata shape cleanly
+- existing Shelley message recording, stream updates, and working-state UX can be reused
+- first-turn remote mapping and second-turn continuation both worked against the local Stavrobot stack
+
+Implication:
+
+- the project should now prioritize implementation/rebuild execution over additional broad architecture planning
+- the main remaining work is converting the disposable spike knowledge into a managed, repeatable Shelley rebuild/update path and then improving fidelity incrementally

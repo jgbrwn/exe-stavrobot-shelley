@@ -1583,3 +1583,107 @@ If Stavrobot does **not** handle it well enough:
 A single Shelley/Stavrobot conversation may remain viable for a long time if Shelley is acting as a frontend over Stavrobot-owned conversation state rather than replaying an ever-growing local transcript through a direct-model path every turn.
 
 So the main scaling concern is Stavrobot's own context/retrieval behavior, not merely the age of the Shelley conversation object.
+
+
+## Disposable S1 spike result against official Shelley checkout
+
+A real disposable S1 spike was performed in `/tmp/shelley-official` after the planning work.
+
+Important boundary reminder:
+
+- `/tmp/shelley-official` was used only as a disposable validation bed
+- validated conclusions belong here in the main repo docs
+- it is not the main project repo and should not be treated as the long-term source of truth
+
+### What was spiked
+
+The spike implemented the smallest practical per-conversation Stavrobot mode directly in the official Shelley codebase shape.
+
+The spike added only enough to validate the seam:
+
+- extend `conversation_options` shape to allow `type = "stavrobot"`
+- store minimal per-conversation Stavrobot metadata:
+  - `enabled`
+  - `bridge_profile`
+  - remote `conversation_id`
+  - remote `last_message_id`
+- branch in the server conversation handlers:
+  - `handleNewConversation`
+  - `handleChatConversation`
+- keep normal Shelley conversations on the ordinary LLM path
+- send Stavrobot-mode turns through the canonical bridge
+- record user/assistant messages through Shelley's existing DB/message/stream plumbing
+- reuse existing working-state behavior rather than inventing a separate wait system
+
+### What this validated
+
+The architectural seam recommendation was correct.
+
+Specifically, the disposable spike validated that the cleanest practical S1 implementation seam is:
+
+- **above Shelley's normal model/provider layer**
+- in the **conversation send/runtime dispatch path**
+- using existing `conversation_options` plus normal message recording/stream updates
+
+That means the project should continue treating Stavrobot mode as a conversation/runtime branch, not as just another ordinary model-provider entry.
+
+### End-to-end result observed
+
+The disposable spike was run successfully on a non-conflicting test port (`8765`) against the local Stavrobot stack.
+
+Observed successful behavior:
+
+1. a Shelley conversation was created in Stavrobot mode
+2. first turn succeeded through the canonical bridge
+3. Shelley stored real remote Stavrobot mapping metadata in `conversation_options`
+4. assistant response appeared in the normal Shelley message flow
+5. second turn on the same Shelley conversation reused the same remote Stavrobot conversation
+6. remote `last_message_id` updated on continuation
+
+Observed real stored metadata shape from the spike:
+
+```json
+{
+  "type": "stavrobot",
+  "stavrobot": {
+    "enabled": true,
+    "conversation_id": "conv_1",
+    "last_message_id": "msg_110",
+    "bridge_profile": "local-default"
+  }
+}
+```
+
+Observed message-flow result from the spike:
+
+- user turn stored normally in Shelley
+- assistant response stored normally in Shelley
+- response text rendered through Shelley's usual conversation view
+- no need to model Stavrobot as a fake ordinary provider to make this work
+
+### Practical implication
+
+The next path toward completion should now be treated as implementation-first rather than planning-first.
+
+Most important implication:
+
+- **S1 is no longer hypothetical**
+- a disposable official-Shelley spike has already shown that the basic mode is viable
+
+So the next real work should focus on either:
+
+1. turning that disposable S1 spike into a cleaner repeatable implementation plan/patch shape for a managed Shelley rebuild path
+2. or moving into the next highest-value increment, which is likely richer structured bridge output (S2), once the S1 code path is considered sufficiently understood
+
+### New confidence level after the spike
+
+Before the spike, the recommendation was architectural.
+
+After the spike, the recommendation is now backed by direct implementation evidence:
+
+- per-conversation Stavrobot mode is practical in official Shelley
+- the server handler/runtime seam is workable
+- existing Shelley working/message/stream behavior can be reused
+- persisted conversation metadata can carry the remote Stavrobot mapping cleanly
+
+That should materially reduce uncertainty for the eventual real Shelley rebuild effort.
