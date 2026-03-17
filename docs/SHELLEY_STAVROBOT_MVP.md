@@ -1687,3 +1687,7 @@ After the spike, the recommendation is now backed by direct implementation evide
 - persisted conversation metadata can carry the remote Stavrobot mapping cleanly
 
 That should materially reduce uncertainty for the eventual real Shelley rebuild effort.
+
+The compact implementation-facing extraction of that disposable spike now lives in:
+
+- `docs/SHELLEY_S1_SPIKE_EXTRACTION.md`

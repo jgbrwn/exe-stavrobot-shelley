@@ -810,3 +810,14 @@ Implication:
 
 - the project should now prioritize implementation/rebuild execution over additional broad architecture planning
 - the main remaining work is converting the disposable spike knowledge into a managed, repeatable Shelley rebuild/update path and then improving fidelity incrementally
+
+Implementation-facing extraction artifact:
+
+- `docs/SHELLEY_S1_SPIKE_EXTRACTION.md`
+
+Use that artifact as the reference for:
+
+- exact files/layers touched in the disposable spike
+- what the spike proved architecturally
+- what was disposable scaffolding and must be replaced
+- what the managed S1 rebuild path should reproduce cleanly
