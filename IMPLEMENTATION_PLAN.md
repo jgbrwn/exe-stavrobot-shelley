@@ -871,3 +871,8 @@ Managed recipe follow-up:
 
 - `docs/SHELLEY_MANAGED_PATCH_REBUILD_RECIPE.md` now serves as the concrete operational recipe for reproducing the validated S1 patch shape in an official Shelley checkout
 - it records the recommended managed checkout path, exact build commands, patch-owned upstream files, and minimum runtime smoke validation flow
+
+Managed asset follow-up:
+
+- `patches/shelley/s1-stavrobot-mode-disposable-shape.patch` now captures the validated disposable upstream S1 diff as a repo-owned starting patch artifact
+- `smoke-test-shelley-managed-s1.sh` now captures the minimum isolated normal+Stavrobot-mode smoke flow as a repo-owned validation driver

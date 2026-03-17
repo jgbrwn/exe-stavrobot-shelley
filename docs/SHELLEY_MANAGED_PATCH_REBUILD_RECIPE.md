@@ -415,3 +415,29 @@ The next practical move after this document is to create the actual managed patc
 - plus a single smoke-test driver script that performs the minimum validation flow above
 
 That would convert this recipe into a real repeatable rebuild/update path.
+
+
+## Repo-owned first implementation assets
+
+This repo now also contains first owned assets that map directly to this recipe:
+
+- `patches/shelley/s1-stavrobot-mode-disposable-shape.patch`
+- `smoke-test-shelley-managed-s1.sh`
+
+Current role of each:
+
+### `patches/shelley/s1-stavrobot-mode-disposable-shape.patch`
+
+- captures the validated disposable S1 upstream diff shape from `/tmp/shelley-official`
+- serves as a concrete starting artifact for the managed patch set
+- should still be treated as a starting point, not as the final cleaned managed patch implementation
+
+### `smoke-test-shelley-managed-s1.sh`
+
+- launches an isolated Shelley binary on a safe test port
+- validates a normal Shelley control conversation
+- validates Stavrobot-mode first turn
+- validates Stavrobot-mode continuation turn
+- validates persisted `conversation_options` remote mapping metadata
+
+So the project now has both the operational recipe and first repo-owned assets that can evolve into the actual managed rebuild/update path.
