@@ -266,6 +266,7 @@ Current repo-owned helper for this path:
 
 - `print-shelley-managed-status.sh`
 - installer entrypoint: `./install-stavrobot.sh --print-shelley-mode-status`
+- machine-readable installer entrypoint: `./install-stavrobot.sh --print-shelley-mode-status --json`
 
 ## Refresh / rebuild check
 

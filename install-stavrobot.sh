@@ -17,6 +17,7 @@ SKIP_CONFIG=0
 SKIP_PLUGINS=0
 SHOW_SECRETS=0
 SHELLEY_STATUS_ONLY=0
+SHELLEY_STATUS_JSON=0
 SHELLEY_REFRESH_ONLY=0
 SHELLEY_ALLOW_DIRTY=0
 SHELLEY_SKIP_SMOKE=0
@@ -51,6 +52,7 @@ Flags:
   --skip-plugins
   --show-secrets
   --print-shelley-mode-status
+  --json
   --refresh-shelley-mode
   --allow-dirty-shelley
   --skip-shelley-smoke
@@ -61,6 +63,7 @@ Environment:
 
 Shelley mode helpers:
   --print-shelley-mode-status   Read-only managed Shelley mode status
+  --json                        With --print-shelley-mode-status, emit machine-readable JSON
   --refresh-shelley-mode        Apply/rebuild/smoke managed Shelley mode in /opt/shelley
   --allow-dirty-shelley         Allow managed Shelley refresh against a dirty checkout
   --skip-shelley-smoke          Skip isolated Shelley smoke validation during refresh
@@ -309,6 +312,10 @@ while [[ $# -gt 0 ]]; do
       SHELLEY_STATUS_ONLY=1
       shift
       ;;
+    --json)
+      SHELLEY_STATUS_JSON=1
+      shift
+      ;;
     --refresh-shelley-mode)
       SHELLEY_REFRESH_ONLY=1
       shift
@@ -331,6 +338,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if (( SHELLEY_REFRESH_ONLY )) && (( SHELLEY_STATUS_JSON )); then
+  die "--json cannot be combined with --refresh-shelley-mode"
+fi
+
 if (( SHELLEY_STATUS_ONLY )); then
   (( SHELLEY_REFRESH_ONLY == 0 )) || die "--print-shelley-mode-status cannot be combined with --refresh-shelley-mode"
   [[ -z "$STAVROBOT_DIR" ]] || die "--print-shelley-mode-status cannot be combined with --stavrobot-dir"
@@ -338,6 +349,8 @@ if (( SHELLEY_STATUS_ONLY )); then
     die "--print-shelley-mode-status cannot be combined with normal installer mutation flags"
   (( SHELLEY_ALLOW_DIRTY == 0 && SHELLEY_SKIP_SMOKE == 0 )) || \
     die "--print-shelley-mode-status cannot be combined with Shelley refresh-only flags"
+else
+  (( SHELLEY_STATUS_JSON == 0 )) || die "--json currently requires --print-shelley-mode-status"
 fi
 
 if (( SHELLEY_REFRESH_ONLY )); then
@@ -351,7 +364,11 @@ if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE) && SHELLEY_REFRESH_ONLY == 0 )
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then
-  exec "$ROOT_DIR/print-shelley-managed-status.sh"
+  status_args=()
+  if (( SHELLEY_STATUS_JSON )); then
+    status_args+=(--json)
+  fi
+  exec "$ROOT_DIR/print-shelley-managed-status.sh" "${status_args[@]}"
 fi
 
 if (( SHELLEY_REFRESH_ONLY )); then

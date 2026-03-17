@@ -677,6 +677,7 @@ The main installer now exposes the current managed Shelley helpers directly:
 
 ```bash
 ./install-stavrobot.sh --print-shelley-mode-status
+./install-stavrobot.sh --print-shelley-mode-status --json
 ./install-stavrobot.sh --refresh-shelley-mode
 ./install-stavrobot.sh --refresh-shelley-mode --allow-dirty-shelley
 ./install-stavrobot.sh --refresh-shelley-mode --skip-shelley-smoke
@@ -685,6 +686,7 @@ The main installer now exposes the current managed Shelley helpers directly:
 Current behavior:
 
 - `--print-shelley-mode-status` delegates to `print-shelley-managed-status.sh`
+- `--print-shelley-mode-status --json` delegates to `print-shelley-managed-status.sh --json`
 - `--refresh-shelley-mode` delegates to `refresh-shelley-managed-s1.sh`
 - `--allow-dirty-shelley` passes through to the managed refresh helper
 - `--skip-shelley-smoke` skips the isolated Shelley smoke pass during managed refresh
@@ -704,5 +706,7 @@ Examples of rejected mixes:
 Current rules:
 
 - `--print-shelley-mode-status` is status-only and cannot be mixed with normal installer mutation flags
+- `--print-shelley-mode-status --json` is the machine-readable status form
 - `--refresh-shelley-mode` is Shelley-refresh-only and cannot be mixed with normal Stavrobot install/config/plugin flags
 - `--allow-dirty-shelley` and `--skip-shelley-smoke` require `--refresh-shelley-mode`
+- `--json` cannot be used outside `--print-shelley-mode-status`
