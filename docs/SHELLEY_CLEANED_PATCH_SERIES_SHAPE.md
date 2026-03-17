@@ -334,3 +334,19 @@ Current limitation:
 
 - these are design/implementation skeleton files, not apply-ready patch hunks yet
 - the next step after the skeleton is to convert at least patch 4 into concrete maintained patch material or a scripted patch applier
+
+## Repo-owned patch-4 apply scaffold status
+
+The repo now also includes a function-by-function apply scaffold for the focused runtime unit at:
+
+- `patches/shelley/series/0004-stavrobot-runtime-unit.patch-plan.md`
+
+That scaffold is the first concrete bridge from:
+
+- disposable helper functions in `server/handlers.go`
+
+to:
+
+- a maintained `server/stavrobot.go`-style runtime unit
+
+It is still not an apply-ready patch hunk file yet, but it should now be possible to write the first real maintained patch for patch 4 without re-deriving the function split or helper responsibilities from scratch.

@@ -39,6 +39,9 @@ They are the first concrete maintained split of the future cleaned patch by conc
    - bridge output parsing
    - message recording / mapping persistence flow
 
+5. `0004-stavrobot-runtime-unit.patch-plan.md`
+   - function-by-function apply scaffold for converting the runtime-unit target into a maintained upstream patch
+
 ## Why this exists
 
 The disposable patch already proved the seam.

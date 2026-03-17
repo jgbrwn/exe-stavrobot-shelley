@@ -918,3 +918,17 @@ Why this matters:
 - it keeps the future maintained patch from collapsing back into one handler-heavy mixed diff
 - it makes the next implementation step concrete, especially around the proposed `server/stavrobot.go` runtime boundary
 - it gives future rebuild automation a cleaner owned target than the disposable patch alone
+
+## Shelley patch-4 runtime apply scaffold
+
+The repo now also contains a focused apply scaffold for the cleaned runtime-unit extraction at:
+
+- `patches/shelley/series/0004-stavrobot-runtime-unit.patch-plan.md`
+
+That scaffold defines the likely first maintained implementation move inside Shelley itself:
+
+- introduce `server/stavrobot.go`
+- move profile loading/resolution there
+- move bridge execution there
+- move turn orchestration there
+- leave `server/handlers.go` as thin branching + HTTP response translation only

@@ -174,3 +174,17 @@ That document identifies:
 - which parts of the disposable patch can stay close to final shape
 - which handler-local functions must be moved/replaced
 - the likely new focused Shelley runtime unit boundary for Stavrobot integration
+
+## Current concrete next-step asset
+
+The repo now also includes a focused apply scaffold for the most important cleaned patch piece:
+
+- `series/0004-stavrobot-runtime-unit.patch-plan.md`
+
+That file maps the disposable handler-local runtime helpers into the intended cleaned Shelley-side runtime unit, including:
+
+- proposed Go types
+- proposed helper function boundaries
+- disposable-to-clean function mapping
+- expected handler call-site shape after extraction
+- suggested implementation order for the first maintained upstream patch
