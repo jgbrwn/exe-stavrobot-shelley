@@ -965,3 +965,4 @@ The split prototype series has now also been replay/apply validated in order aga
 - `refresh-shelley-managed-s1.sh` now captures the managed patch/rebuild/smoke/state-update flow as a repo-owned helper
 - `print-shelley-managed-status.sh` now captures the read-only managed status/reporting path as a repo-owned helper
 - `install-stavrobot.sh` now exposes the current managed Shelley path directly via `--print-shelley-mode-status` and `--refresh-shelley-mode`
+- the installer now also enforces explicit conflict/precedence guardrails for Shelley-only vs normal installer mutation flows

@@ -688,3 +688,21 @@ Current behavior:
 - `--refresh-shelley-mode` delegates to `refresh-shelley-managed-s1.sh`
 - `--allow-dirty-shelley` passes through to the managed refresh helper
 - `--skip-shelley-smoke` skips the isolated Shelley smoke pass during managed refresh
+
+## Installer conflict guardrails
+
+The installer now rejects ambiguous Shelley-mode flag combinations.
+
+Examples of rejected mixes:
+
+```bash
+./install-stavrobot.sh --print-shelley-mode-status --refresh
+./install-stavrobot.sh --refresh-shelley-mode --stavrobot-dir /opt/stavrobot
+./install-stavrobot.sh --allow-dirty-shelley
+```
+
+Current rules:
+
+- `--print-shelley-mode-status` is status-only and cannot be mixed with normal installer mutation flags
+- `--refresh-shelley-mode` is Shelley-refresh-only and cannot be mixed with normal Stavrobot install/config/plugin flags
+- `--allow-dirty-shelley` and `--skip-shelley-smoke` require `--refresh-shelley-mode`

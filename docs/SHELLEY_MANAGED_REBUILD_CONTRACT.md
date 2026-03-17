@@ -411,6 +411,14 @@ Installer should fail fast on combinations like:
 
 - `--with-shelley-stavrobot-mode` + `--disable-shelley-mode`
 - `--print-shelley-mode-status` + any mutating Shelley flag
+- `--refresh-shelley-mode` + incompatible normal installer mutation flags
+- status-only Shelley flags mixed with rebuild-only Shelley flags
+
+Current installer behavior now enforces these guardrails explicitly:
+
+- `--print-shelley-mode-status` rejects normal installer mutation flags and Shelley refresh-only flags
+- `--refresh-shelley-mode` rejects `--stavrobot-dir` and normal installer mutation flags
+- `--allow-dirty-shelley` and `--skip-shelley-smoke` require `--refresh-shelley-mode`
 
 ## Patch versioning recommendation
 

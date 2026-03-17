@@ -332,6 +332,25 @@ while [[ $# -gt 0 ]]; do
 done
 
 if (( SHELLEY_STATUS_ONLY )); then
+  (( SHELLEY_REFRESH_ONLY == 0 )) || die "--print-shelley-mode-status cannot be combined with --refresh-shelley-mode"
+  [[ -z "$STAVROBOT_DIR" ]] || die "--print-shelley-mode-status cannot be combined with --stavrobot-dir"
+  (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHOW_SECRETS == 0 )) || \
+    die "--print-shelley-mode-status cannot be combined with normal installer mutation flags"
+  (( SHELLEY_ALLOW_DIRTY == 0 && SHELLEY_SKIP_SMOKE == 0 )) || \
+    die "--print-shelley-mode-status cannot be combined with Shelley refresh-only flags"
+fi
+
+if (( SHELLEY_REFRESH_ONLY )); then
+  [[ -z "$STAVROBOT_DIR" ]] || die "--refresh-shelley-mode cannot be combined with --stavrobot-dir"
+  (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHOW_SECRETS == 0 )) || \
+    die "--refresh-shelley-mode cannot be combined with normal installer mutation flags"
+fi
+
+if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE) && SHELLEY_REFRESH_ONLY == 0 )); then
+  die "--allow-dirty-shelley and --skip-shelley-smoke require --refresh-shelley-mode"
+fi
+
+if (( SHELLEY_STATUS_ONLY )); then
   exec "$ROOT_DIR/print-shelley-managed-status.sh"
 fi
 
