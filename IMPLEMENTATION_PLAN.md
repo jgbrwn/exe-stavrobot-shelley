@@ -892,3 +892,7 @@ Bridge-resolution follow-up:
 
 - `docs/SHELLEY_BRIDGE_PROFILE_RESOLUTION_CONTRACT.md` now defines the narrow installer-managed profile-state contract the cleaned Shelley patch should read to resolve `bridge_profile` into bridge path, base URL, config path, and default args
 - this is the key contract needed to remove the disposable patch's hardcoded bridge path and `local-default` mapping assumptions
+
+Cleaned-patch-shape follow-up:
+
+- `docs/SHELLEY_CLEANED_PATCH_SERIES_SHAPE.md` now maps the captured disposable patch into a likely maintainable patch series, keeping metadata/schema pieces close to validated shape while moving bridge/profile/runtime logic into a focused Shelley-side integration unit

@@ -148,3 +148,16 @@ The disposable shape should be considered successfully converted into a real man
 - normal Shelley behavior still works unchanged when Stavrobot mode is off
 - Stavrobot mode still passes the owned smoke driver
 - the patch is maintainable enough to refresh against upstream without relying on the disposable checkout
+
+
+## Cleaned managed patch-series shape
+
+The concrete target shape for converting the disposable patch artifact into a maintainable managed patch series now lives in:
+
+- `docs/SHELLEY_CLEANED_PATCH_SERIES_SHAPE.md`
+
+That document identifies:
+
+- which parts of the disposable patch can stay close to final shape
+- which handler-local functions must be moved/replaced
+- the likely new focused Shelley runtime unit boundary for Stavrobot integration
