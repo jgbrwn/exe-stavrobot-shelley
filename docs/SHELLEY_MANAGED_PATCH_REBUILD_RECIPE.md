@@ -228,6 +228,12 @@ The patch should still call only:
 
 - `shelley-stavrobot-bridge.sh`
 
+That bridge should emit full JSON by default for Shelley/runtime callers so the Shelley-side runtime can parse at least:
+
+- `response`
+- `conversation_id`
+- `message_id`
+
 Lower-level wrappers remain out of Shelley's direct contract.
 
 ## Minimum post-build smoke validation recipe
@@ -429,6 +435,16 @@ That helper:
 - runs `go test ./server/... ./db/...`
 
 So the rebuild recipe now has a repo-owned validation command for the patch-series layer before the higher-level isolated runtime smoke flow.
+
+A higher-level isolated rebuild/smoke pass has now also been revalidated against the managed `/opt/shelley` checkout on this VM after rebuilding UI/sqlc/templates/binary and pointing smoke validation at `/var/lib/stavrobot-installer/shelley-bridge-profiles.json`.
+
+That pass confirmed:
+
+- rebuilt `/opt/shelley/bin/shelley` starts cleanly in isolated mode
+- normal Shelley control conversations still work
+- Stavrobot-mode first turn works through installer-managed bridge-profile resolution
+- Stavrobot continuation reuses the remote `conversation_id`
+- Shelley persists `conversation_id`, `last_message_id`, and `bridge_profile` in `conversation_options`
 
 
 ## Repo-owned first implementation assets

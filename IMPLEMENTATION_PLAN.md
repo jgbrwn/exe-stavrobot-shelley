@@ -961,3 +961,4 @@ The split prototype series has now also been replay/apply validated in order aga
 - the final applied owned files matched the managed `/opt/shelley` prototype state
 - after satisfying the normal upstream UI build prerequisite, fresh-checkout `go test ./server/... ./db/...` also passes
 - `validate-shelley-patch-series.sh` now captures this replay/apply + UI-build + Go-test flow as a repo-owned validator
+- the higher-level isolated managed rebuild flow has now also been revalidated on `/opt/shelley` using rebuilt UI/sqlc/templates/binary plus `smoke-test-shelley-managed-s1.sh` against `/var/lib/stavrobot-installer/shelley-bridge-profiles.json`

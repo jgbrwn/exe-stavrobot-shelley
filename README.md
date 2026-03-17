@@ -37,7 +37,7 @@ Still manual in this track:
 ### Shelley integration MVP
 
 - `chat-with-stavrobot.sh` is a thin adapter around Stavrobot's authenticated `POST /chat` endpoint
-- `shelley-stavrobot-bridge.sh` is the canonical Shelley-facing local bridge and should be the default integration target for any future Shelley rebuild
+- `shelley-stavrobot-bridge.sh` is the canonical Shelley-facing local bridge and should be the default integration target for any future Shelley rebuild; it now defaults to full JSON output so Shelley/runtime callers can parse response text plus remote IDs without extra flags, while `--extract response` remains available for human-oriented text-only use
 - `client-stavrobot.sh` is a lower-level machine-oriented wrapper around the validated authenticated `/api/client/*` surface
 - `shelley-stavrobot-session.sh` is a lower-level stateful convenience wrapper that persists and reuses the last `conversation_id`
 - `smoke-test-stavrobot-client.sh` validates the local client surface against the running stack
@@ -63,6 +63,7 @@ Still manual in this track:
 - the repo now also includes a prototype managed bridge-profile asset and loader at `state/shelley-bridge-profiles.json`, `py/shelley_bridge_profiles.py`, and `manage-shelley-bridge-profiles.sh`
 - `patches/shelley/series/` now captures the first repo-owned cleaned managed patch series for the eventual Shelley-side implementation split, and the split `0001` → `0004` prototype patches have now been replay/test validated in order against a fresh upstream Shelley checkout
 - `validate-shelley-patch-series.sh` now provides a repo-owned replay/apply + UI-build + Go-test validator for that split Shelley patch series
+- the managed `/opt/shelley` rebuild path has now also been revalidated end-to-end in isolated mode: rebuild, isolated serve, normal conversation smoke, Stavrobot first turn, Stavrobot continuation, and persisted mapping verification
 - `patches/shelley/series/0004-stavrobot-runtime-unit.patch-plan.md` now gives a concrete function-by-function apply scaffold for the focused Shelley runtime-unit extraction
 - `patches/shelley/s1-stavrobot-mode-cleaned-runtime-prototype.patch` now captures the first real cleaned-runtime prototype diff from a managed `/opt/shelley` checkout, including the first prototype-hardening pass for a less text-locked `server/stavrobot.go` result shape
 - long-lived Shelley conversations should remain viable if Stavrobot mode is implemented as frontend-to-Stavrobot continuation rather than replaying an ever-growing Shelley transcript through a normal model-provider path each turn

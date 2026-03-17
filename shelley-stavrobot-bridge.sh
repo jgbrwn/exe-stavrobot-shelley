@@ -14,7 +14,7 @@ SENDER="shelley"
 STATE_FILE="$ROOT_DIR/state/last-stavrobot-client-session.json"
 STATEFUL=1
 COMMAND="chat"
-EXTRACT="response"
+EXTRACT=""
 PRETTY=0
 CONNECT_TIMEOUT=10
 REQUEST_TIMEOUT=300
@@ -29,7 +29,7 @@ Usage: ./shelley-stavrobot-bridge.sh [flags]
 Default behavior:
   - canonical Shelley-facing bridge
   - defaults to stateful chat with saved conversation reuse
-  - defaults to printing only assistant response text
+  - defaults to printing full JSON bridge output for Shelley/runtime callers
 
 Commands:
   chat            Send a chat turn (default)
@@ -51,6 +51,10 @@ Flags:
   --sender NAME           Sender field (default: shelley)
   --state-file PATH       Override local session state path
   --extract FIELD         response|conversation_id|message_id|ok|base_url|source|sender
+
+Notes:
+  - default output is full JSON so Shelley/runtime callers can parse response text plus IDs
+  - use --extract response for human-oriented text-only output
   --pretty                Pretty-print JSON output
   --connect-timeout SEC   Curl connect timeout in seconds
   --request-timeout SEC   Total request timeout in seconds

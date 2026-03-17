@@ -139,3 +139,7 @@ info "Shelley patch series validation passed"
 if (( KEEP_WORKTREE == 1 )); then
   info "Kept worktree: $WORKTREE_DIR"
 fi
+
+# Notes:
+# - upstream Shelley server tests require ui/dist to exist because ui/embedfs.go embeds dist/*
+# - default pnpm command uses npx so the validator works even when pnpm is not preinstalled globally

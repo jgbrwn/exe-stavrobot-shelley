@@ -41,7 +41,7 @@ Notes:
   - assumes the Shelley build already contains a Stavrobot-capable S1 patch
   - starts an isolated Shelley server on a safe port with its own DB
   - validates both normal Shelley behavior and Stavrobot-mode behavior
-  - today still validates against local/disposable bridge facts, but now also requires the repo-owned managed profile-state prototype to exist
+  - expects a managed bridge-profile state file and a JSON-emitting Shelley bridge compatible with the current S1 runtime contract
 EOF
 }
 
@@ -79,6 +79,40 @@ post_json() {
 get_json() {
   local path="$1"
   curl -sS "$BASE_URL$path"
+}
+
+assert_conversation_contains_text() {
+  local json_file="$1"
+  local needle="$2"
+  python3 - "$json_file" "$needle" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+needle = sys.argv[2]
+messages = data.get("messages", [])
+texts = []
+for msg in messages:
+    for item in msg.get("content", []) or []:
+        if isinstance(item, dict):
+            text = item.get("Text") or item.get("text")
+            if text:
+                texts.append(text)
+    raw = msg.get("llm_data")
+    if raw:
+        try:
+            parsed = json.loads(raw) if isinstance(raw, str) else raw
+        except Exception:
+            parsed = None
+        if isinstance(parsed, dict):
+            for item in parsed.get("Content", []) or []:
+                if isinstance(item, dict):
+                    text = item.get("Text") or item.get("text")
+                    if text:
+                        texts.append(text)
+joined = "\n".join(texts)
+if needle not in joined:
+    raise SystemExit(f"conversation did not include expected text: {needle}")
+PY
 }
 
 cleanup() {
@@ -188,21 +222,7 @@ normal_conversation_id=$(json_field "$normal_tmp" conversation_id)
 sleep 2
 normal_conv_tmp=$(mktemp)
 get_json "/api/conversation/$normal_conversation_id" >"$normal_conv_tmp"
-python3 - "$normal_conv_tmp" "$NORMAL_EXPECTED" <<'PY'
-import json, sys
-with open(sys.argv[1]) as f:
-    data = json.load(f)
-needle = sys.argv[2]
-messages = data.get("messages", [])
-texts = []
-for msg in messages:
-    for item in msg.get("content", []):
-        if isinstance(item, dict) and item.get("Text"):
-            texts.append(item.get("Text"))
-joined = "\n".join(texts)
-if needle not in joined:
-    raise SystemExit(f"normal control conversation did not include expected text: {needle}")
-PY
+assert_conversation_contains_text "$normal_conv_tmp" "$NORMAL_EXPECTED"
 
 info "Creating Stavrobot-mode conversation"
 stavrobot_payload=$(python3 - "$STAVROBOT_EXPECTED" "$BRIDGE_PROFILE" <<'PY'
@@ -227,21 +247,7 @@ stavrobot_conversation_id=$(json_field "$stavrobot_tmp" conversation_id)
 sleep 3
 stavrobot_conv_tmp=$(mktemp)
 get_json "/api/conversation/$stavrobot_conversation_id" >"$stavrobot_conv_tmp"
-python3 - "$stavrobot_conv_tmp" "$STAVROBOT_EXPECTED" <<'PY'
-import json, sys
-with open(sys.argv[1]) as f:
-    data = json.load(f)
-needle = sys.argv[2]
-messages = data.get("messages", [])
-texts = []
-for msg in messages:
-    for item in msg.get("content", []):
-        if isinstance(item, dict) and item.get("Text"):
-            texts.append(item.get("Text"))
-joined = "\n".join(texts)
-if needle not in joined:
-    raise SystemExit(f"stavrobot first turn did not include expected text: {needle}")
-PY
+assert_conversation_contains_text "$stavrobot_conv_tmp" "$STAVROBOT_EXPECTED"
 
 info "Sending Stavrobot continuation turn"
 second_payload=$(python3 - "$STAVROBOT_SECOND_EXPECTED" <<'PY'
@@ -255,21 +261,7 @@ sleep 3
 
 stavrobot_conv_tmp2=$(mktemp)
 get_json "/api/conversation/$stavrobot_conversation_id" >"$stavrobot_conv_tmp2"
-python3 - "$stavrobot_conv_tmp2" "$STAVROBOT_SECOND_EXPECTED" <<'PY'
-import json, sys
-with open(sys.argv[1]) as f:
-    data = json.load(f)
-needle = sys.argv[2]
-messages = data.get("messages", [])
-texts = []
-for msg in messages:
-    for item in msg.get("content", []):
-        if isinstance(item, dict) and item.get("Text"):
-            texts.append(item.get("Text"))
-joined = "\n".join(texts)
-if needle not in joined:
-    raise SystemExit(f"stavrobot second turn did not include expected text: {needle}")
-PY
+assert_conversation_contains_text "$stavrobot_conv_tmp2" "$STAVROBOT_SECOND_EXPECTED"
 
 info "Checking persisted conversation metadata"
 sqlite_tmp=$(mktemp)
