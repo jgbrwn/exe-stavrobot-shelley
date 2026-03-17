@@ -71,6 +71,7 @@ result = {
     'recorded_upstream_commit': '',
     'current_checkout_commit': '',
     'recorded_checkout_dirty_at_rebuild': False,
+    'recorded_checkout_dirty_at_rebuild_known': False,
     'checkout_dirty': False,
     'upstream_current': 'unknown',
     'profiles_current': 'unknown',
@@ -93,7 +94,9 @@ if Path(state_file).exists():
         result['checkout_path'] = shelley_dir_override or ((state.get('build') or {}).get('checkout_path', ''))
         result['binary_path'] = ((state.get('build') or {}).get('binary_path', ''))
         result['recorded_upstream_commit'] = ((state.get('upstream') or {}).get('commit', ''))
-        result['recorded_checkout_dirty_at_rebuild'] = bool((state.get('build') or {}).get('checkout_dirty_at_rebuild', False))
+        build_state = state.get('build') or {}
+        result['recorded_checkout_dirty_at_rebuild_known'] = 'checkout_dirty_at_rebuild' in build_state
+        result['recorded_checkout_dirty_at_rebuild'] = bool(build_state.get('checkout_dirty_at_rebuild', False))
     except Exception as e:
         result['notes'].append(f'state file unreadable: {e}')
 else:
@@ -163,6 +166,11 @@ elif result['upstream_current'] in ('stale', 'current-dirty') or result['profile
 
 result['rebuild_required'] = rebuild_required
 
+if result['recorded_checkout_dirty_at_rebuild_known'] and result['recorded_checkout_dirty_at_rebuild']:
+    result['notes'].append('warning: the last recorded managed rebuild was performed from a dirty checkout')
+elif result['configured'] and state and not result['recorded_checkout_dirty_at_rebuild_known']:
+    result['notes'].append('recorded rebuild provenance does not include checkout_dirty_at_rebuild (older state file)')
+
 if json_mode:
     print(json.dumps(result, indent=2, sort_keys=True))
     raise SystemExit(0)
@@ -179,7 +187,12 @@ if result['recorded_upstream_commit']:
     print(f"recorded_upstream_commit: {result['recorded_upstream_commit']}")
 if result['current_checkout_commit']:
     print(f"current_checkout_commit: {result['current_checkout_commit']}")
-print(f"recorded_checkout_dirty_at_rebuild: {'yes' if result['recorded_checkout_dirty_at_rebuild'] else 'no'}")
+if result['recorded_checkout_dirty_at_rebuild_known']:
+    print(f"recorded_checkout_dirty_at_rebuild: {'yes' if result['recorded_checkout_dirty_at_rebuild'] else 'no'}")
+else:
+    print("recorded_checkout_dirty_at_rebuild: unknown")
+if result['recorded_checkout_dirty_at_rebuild_known'] and result['recorded_checkout_dirty_at_rebuild']:
+    print("warning: last recorded managed rebuild used a dirty checkout")
 if result['checkout_exists']:
     print(f"checkout_dirty: {'yes' if result['checkout_dirty'] else 'no'}")
 print(f"upstream_status: {result['upstream_current']}")
