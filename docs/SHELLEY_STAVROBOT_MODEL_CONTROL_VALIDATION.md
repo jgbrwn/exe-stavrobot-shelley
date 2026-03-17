@@ -123,6 +123,7 @@ Implication:
 - `openrouter/free` is usable enough to keep on the candidate list
 - but it should still be treated as a **validation-needed option**, not automatically the preferred default
 - extra prompt/behavior testing would be useful before promoting it strongly in UI
+- the duplicated first-turn response should be treated as an observed issue with unclear cause, not as proof of an `openrouter/free`-specific defect
 
 ## 5. Restoring the previous model was also straightforward
 

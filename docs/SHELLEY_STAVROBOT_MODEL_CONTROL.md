@@ -33,6 +33,7 @@ That means:
 - upstream Shelley behavior stays unchanged when Stavrobot mode is off
 - normal non-Stavrobot conversations should not gain unrelated backend-management controls
 - model control should be hidden, disabled, or absent outside Stavrobot mode
+- the OpenRouter-backed model picker should only surface when the active Stavrobot config is actually using `provider = "openrouter"` with valid corresponding auth/config
 
 This matches the project’s current philosophy:
 

@@ -854,3 +854,9 @@ Validation follow-up:
 
 - `docs/SHELLEY_STAVROBOT_MODEL_CONTROL_VALIDATION.md` now records that a tested Stavrobot model change worked via `config.toml` mutation plus `docker compose restart app`, without requiring a full image rebuild
 - this suggests future Shelley-side model control should be treated as runtime admin control rather than as part of the Shelley rebuild path
+
+Helper-contract follow-up:
+
+- `docs/SHELLEY_STAVROBOT_MODEL_CONTROL_HELPER_CONTRACT.md` now defines the concrete local helper shape for future Shelley-triggered Stavrobot model control
+- the OpenRouter model picker should only surface when active Stavrobot config is actually using `provider = "openrouter"` with corresponding auth/config
+- the observed duplicate `openrouter/free` response should currently be treated as an issue with unclear cause, not as model-specific proof
