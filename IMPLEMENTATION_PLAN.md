@@ -967,4 +967,5 @@ The split prototype series has now also been replay/apply validated in order aga
 - `install-stavrobot.sh` now exposes the current managed Shelley path directly via `--print-shelley-mode-status` and `--refresh-shelley-mode`, including machine-readable `--print-shelley-mode-status --json`
 - README and rebuild docs now also include a compact operator-facing command/checklist section for the managed Shelley mode flow
 - managed Shelley status reporting now distinguishes `current` vs `current-dirty` checkout state so rebuild-needed output reflects dirty managed checkouts too
+- managed rebuild state now also records `build.checkout_dirty_at_rebuild` so operator intent/history is visible in later status output
 - the installer now also enforces explicit conflict/precedence guardrails for Shelley-only vs normal installer mutation flows

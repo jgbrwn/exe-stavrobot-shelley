@@ -70,6 +70,7 @@ result = {
     'binary_path': '',
     'recorded_upstream_commit': '',
     'current_checkout_commit': '',
+    'recorded_checkout_dirty_at_rebuild': False,
     'checkout_dirty': False,
     'upstream_current': 'unknown',
     'profiles_current': 'unknown',
@@ -92,6 +93,7 @@ if Path(state_file).exists():
         result['checkout_path'] = shelley_dir_override or ((state.get('build') or {}).get('checkout_path', ''))
         result['binary_path'] = ((state.get('build') or {}).get('binary_path', ''))
         result['recorded_upstream_commit'] = ((state.get('upstream') or {}).get('commit', ''))
+        result['recorded_checkout_dirty_at_rebuild'] = bool((state.get('build') or {}).get('checkout_dirty_at_rebuild', False))
     except Exception as e:
         result['notes'].append(f'state file unreadable: {e}')
 else:
@@ -177,6 +179,7 @@ if result['recorded_upstream_commit']:
     print(f"recorded_upstream_commit: {result['recorded_upstream_commit']}")
 if result['current_checkout_commit']:
     print(f"current_checkout_commit: {result['current_checkout_commit']}")
+print(f"recorded_checkout_dirty_at_rebuild: {'yes' if result['recorded_checkout_dirty_at_rebuild'] else 'no'}")
 if result['checkout_exists']:
     print(f"checkout_dirty: {'yes' if result['checkout_dirty'] else 'no'}")
 print(f"upstream_status: {result['upstream_current']}")

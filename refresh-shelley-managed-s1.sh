@@ -49,12 +49,17 @@ EOF
 }
 
 write_state_file() {
-  local upstream_repo upstream_branch upstream_commit upstream_short rebuilt_at profile_json
+  local upstream_repo upstream_branch upstream_commit upstream_short rebuilt_at profile_json checkout_dirty_at_rebuild
   upstream_repo=$(git -C "$SHELLEY_DIR" remote get-url origin)
   upstream_branch=$(git -C "$SHELLEY_DIR" symbolic-ref --short HEAD 2>/dev/null || printf 'detached')
   upstream_commit=$(git -C "$SHELLEY_DIR" rev-parse HEAD)
   upstream_short=$(git -C "$SHELLEY_DIR" rev-parse --short HEAD)
   rebuilt_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  if [[ -n "$(git -C "$SHELLEY_DIR" status --porcelain)" ]]; then
+    checkout_dirty_at_rebuild=true
+  else
+    checkout_dirty_at_rebuild=false
+  fi
   profile_json=$(python3 - "$PROFILE_STATE_PATH" <<'PY'
 import json, sys
 with open(sys.argv[1]) as f:
@@ -67,10 +72,10 @@ out = {
 print(json.dumps(out))
 PY
 )
-  python3 - "$STATE_FILE" "$upstream_repo" "$upstream_branch" "$upstream_commit" "$upstream_short" "$SHELLEY_DIR" "$SHELLEY_DIR/bin/shelley" "$rebuilt_at" "$PATCH_SHAPE" "$PATCH_VERSION" "$profile_json" <<'PY'
+  python3 - "$STATE_FILE" "$upstream_repo" "$upstream_branch" "$upstream_commit" "$upstream_short" "$SHELLEY_DIR" "$SHELLEY_DIR/bin/shelley" "$rebuilt_at" "$PATCH_SHAPE" "$PATCH_VERSION" "$profile_json" "$checkout_dirty_at_rebuild" <<'PY'
 import json, os, sys
 (state_file, repo, branch, commit, commit_short, checkout_path, binary_path,
- rebuilt_at, patch_shape, patch_version, profile_json) = sys.argv[1:12]
+ rebuilt_at, patch_shape, patch_version, profile_json, checkout_dirty_at_rebuild) = sys.argv[1:13]
 profile = json.loads(profile_json)
 out = {
     'schema_version': 1,
@@ -94,6 +99,7 @@ out = {
         'ui_built': True,
         'templates_built': True,
         'rebuilt_at': rebuilt_at,
+        'checkout_dirty_at_rebuild': checkout_dirty_at_rebuild == 'true',
     },
     'profiles': {
         'default': profile.get('default', ''),

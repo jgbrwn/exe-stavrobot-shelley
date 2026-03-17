@@ -128,7 +128,8 @@ Recommended shape:
     "binary_path": "/opt/shelley/bin/shelley",
     "ui_built": true,
     "templates_built": true,
-    "rebuilt_at": "2025-01-01T00:00:00Z"
+    "rebuilt_at": "2025-01-01T00:00:00Z",
+    "checkout_dirty_at_rebuild": false
   },
   "profiles": {
     "default": "local-default",
@@ -163,6 +164,8 @@ Recommended shape:
   - managed or referenced Shelley source tree
 - `build.binary_path`
   - built Shelley binary path
+- `build.checkout_dirty_at_rebuild`
+  - whether the recorded rebuild ran from a dirty checkout
 - `profiles.default`
   - default bridge profile name to suggest/use later
 - `profiles.available`

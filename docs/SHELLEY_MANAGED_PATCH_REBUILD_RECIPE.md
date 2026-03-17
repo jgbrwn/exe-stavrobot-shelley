@@ -760,3 +760,5 @@ Expected healthy result for the current S1 managed path:
 - `rebuild_required: no`
 
 If status instead shows `upstream_status: current-dirty`, the managed checkout still matches the recorded commit but has local modifications, so refresh policy should treat it as rebuild-required unless the operator is intentionally working in a dirty checkout.
+
+If `recorded_checkout_dirty_at_rebuild: yes`, the last recorded managed rebuild was itself performed from a dirty checkout, which is useful operator context when interpreting later status output.

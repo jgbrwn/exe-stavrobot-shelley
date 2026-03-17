@@ -122,6 +122,8 @@ Common status interpretation:
   - recorded rebuild commit matches the current managed checkout and the checkout is clean
 - `upstream_status: current-dirty`
   - recorded rebuild commit matches, but the managed checkout has local modifications
+- `recorded_checkout_dirty_at_rebuild: yes`
+  - the most recent managed rebuild itself was performed from a dirty checkout
 - `profiles_status: current`
   - recorded bridge-profile snapshot still matches current profile state
 - `rebuild_required: no`
