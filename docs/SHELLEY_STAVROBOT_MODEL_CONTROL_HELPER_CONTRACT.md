@@ -446,3 +446,31 @@ After this contract, the next practical step would be to implement a disposable 
 3. fallback recreate flow
 4. machine-readable error handling
 5. Shelley-facing status semantics
+
+
+## Disposable first-helper implementation status
+
+A disposable first local implementation now exists in this repo as:
+
+- `manage-stavrobot-model.sh`
+- `py/stavrobot_model_control.py`
+
+What was validated against `/tmp/stavrobot`:
+
+- `get-current` returned current provider/model plus OpenRouter gating status
+- `list-openrouter-free` returned the live filtered model catalog when OpenRouter was active
+- `apply --model openrouter/free` successfully:
+  - updated `config.toml`
+  - restarted the Stavrobot app service
+  - waited for healthy runtime
+  - returned machine-readable JSON success
+- the helper then successfully restored the previous model too
+
+Current limitations of the disposable first helper:
+
+- model mutation currently uses a narrow regex replacement for the top-level `model = ...` line rather than a full TOML round-trip editor
+- no dedicated rollback subcommand yet
+- no sudoers/systemd privilege hardening yet
+- no explicit Shelley-side UI wiring yet
+
+So this helper is now a validated local prototype, not final production-hardening.

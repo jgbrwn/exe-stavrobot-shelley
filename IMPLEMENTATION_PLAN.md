@@ -860,3 +860,9 @@ Helper-contract follow-up:
 - `docs/SHELLEY_STAVROBOT_MODEL_CONTROL_HELPER_CONTRACT.md` now defines the concrete local helper shape for future Shelley-triggered Stavrobot model control
 - the OpenRouter model picker should only surface when active Stavrobot config is actually using `provider = "openrouter"` with corresponding auth/config
 - the observed duplicate `openrouter/free` response should currently be treated as an issue with unclear cause, not as model-specific proof
+
+Disposable helper follow-up:
+
+- `manage-stavrobot-model.sh` and `py/stavrobot_model_control.py` now provide a validated first local prototype for Stavrobot model inspection/list/apply flows
+- the prototype was validated against `/tmp/stavrobot` for `get-current`, gated `list-openrouter-free`, `apply --model openrouter/free`, and restore back to the prior model
+- it should still be treated as a prototype pending TOML-edit hardening, privilege-boundary hardening, and Shelley UI wiring
