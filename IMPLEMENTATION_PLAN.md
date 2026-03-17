@@ -776,3 +776,20 @@ Each Shelley-side phase should have explicit acceptance checks.
 Recommended principle:
 
 - every later Shelley phase should be justified by validation evidence, not just architectural neatness
+
+
+## Compact Shelley handoff summary
+
+Shortest execution-oriented summary:
+
+- keep Shelley Stavrobot integration optional
+- implement it per conversation
+- integrate above the normal model/provider layer
+- use only `shelley-stavrobot-bridge.sh` as the Shelley-facing local contract
+- keep conversation metadata small and secret-free
+- keep installer-managed rebuild/profile state separate
+- reuse Shelley's existing `Agent Working...`
+- evolve the canonical bridge toward structured output later for markdown/media/tool fidelity
+- validate Stavrobot's native cross-conversation recall behavior before building an extra Shelley retrieval layer
+
+Recommended first implementation target remains S1 only.

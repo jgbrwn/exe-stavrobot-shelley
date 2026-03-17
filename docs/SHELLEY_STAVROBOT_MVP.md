@@ -1497,3 +1497,89 @@ When future Shelley-side work begins, each phase should probably produce a short
 - next decision or follow-up work
 
 That will keep the rebuild effort grounded in observable behavior rather than drifting back into purely speculative planning.
+
+
+## Compact handoff summary
+
+If a future session needs the shortest reliable restart point, use this section first.
+
+### Current recommendation stack
+
+1. Shelley integration should remain **optional**, not a replacement for ordinary Shelley behavior.
+2. The preferred implementation shape is **per-conversation Stavrobot mode**, not just a server-wide switch.
+3. Shelley should **not** model Stavrobot as merely another raw model/provider.
+4. The likely clean seam is **above Shelley's normal model/provider layer**, in the conversation/runtime path.
+5. Shelley should call **only** `shelley-stavrobot-bridge.sh` as its local integration contract.
+6. Lower-level helpers remain implementation details, operator tools, and debug/smoke tools:
+   - `client-stavrobot.sh`
+   - `shelley-stavrobot-session.sh`
+   - `chat-with-stavrobot.sh`
+7. Per-conversation Shelley metadata should stay minimal:
+   - mode
+   - bridge profile name
+   - remote Stavrobot `conversation_id`
+   - optional remote `last_message_id`
+8. Installer-managed Shelley rebuild state should be stored separately from conversation metadata.
+9. Shelley's existing `Agent Working...` state should be reused while waiting on Stavrobot.
+10. Shelley should preserve a path toward **rich markdown/media/tool fidelity** by evolving the canonical bridge toward structured output later rather than locking the integration into plain-text-only behavior.
+
+### What not to do
+
+- do **not** make Shelley depend directly on the lower-level wrappers
+- do **not** flatten the design into a fake normal model-provider integration if a higher-level runtime seam is available
+- do **not** store local machine secrets in conversation metadata
+- do **not** silently fall back from Stavrobot mode into normal mode when a Stavrobot turn fails
+- do **not** assume cross-conversation recall requires Shelley-side retrieval machinery before validating Stavrobot's native behavior more deeply
+- do **not** reuse Shelley's normal direct-model context gauge as if it were authoritative in Stavrobot mode
+
+### Current phased execution target
+
+- **S1:** minimal per-conversation Stavrobot mode
+- **S2:** richer structured bridge output
+- **S3:** optional remote history/event reconciliation
+- **S4:** validate Stavrobot-native cross-conversation recall first, then decide whether explicit Shelley-side retrieval is needed
+
+### Immediate next execution target
+
+If actual Shelley implementation work begins, the first target should be **S1 only**.
+
+Meaning:
+
+- per-conversation mode selection
+- bridge profile selection
+- first-turn remote mapping
+- ongoing mapped continuation
+- reused `Agent Working...`
+- compact mode-aware status/context UI
+- degraded-state handling
+- explicit `Reset remote mapping`
+
+That is the smallest real Shelley-side proof point that matches the validated local bridge contract.
+
+### Validation-first rules
+
+- every Shelley phase should have explicit acceptance checks
+- S1 should prove the base mode works without breaking normal Shelley behavior
+- S2 should improve fidelity without breaking the single-bridge contract
+- S3 should improve reconciliation/trace visibility without entangling every send-turn with remote sync
+- S4 should begin by testing whether Stavrobot already handles broader recall well enough on its own
+
+### Cross-conversation recall rule of thumb
+
+Current best rule:
+
+- treat cross-conversation recall as **unresolved pending validation**, not as definitely solved and not as definitely requiring new Shelley-side retrieval machinery
+
+If Stavrobot already handles it well enough:
+
+- keep Shelley simpler
+
+If Stavrobot does **not** handle it well enough:
+
+- add explicit Shelley-side retrieval later as an additive layer
+
+### Long-running conversation rule of thumb
+
+A single Shelley/Stavrobot conversation may remain viable for a long time if Shelley is acting as a frontend over Stavrobot-owned conversation state rather than replaying an ever-growing local transcript through a direct-model path every turn.
+
+So the main scaling concern is Stavrobot's own context/retrieval behavior, not merely the age of the Shelley conversation object.

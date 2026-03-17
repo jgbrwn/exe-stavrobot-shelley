@@ -52,6 +52,7 @@ Still manual in this track:
 - the likely first Shelley UX for Stavrobot mode should stay compact: explicit mode/profile selection, reused `Agent Working...`, a mode-aware context label, actionable degraded-state recovery, and explicit reset/remap controls
 - the current phased roadmap is S1 minimal per-conversation mode, S2 richer structured bridge output, S3 optional history/event reconciliation, and S4 recall validation first before assuming Shelley needs its own cross-conversation retrieval layer
 - the roadmap now also has explicit validation checklists so future Shelley-side work can be judged phase by phase rather than by architecture discussion alone
+- the docs now also include a compact handoff summary so a future session can restart from the current recommendation stack quickly
 - long-lived Shelley conversations should remain viable if Stavrobot mode is implemented as frontend-to-Stavrobot continuation rather than replaying an ever-growing Shelley transcript through a normal model-provider path each turn
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`
