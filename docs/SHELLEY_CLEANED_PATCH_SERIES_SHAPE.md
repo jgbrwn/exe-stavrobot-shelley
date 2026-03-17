@@ -367,3 +367,31 @@ Current limitation:
 
 - this is still a prototype diff, not yet the final patch-series split into apply-ready hunks
 - the runtime path currently uses a stable fallback path plus env override for the profile-state file until a fuller Shelley runtime config hook is chosen
+
+## Captured per-patch prototype artifact status
+
+The repo now also contains first split prototype patch artifacts under:
+
+- `patches/shelley/series/0001-metadata-sql-ui.patch`
+- `patches/shelley/series/0002-conversation-manager.patch`
+- `patches/shelley/series/0003-route-branching.patch`
+- `patches/shelley/series/0004-stavrobot-runtime-unit.patch`
+
+These were split directly from the managed `/opt/shelley` cleaned runtime prototype so review can now happen patch-by-patch instead of only against the single combined capture.
+
+Current status of that split:
+
+- `0001` and `0002` look close to final managed shape
+- `0003` looks like the intended thin branch-only handler patch
+- `0004` is now isolated as the main runtime refinement surface
+
+## Rich-output guardrail for patch 0004
+
+While S1 is intentionally text-first, patch 0004 should keep being reviewed against the explicit Shelley-side longer-term requirement that the runtime/adaptation boundary must not freeze the integration into a permanent plain-text tunnel.
+
+In practice, that means `server/stavrobot.go` should be treated as:
+
+- the S1 text-first runtime unit now
+- and the likely S2 adaptation boundary later for structured bridge output that can preserve Shelley-native markdown/media/tool/HTML/display capabilities
+
+So any cleanup of `ExecuteStavrobotTurn(...)` / `ProcessStavrobotConversationTurn(...)` should prefer shapes that can later accept richer bridge payloads and map them into Shelley-native content rather than forcing future work to undo a text-only abstraction.

@@ -1,0 +1,80 @@
+diff --git a/server/convo.go b/server/convo.go
+index 1cf7aae..46f0d88 100644
+--- a/server/convo.go
++++ b/server/convo.go
+@@ -2,6 +2,7 @@ package server
+ 
+ import (
+ 	"context"
++	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"log/slog"
+@@ -122,6 +123,24 @@ func (cm *ConversationManager) GetModel() string {
+ 	return cm.modelID
+ }
+ 
++// IsStavrobotMode reports whether this conversation should dispatch through the Stavrobot path.
++func (cm *ConversationManager) IsStavrobotMode() bool {
++	cm.mu.Lock()
++	defer cm.mu.Unlock()
++	return cm.conversationOptions.IsStavrobot()
++}
++
++// StavrobotOptions returns a copy of the current Stavrobot options if present.
++func (cm *ConversationManager) StavrobotOptions() *db.StavrobotOptions {
++	cm.mu.Lock()
++	defer cm.mu.Unlock()
++	if cm.conversationOptions.Stavrobot == nil {
++		return nil
++	}
++	copy := *cm.conversationOptions.Stavrobot
++	return &copy
++}
++
+ // Hydrate loads conversation metadata from the database and generates a system
+ // prompt if one doesn't exist yet. It does NOT cache the message history;
+ // ensureLoop reads messages fresh from the DB when creating a loop so that
+@@ -1072,3 +1091,42 @@ func (cm *ConversationManager) notifyGitStateChange(ctx context.Context, msg *ge
+ 	}
+ 	cm.subpub.Publish(msg.SequenceID, streamData)
+ }
++
++// UpdateStavrobotMapping updates the per-conversation stored Stavrobot mapping metadata.
++func (cm *ConversationManager) UpdateStavrobotMapping(ctx context.Context, conversationID, lastMessageID string) error {
++	cm.mu.Lock()
++	opts := cm.conversationOptions
++	if opts.Stavrobot == nil {
++		opts.Stavrobot = &db.StavrobotOptions{}
++	}
++	opts.Type = "stavrobot"
++	opts.Stavrobot.Enabled = true
++	if conversationID != "" {
++		opts.Stavrobot.ConversationID = conversationID
++	}
++	if lastMessageID != "" {
++		opts.Stavrobot.LastMessageID = lastMessageID
++	}
++	cm.mu.Unlock()
++
++	optsJSON, err := json.Marshal(opts)
++	if err != nil {
++		return fmt.Errorf("failed to marshal conversation options: %w", err)
++	}
++	jsonStr := string(optsJSON)
++
++	if err := cm.db.QueriesTx(ctx, func(q *generated.Queries) error {
++		_, err := q.UpdateConversationOptions(ctx, generated.UpdateConversationOptionsParams{
++			ConversationOptions: jsonStr,
++			ConversationID:      cm.conversationID,
++		})
++		return err
++	}); err != nil {
++		return fmt.Errorf("failed to persist stavrobot mapping: %w", err)
++	}
++
++	cm.mu.Lock()
++	cm.conversationOptions = opts
++	cm.mu.Unlock()
++	return nil
++}

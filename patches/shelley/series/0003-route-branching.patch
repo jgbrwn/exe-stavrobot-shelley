@@ -1,0 +1,123 @@
+diff --git a/server/handlers.go b/server/handlers.go
+index c6c45e0..7b07638 100644
+--- a/server/handlers.go
++++ b/server/handlers.go
+@@ -654,19 +654,12 @@ func (s *Server) handleChatConversation(w http.ResponseWriter, r *http.Request,
+ 		return
+ 	}
+ 
+-	// Get LLM service for the requested model
++	// Get model ID first; normal mode uses an LLM service, Stavrobot mode does not.
+ 	modelID := req.Model
+ 	if modelID == "" {
+ 		modelID = s.defaultModel
+ 	}
+ 
+-	llmService, err := s.llmManager.GetService(modelID)
+-	if err != nil {
+-		s.logger.Error("Unsupported model requested", "model", modelID, "error", err)
+-		http.Error(w, fmt.Sprintf("Unsupported model: %s", modelID), http.StatusBadRequest)
+-		return
+-	}
+-
+ 	userEmail := r.Header.Get("X-ExeDev-Email")
+ 
+ 	// Get or create conversation manager
+@@ -689,6 +682,29 @@ func (s *Server) handleChatConversation(w http.ResponseWriter, r *http.Request,
+ 		},
+ 	}
+ 
++	// Stavrobot-mode path branches above the normal model/provider loop.
++	if manager.IsStavrobotMode() {
++		if req.Queue {
++			http.Error(w, "queue mode is not supported for stavrobot conversations yet", http.StatusBadRequest)
++			return
++		}
++		if err := s.ProcessStavrobotConversationTurn(ctx, manager, userMessage); err != nil {
++			s.logger.Error("Failed to process stavrobot message", "conversationID", conversationID, "error", err)
++			http.Error(w, "Internal server error", http.StatusInternalServerError)
++			return
++		}
++		w.WriteHeader(http.StatusAccepted)
++		json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
++		return
++	}
++
++	llmService, err := s.llmManager.GetService(modelID)
++	if err != nil {
++		s.logger.Error("Unsupported model requested", "model", modelID, "error", err)
++		http.Error(w, fmt.Sprintf("Unsupported model: %s", modelID), http.StatusBadRequest)
++		return
++	}
++
+ 	// Queue mode: record the message to DB but don't interrupt the agent.
+ 	// The message will be sent when the agent finishes its current turn.
+ 	if req.Queue {
+@@ -752,19 +768,12 @@ func (s *Server) handleNewConversation(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 
+-	// Get LLM service for the requested model
++	// Determine model ID first; normal mode uses an LLM service, Stavrobot mode does not.
+ 	modelID := req.Model
+ 	if modelID == "" {
+ 		modelID = s.defaultModel
+ 	}
+ 
+-	llmService, err := s.llmManager.GetService(modelID)
+-	if err != nil {
+-		s.logger.Error("Unsupported model requested", "model", modelID, "error", err)
+-		http.Error(w, fmt.Sprintf("Unsupported model: %s", modelID), http.StatusBadRequest)
+-		return
+-	}
+-
+ 	// Create new conversation with optional cwd
+ 	var cwdPtr *string
+ 	if req.Cwd != "" {
+@@ -773,10 +782,16 @@ func (s *Server) handleNewConversation(w http.ResponseWriter, r *http.Request) {
+ 	var convOpts db.ConversationOptions
+ 	if req.ConversationOptions != nil {
+ 		convOpts = *req.ConversationOptions
+-		if convOpts.Type != "" && convOpts.Type != "normal" && convOpts.Type != "orchestrator" {
++		if convOpts.Type != "" && convOpts.Type != "normal" && convOpts.Type != "orchestrator" && convOpts.Type != "stavrobot" {
+ 			http.Error(w, fmt.Sprintf("Invalid conversation options type: %s", convOpts.Type), http.StatusBadRequest)
+ 			return
+ 		}
++		if convOpts.Type == "stavrobot" {
++			if convOpts.Stavrobot == nil || !convOpts.Stavrobot.Enabled || convOpts.Stavrobot.BridgeProfile == "" {
++				http.Error(w, "stavrobot conversations require enabled stavrobot options and a bridge_profile", http.StatusBadRequest)
++				return
++			}
++		}
+ 	}
+ 
+ 	conversation, err := s.db.CreateConversation(ctx, nil, true, cwdPtr, &modelID, convOpts)
+@@ -815,6 +830,28 @@ func (s *Server) handleNewConversation(w http.ResponseWriter, r *http.Request) {
+ 		},
+ 	}
+ 
++	if manager.IsStavrobotMode() {
++		if err := s.ProcessStavrobotConversationTurn(ctx, manager, userMessage); err != nil {
++			s.logger.Error("Failed to process stavrobot message", "conversationID", conversationID, "error", err)
++			http.Error(w, "Internal server error", http.StatusInternalServerError)
++			return
++		}
++		w.Header().Set("Content-Type", "application/json")
++		w.WriteHeader(http.StatusCreated)
++		json.NewEncoder(w).Encode(map[string]interface{}{
++			"status":          "accepted",
++			"conversation_id": conversationID,
++		})
++		return
++	}
++
++	llmService, err := s.llmManager.GetService(modelID)
++	if err != nil {
++		s.logger.Error("Unsupported model requested", "model", modelID, "error", err)
++		http.Error(w, fmt.Sprintf("Unsupported model: %s", modelID), http.StatusBadRequest)
++		return
++	}
++
+ 	firstMessage, err := manager.AcceptUserMessage(ctx, llmService, modelID, userMessage)
+ 	if errors.Is(err, errConversationModelMismatch) {
+ 		http.Error(w, err.Error(), http.StatusBadRequest)
