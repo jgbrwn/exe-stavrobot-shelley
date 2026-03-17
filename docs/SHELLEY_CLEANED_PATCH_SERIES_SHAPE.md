@@ -299,8 +299,21 @@ The next useful repo-owned artifact should be one of:
 2. a scripted patch-applier that introduces the new `server/stavrobot.go`-style runtime unit
 3. a prototype installer-managed `state/shelley-bridge-profiles.json` file plus loader assumptions
 
-Of those, the highest-value next artifact is probably:
+Of those, the highest-value next artifact was:
 
 - a prototype installer-managed `state/shelley-bridge-profiles.json` sample plus loader/read-path assumptions
 
-because that would let the cleaned runtime unit replace the biggest disposable assumption immediately.
+That prototype now exists in this repo as:
+
+- `state/shelley-bridge-profiles.json`
+- `py/shelley_bridge_profiles.py`
+- `manage-shelley-bridge-profiles.sh`
+
+So the next practical engineering step is no longer contract definition.
+
+It is to start the cleaned Shelley-side runtime implementation around the focused boundary described above, using the prototype profile-state loader behavior as the runtime target for:
+
+- `LoadStavrobotBridgeProfiles(...)`
+- `ResolveStavrobotBridgeProfile(...)`
+- `ExecuteStavrobotTurn(...)`
+- `ProcessStavrobotConversationTurn(...)`

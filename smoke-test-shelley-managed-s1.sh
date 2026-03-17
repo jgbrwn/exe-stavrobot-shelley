@@ -9,6 +9,7 @@ SHELLEY_BIN=""
 PORT="8765"
 DB_PATH="/tmp/shelley-stavrobot-managed-test.db"
 BASE_URL=""
+PROFILE_STATE_PATH="${PROFILE_STATE_PATH:-$ROOT_DIR/state/shelley-bridge-profiles.json}"
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 STAVROBOT_CONFIG_PATH="${STAVROBOT_CONFIG_PATH:-/tmp/stavrobot/data/main/config.toml}"
 BRIDGE_PROFILE="local-default"
@@ -28,8 +29,9 @@ Flags:
   --shelley-bin PATH             Shelley binary path (default: SHELLEY_DIR/bin/shelley)
   --port PORT                    Test port (default: 8765)
   --db-path PATH                 Test sqlite db path
-  --stavrobot-base-url URL       Stavrobot base URL (default: http://localhost:8000)
-  --stavrobot-config-path PATH   Stavrobot config path used by bridge profile assumptions
+  --profile-state-path PATH      Managed bridge profile state file (default: repo state/shelley-bridge-profiles.json)
+  --stavrobot-base-url URL       Stavrobot base URL override for disposable/local validation
+  --stavrobot-config-path PATH   Stavrobot config path override for disposable/local validation
   --bridge-profile NAME          Bridge profile name for Stavrobot conversation (default: local-default)
   --tmux-session NAME            tmux session name used for test server
   --keep-server                  Leave test Shelley server running after success
@@ -39,6 +41,7 @@ Notes:
   - assumes the Shelley build already contains a Stavrobot-capable S1 patch
   - starts an isolated Shelley server on a safe port with its own DB
   - validates both normal Shelley behavior and Stavrobot-mode behavior
+  - today still validates against local/disposable bridge facts, but now also requires the repo-owned managed profile-state prototype to exist
 EOF
 }
 
@@ -103,6 +106,10 @@ while [[ $# -gt 0 ]]; do
       DB_PATH="$2"
       shift 2
       ;;
+    --profile-state-path)
+      PROFILE_STATE_PATH="$2"
+      shift 2
+      ;;
     --stavrobot-base-url)
       STAVROBOT_BASE_URL="$2"
       shift 2
@@ -140,8 +147,12 @@ require_cmd sqlite3
 
 [[ -n "$SHELLEY_BIN" ]] || SHELLEY_BIN="$SHELLEY_DIR/bin/shelley"
 [[ -x "$SHELLEY_BIN" ]] || die "Shelley binary not found or not executable: $SHELLEY_BIN"
+[[ -f "$PROFILE_STATE_PATH" ]] || die "Managed bridge profile state file not found: $PROFILE_STATE_PATH"
 [[ -f "$STAVROBOT_CONFIG_PATH" ]] || die "Stavrobot config path not found: $STAVROBOT_CONFIG_PATH"
 [[ "$PORT" =~ ^[0-9]+$ ]] || die "--port must be numeric"
+
+python3 "$ROOT_DIR/py/shelley_bridge_profiles.py" validate "$PROFILE_STATE_PATH" >/dev/null
+python3 "$ROOT_DIR/py/shelley_bridge_profiles.py" resolve "$PROFILE_STATE_PATH" "$BRIDGE_PROFILE" >/dev/null
 
 BASE_URL="http://localhost:$PORT"
 rm -f "$DB_PATH" "$SERVER_LOG"

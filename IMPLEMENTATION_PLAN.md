@@ -891,6 +891,7 @@ Managed patch cleanup follow-up:
 Bridge-resolution follow-up:
 
 - `docs/SHELLEY_BRIDGE_PROFILE_RESOLUTION_CONTRACT.md` now defines the narrow installer-managed profile-state contract the cleaned Shelley patch should read to resolve `bridge_profile` into bridge path, base URL, config path, and default args
+- the repo now also includes a prototype executable version of that contract at `state/shelley-bridge-profiles.json`, `py/shelley_bridge_profiles.py`, and `manage-shelley-bridge-profiles.sh`
 - this is the key contract needed to remove the disposable patch's hardcoded bridge path and `local-default` mapping assumptions
 
 Cleaned-patch-shape follow-up:

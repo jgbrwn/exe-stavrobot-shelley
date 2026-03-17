@@ -360,3 +360,43 @@ At minimum it should fail clearly when a selected profile cannot be resolved.
 ## Suggested next implementation step after this contract
 
 Now that the bridge-profile resolution contract is concrete, the next useful step is to update the managed patch cleanup plan and patch assets so the cleaned Shelley patch explicitly targets this contract instead of the disposable hardcoded `local-default` logic.
+
+## Prototype repo-owned asset and loader
+
+This repo now includes a concrete prototype of the contract described above:
+
+- `state/shelley-bridge-profiles.json`
+- `py/shelley_bridge_profiles.py`
+- `manage-shelley-bridge-profiles.sh`
+
+Current prototype intent:
+
+- make the contract executable instead of doc-only
+- give the future cleaned Shelley runtime a concrete sample input shape
+- give installer-side work a narrow validator/reader to evolve against
+
+Current prototype behavior:
+
+- `./manage-shelley-bridge-profiles.sh validate`
+  - validates top-level schema/contract versions and profile names
+- `./manage-shelley-bridge-profiles.sh resolve`
+  - resolves the default profile from the prototype state file
+- `./manage-shelley-bridge-profiles.sh resolve --profile-name NAME`
+  - resolves a named profile
+
+Current validation checks include:
+
+- profile state file exists and is valid JSON
+- supported `schema_version`
+- supported `bridge_contract_version`
+- requested profile exists and is enabled
+- `bridge_path` is absolute, exists, and is executable
+- `config_path` is absolute, exists, and is readable
+- `base_url` parses as an absolute `http` or `https` URL
+- `args` is a list of literal strings
+
+Current limitation:
+
+- the prototype sample still targets the validated disposable local bed values in this repo/VM
+- that is intentional for now so the contract can be exercised immediately
+- later installer-managed deployment work should rewrite the profile file to stable deployed paths such as `/opt/...` and a machine-local state location when appropriate
