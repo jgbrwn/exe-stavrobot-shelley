@@ -61,6 +61,7 @@ Still manual in this track:
 - `docs/SHELLEY_MANAGED_PATCH_CLEANUP_PLAN.md` now captures how the captured disposable S1 patch must be cleaned into a maintainable managed patch set, especially around bridge/profile resolution and runtime code boundaries
 - `docs/SHELLEY_BRIDGE_PROFILE_RESOLUTION_CONTRACT.md` now defines the narrow installer-managed profile file and lookup behavior the cleaned Shelley patch should depend on instead of hardcoded local bridge/config/base-url assumptions
 - the repo now also includes a prototype managed bridge-profile asset and loader at `state/shelley-bridge-profiles.json`, `py/shelley_bridge_profiles.py`, and `manage-shelley-bridge-profiles.sh`
+- `patches/shelley/series/` now captures the first repo-owned cleaned managed patch-series skeleton for the eventual Shelley-side implementation split
 - long-lived Shelley conversations should remain viable if Stavrobot mode is implemented as frontend-to-Stavrobot continuation rather than replaying an ever-growing Shelley transcript through a normal model-provider path each turn
 - `docs/SHELLEY_STAVROBOT_MVP.md` records the recommended MVP and likely next upstream API asks
 - separate upstream spike work validated additive `GET /api/client/health`, `POST /api/client/chat`, `GET /api/client/conversations`, `GET /api/client/conversations/:conversation_id/messages`, and `GET /api/client/conversations/:conversation_id/events`

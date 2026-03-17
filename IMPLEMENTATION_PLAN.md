@@ -897,3 +897,24 @@ Bridge-resolution follow-up:
 Cleaned-patch-shape follow-up:
 
 - `docs/SHELLEY_CLEANED_PATCH_SERIES_SHAPE.md` now maps the captured disposable patch into a likely maintainable patch series, keeping metadata/schema pieces close to validated shape while moving bridge/profile/runtime logic into a focused Shelley-side integration unit
+
+## Shelley cleaned managed patch-series skeleton
+
+The repo now also contains a first owned patch-series skeleton under:
+
+- `patches/shelley/series/`
+
+This is not the final apply-ready patch set yet.
+
+It exists to lock in the intended maintained split:
+
+1. metadata / SQL / UI
+2. conversation manager support
+3. route branching only
+4. focused Stavrobot runtime integration unit
+
+Why this matters:
+
+- it keeps the future maintained patch from collapsing back into one handler-heavy mixed diff
+- it makes the next implementation step concrete, especially around the proposed `server/stavrobot.go` runtime boundary
+- it gives future rebuild automation a cleaner owned target than the disposable patch alone

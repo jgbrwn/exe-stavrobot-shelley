@@ -24,6 +24,19 @@ It is useful because it proves:
 
 But it is **not** yet the final managed patch set.
 
+### `series/`
+
+This directory now holds a repo-owned cleaned managed patch-series skeleton.
+
+It is not apply-ready patch material yet.
+
+It exists to split the future maintained patch into the concrete owned concerns already identified in the docs:
+
+1. metadata / SQL / UI
+2. conversation manager support
+3. route branching only
+4. focused Stavrobot runtime integration unit
+
 ## What still has to be cleaned before this becomes the real managed patch
 
 The disposable patch contains validation scaffolding that should not remain in the maintained patch set.

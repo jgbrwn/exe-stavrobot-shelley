@@ -317,3 +317,20 @@ It is to start the cleaned Shelley-side runtime implementation around the focuse
 - `ResolveStavrobotBridgeProfile(...)`
 - `ExecuteStavrobotTurn(...)`
 - `ProcessStavrobotConversationTurn(...)`
+
+## Repo-owned series skeleton status
+
+This repo now also includes a first patch-series skeleton under:
+
+- `patches/shelley/series/`
+
+Current purpose of that skeleton:
+
+- turn the cleaned patch split from prose into owned patch-by-patch implementation targets
+- make the next engineering session work against a maintained split instead of against the whole disposable diff
+- keep patch 3 thin and push real runtime ownership into patch 4
+
+Current limitation:
+
+- these are design/implementation skeleton files, not apply-ready patch hunks yet
+- the next step after the skeleton is to convert at least patch 4 into concrete maintained patch material or a scripted patch applier
