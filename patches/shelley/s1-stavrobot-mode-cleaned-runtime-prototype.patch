@@ -312,3 +312,259 @@ index 5cf88ec..1152be9 100644
    queue?: boolean;
  }
  // Notification event types
+
+diff --git a/server/stavrobot.go b/server/stavrobot.go
+new file mode 100644
+index 0000000..f2fd349
+--- /dev/null
++++ b/server/stavrobot.go
+@@ -0,0 +1,249 @@
++package server
++
++import (
++	"context"
++	"encoding/json"
++	"fmt"
++	"net/url"
++	"os"
++	"os/exec"
++	"path/filepath"
++
++	"shelley.exe.dev/db"
++	"shelley.exe.dev/llm"
++)
++
++const supportedStavrobotProfileSchemaVersion = 1
++const supportedStavrobotBridgeContractVersion = 1
++
++// StavrobotBridgeProfiles is the installer-managed bridge profile state file shape.
++type StavrobotBridgeProfiles struct {
++	SchemaVersion         int                               `json:"schema_version"`
++	BridgeContractVersion int                               `json:"bridge_contract_version"`
++	DefaultProfile        string                            `json:"default_profile"`
++	Profiles              map[string]StavrobotBridgeProfile `json:"profiles"`
++}
++
++// StavrobotBridgeProfile is one raw profile entry loaded from installer-managed state.
++type StavrobotBridgeProfile struct {
++	Enabled    bool     `json:"enabled"`
++	BridgePath string   `json:"bridge_path"`
++	BaseURL    string   `json:"base_url"`
++	ConfigPath string   `json:"config_path"`
++	Args       []string `json:"args"`
++	Notes      string   `json:"notes,omitempty"`
++}
++
++// ResolvedStavrobotProfile is a validated runtime-ready profile.
++type ResolvedStavrobotProfile struct {
++	Name       string
++	BridgePath string
++	BaseURL    string
++	ConfigPath string
++	Args       []string
++}
++
++// StavrobotTurnResult is the parsed bridge response for one S1 turn.
++type StavrobotTurnResult struct {
++	RawPayload       json.RawMessage
++	ResponseText     string
++	ConversationID   string
++	MessageID        string
++	AssistantContent []llm.Content
++	Display          any
++}
++
++func (s *Server) stavrobotProfileStatePath() string {
++	if value := os.Getenv("SHELLEY_STAVROBOT_PROFILE_STATE_PATH"); value != "" {
++		return value
++	}
++	return "/var/lib/stavrobot-installer/shelley-bridge-profiles.json"
++}
++
++func LoadStavrobotBridgeProfiles(path string) (*StavrobotBridgeProfiles, error) {
++	bytes, err := os.ReadFile(path)
++	if err != nil {
++		return nil, fmt.Errorf("stavrobot profile state file missing or unreadable: %w", err)
++	}
++
++	var state StavrobotBridgeProfiles
++	if err := json.Unmarshal(bytes, &state); err != nil {
++		return nil, fmt.Errorf("stavrobot profile state invalid JSON: %w", err)
++	}
++	if state.SchemaVersion != supportedStavrobotProfileSchemaVersion {
++		return nil, fmt.Errorf("unsupported stavrobot profile schema version: %d", state.SchemaVersion)
++	}
++	if state.BridgeContractVersion != supportedStavrobotBridgeContractVersion {
++		return nil, fmt.Errorf("unsupported stavrobot bridge contract version: %d", state.BridgeContractVersion)
++	}
++	if state.DefaultProfile == "" {
++		return nil, fmt.Errorf("stavrobot profile state missing default_profile")
++	}
++	if state.Profiles == nil {
++		return nil, fmt.Errorf("stavrobot profile state missing profiles")
++	}
++	return &state, nil
++}
++
++func ResolveStavrobotBridgeProfile(state *StavrobotBridgeProfiles, name string) (*ResolvedStavrobotProfile, error) {
++	if state == nil {
++		return nil, fmt.Errorf("missing stavrobot bridge profile state")
++	}
++	if name == "" {
++		return nil, fmt.Errorf("stavrobot bridge profile missing")
++	}
++
++	profile, ok := state.Profiles[name]
++	if !ok {
++		return nil, fmt.Errorf("stavrobot bridge profile missing: %s", name)
++	}
++	if !profile.Enabled {
++		return nil, fmt.Errorf("stavrobot bridge profile disabled: %s", name)
++	}
++	if !filepath.IsAbs(profile.BridgePath) {
++		return nil, fmt.Errorf("stavrobot bridge path not absolute: %s", profile.BridgePath)
++	}
++	if stat, err := os.Stat(profile.BridgePath); err != nil {
++		return nil, fmt.Errorf("stavrobot bridge path missing: %w", err)
++	} else if stat.Mode()&0o111 == 0 {
++		return nil, fmt.Errorf("stavrobot bridge path not executable: %s", profile.BridgePath)
++	}
++	if !filepath.IsAbs(profile.ConfigPath) {
++		return nil, fmt.Errorf("stavrobot config path not absolute: %s", profile.ConfigPath)
++	}
++	if f, err := os.Open(profile.ConfigPath); err != nil {
++		return nil, fmt.Errorf("stavrobot config path not readable: %w", err)
++	} else {
++		_ = f.Close()
++	}
++	parsedURL, err := url.Parse(profile.BaseURL)
++	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
++		return nil, fmt.Errorf("stavrobot base URL invalid: %s", profile.BaseURL)
++	}
++
++	args := append([]string{}, profile.Args...)
++	return &ResolvedStavrobotProfile{
++		Name:       name,
++		BridgePath: profile.BridgePath,
++		BaseURL:    profile.BaseURL,
++		ConfigPath: profile.ConfigPath,
++		Args:       args,
++	}, nil
++}
++
++func ExecuteStavrobotTurn(ctx context.Context, profile *ResolvedStavrobotProfile, opts *db.StavrobotOptions, userMessage llm.Message) (*StavrobotTurnResult, error) {
++	if profile == nil {
++		return nil, fmt.Errorf("missing stavrobot resolved profile")
++	}
++	if opts == nil {
++		return nil, fmt.Errorf("missing stavrobot options")
++	}
++	if len(userMessage.Content) == 0 || userMessage.Content[0].Type != llm.ContentTypeText {
++		return nil, fmt.Errorf("stavrobot mode currently requires plain text user messages")
++	}
++
++	args := append([]string{}, profile.Args...)
++	args = append(args,
++		"--config-path", profile.ConfigPath,
++		"--base-url", profile.BaseURL,
++		"chat",
++		"--message", userMessage.Content[0].Text,
++	)
++	if opts.ConversationID != "" {
++		args = append(args, "--conversation-id", opts.ConversationID)
++	}
++
++	cmd := exec.CommandContext(ctx, profile.BridgePath, args...)
++	output, err := cmd.Output()
++	if err != nil {
++		return nil, fmt.Errorf("stavrobot bridge execution failed: %w", err)
++	}
++
++	var payload struct {
++		Response       string `json:"response"`
++		ConversationID string `json:"conversation_id"`
++		MessageID      string `json:"message_id"`
++	}
++	if err := json.Unmarshal(output, &payload); err != nil {
++		return nil, fmt.Errorf("failed to parse stavrobot bridge output: %w", err)
++	}
++	return &StavrobotTurnResult{
++		RawPayload:       append(json.RawMessage(nil), output...),
++		ResponseText:     payload.Response,
++		ConversationID:   payload.ConversationID,
++		MessageID:        payload.MessageID,
++		AssistantContent: []llm.Content{{Type: llm.ContentTypeText, Text: payload.Response}},
++	}, nil
++}
++
++func (s *Server) ProcessStavrobotConversationTurn(ctx context.Context, manager *ConversationManager, userMessage llm.Message) error {
++	if manager == nil {
++		return fmt.Errorf("nil conversation manager")
++	}
++	opts := manager.StavrobotOptions()
++	if opts == nil {
++		return fmt.Errorf("missing stavrobot conversation options")
++	}
++
++	state, err := LoadStavrobotBridgeProfiles(s.stavrobotProfileStatePath())
++	if err != nil {
++		return err
++	}
++	profile, err := ResolveStavrobotBridgeProfile(state, opts.BridgeProfile)
++	if err != nil {
++		return err
++	}
++
++	manager.SetAgentWorking(true)
++	defer manager.SetAgentWorking(false)
++
++	if err := s.recordMessage(ctx, manager.conversationID, userMessage, llm.Usage{}); err != nil {
++		return fmt.Errorf("failed to record stavrobot user message: %w", err)
++	}
++
++	result, err := ExecuteStavrobotTurn(ctx, profile, opts, userMessage)
++	if err != nil {
++		errMsg := llm.Message{
++			Role:      llm.MessageRoleAssistant,
++			Content:   []llm.Content{{Type: llm.ContentTypeText, Text: fmt.Sprintf("[Stavrobot error] %v", err)}},
++			EndOfTurn: true,
++			ErrorType: llm.ErrorTypeLLMRequest,
++		}
++		_ = s.recordMessage(context.WithoutCancel(ctx), manager.conversationID, errMsg, llm.Usage{})
++		return err
++	}
++
++	if result.ConversationID != "" || result.MessageID != "" {
++		if err := manager.UpdateStavrobotMapping(context.WithoutCancel(ctx), result.ConversationID, result.MessageID); err != nil {
++			s.logger.Warn("failed to persist stavrobot mapping", "conversationID", manager.conversationID, "error", err)
++		}
++	}
++
++	assistantContent := result.AssistantContent
++	if len(assistantContent) == 0 {
++		assistantContent = []llm.Content{{Type: llm.ContentTypeText, Text: result.ResponseText}}
++	}
++
++	assistantMessage := llm.Message{
++		Role:      llm.MessageRoleAssistant,
++		Content:   assistantContent,
++		EndOfTurn: true,
++	}
++	userData := map[string]any{
++		"stavrobot": map[string]any{
++			"conversation_id": result.ConversationID,
++			"message_id":      result.MessageID,
++			"bridge_profile":  opts.BridgeProfile,
++			"raw_payload":     json.RawMessage(result.RawPayload),
++		},
++	}
++	if result.Display != nil {
++		userData["display"] = result.Display
++	}
++	if err := s.recordMessage(ctx, manager.conversationID, assistantMessage, llm.Usage{}, userData); err != nil {
++		return fmt.Errorf("failed to record stavrobot assistant message: %w", err)
++	}
++
++	go s.notifySubscribers(context.WithoutCancel(ctx), manager.conversationID)
++	return nil
++}

@@ -368,6 +368,11 @@ Current limitation:
 - this is still a prototype diff, not yet the final patch-series split into apply-ready hunks
 - the runtime path currently uses a stable fallback path plus env override for the profile-state file until a fuller Shelley runtime config hook is chosen
 
+Current prototype-hardening status:
+
+- the runtime result shape has now been widened enough to retain raw bridge payload and carry pre-adapted Shelley content/display data without changing current S1 behavior
+- this keeps the S2 structured-output path more natural while preserving the current text-first implementation
+
 ## Captured per-patch prototype artifact status
 
 The repo now also contains first split prototype patch artifacts under:

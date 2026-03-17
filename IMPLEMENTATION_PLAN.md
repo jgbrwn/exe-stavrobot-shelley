@@ -939,6 +939,8 @@ A managed upstream checkout under `/opt/shelley` has now been used to produce th
 
 - `patches/shelley/s1-stavrobot-mode-cleaned-runtime-prototype.patch`
 
+That prototype artifact has now also had a first light hardening pass so the focused `server/stavrobot.go` runtime unit is less text-locked at its result boundary while preserving current S1 behavior.
+
 That prototype currently includes:
 
 - metadata / SQL / UI support needed for Stavrobot mode
