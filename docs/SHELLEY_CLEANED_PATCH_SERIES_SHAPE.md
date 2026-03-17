@@ -333,7 +333,7 @@ Current purpose of that skeleton:
 Current limitation:
 
 - these started as design/implementation skeleton files rather than final maintained patch hunks
-- they have now been replay/apply validated as prototype patch files, but still need normal Shelley smoke validation and any last artifact hygiene cleanup before being treated as the maintained patch set
+- they have now been replay/test validated as prototype patch files, but still need higher-level Shelley runtime smoke validation and any last artifact hygiene cleanup before being treated as the maintained patch set
 
 ## Repo-owned patch-4 apply scaffold status
 

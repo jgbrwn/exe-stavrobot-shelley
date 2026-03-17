@@ -26,9 +26,11 @@ Current validation result:
 - each patch passes `git apply --check`
 - each patch applies cleanly in sequence with no ordering surprises
 - the final applied tree matches the managed `/opt/shelley` prototype files for the owned Shelley surfaces
-- fresh-checkout Go validation still needs the normal Shelley UI build prerequisite before `go test ./server/...` can pass, because upstream `ui/embedfs.go` requires `ui/dist/*`
+- with the normal upstream UI build prerequisite satisfied, fresh-checkout `go test ./server/... ./db/...` also passes
 
-So these are now sequence-validated prototype patches, but not yet a fully smoke-validated final maintained patch set.
+The repo now also includes `validate-shelley-patch-series.sh` so this replay/apply + UI-build + Go-test flow can be rerun against a chosen upstream Shelley checkout/ref.
+
+So these are now replay/test-validated prototype patches, but not yet a fully smoke-validated final maintained patch set.
 
 ## Current series shape
 

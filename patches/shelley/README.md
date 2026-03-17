@@ -28,7 +28,7 @@ But it is **not** yet the final managed patch set.
 
 This directory now holds a repo-owned cleaned managed patch series.
 
-It now includes first replay/apply-validated prototype patch artifacts, though it should still not be treated as the final smoke-validated maintained patch set.
+It now includes first replay/test-validated prototype patch artifacts, though it should still not be treated as the final smoke-validated maintained patch set.
 
 It exists to split the future maintained patch into the concrete owned concerns already identified in the docs:
 

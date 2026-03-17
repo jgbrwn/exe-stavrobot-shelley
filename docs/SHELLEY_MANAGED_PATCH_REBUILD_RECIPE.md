@@ -416,6 +416,20 @@ The next practical move after this document is to create the actual managed patc
 
 That would convert this recipe into a real repeatable rebuild/update path.
 
+The repo now also includes a first replay/apply validator for the split series:
+
+- `validate-shelley-patch-series.sh`
+
+That helper:
+
+- creates a detached worktree from a chosen upstream Shelley checkout/ref
+- runs `git apply --check` for `0001` → `0004`
+- applies the series in order
+- builds upstream UI assets with `npx --yes pnpm@10.28.0`
+- runs `go test ./server/... ./db/...`
+
+So the rebuild recipe now has a repo-owned validation command for the patch-series layer before the higher-level isolated runtime smoke flow.
+
 
 ## Repo-owned first implementation assets
 

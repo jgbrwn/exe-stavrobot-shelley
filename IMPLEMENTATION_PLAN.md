@@ -959,4 +959,5 @@ The split prototype series has now also been replay/apply validated in order aga
 - `0001` → `0004` each passed `git apply --check`
 - all four patches applied cleanly in sequence
 - the final applied owned files matched the managed `/opt/shelley` prototype state
-- fresh-checkout `go test ./server/... ./db/...` still requires the normal upstream UI build prerequisite because `ui/embedfs.go` expects `ui/dist/*`
+- after satisfying the normal upstream UI build prerequisite, fresh-checkout `go test ./server/... ./db/...` also passes
+- `validate-shelley-patch-series.sh` now captures this replay/apply + UI-build + Go-test flow as a repo-owned validator
