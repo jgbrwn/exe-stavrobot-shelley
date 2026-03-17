@@ -882,3 +882,8 @@ Live-cutover follow-up:
 - the managed Shelley rebuild path should eventually include an explicit systemd cutover phase for the real `/usr/local/bin/shelley` runtime
 - that phase should stop `shelley.socket` and `shelley.service`, preserve a one-time original-binary backup, install the rebuilt binary, restart both units, and perform live post-cutover validation
 - this deployment/cutover phase should remain distinct from the isolated build and smoke-validation phase
+
+Managed patch cleanup follow-up:
+
+- `patches/shelley/README.md` now explains why the captured disposable-shape patch is only a starting artifact and what must be cleaned before it becomes the real managed patch set
+- `docs/SHELLEY_MANAGED_PATCH_CLEANUP_PLAN.md` now defines the concrete cleanup targets, especially replacing hardcoded bridge/profile assumptions and isolating Stavrobot runtime integration from bulky route handlers
