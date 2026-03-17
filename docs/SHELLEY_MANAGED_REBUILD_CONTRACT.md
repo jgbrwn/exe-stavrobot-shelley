@@ -96,6 +96,7 @@ Current repo-owned helper coverage now includes:
 
 - `validate-shelley-patch-series.sh` for replay/apply + build/test validation against a fresh upstream checkout
 - `refresh-shelley-managed-s1.sh` for managed checkout patch/rebuild/smoke refreshes plus state-file updates
+- `print-shelley-managed-status.sh` for the read-only configured/current/stale/rebuild-required view described below
 
 ## State file 1: rebuild provenance
 
@@ -260,6 +261,10 @@ Algorithm:
    - upstream current / stale / unknown
    - profiles current / stale / missing
    - rebuild likely required / not required
+
+Current repo-owned helper for this path:
+
+- `print-shelley-managed-status.sh`
 
 ## Refresh / rebuild check
 

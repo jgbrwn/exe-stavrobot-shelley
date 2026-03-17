@@ -652,3 +652,21 @@ Do not point the live `shelley.service` at an isolated test DB or test port used
 The isolated smoke server is only to validate the rebuilt binary before cutover.
 
 The live service should continue using its normal systemd-managed runtime configuration after binary replacement.
+
+## Read-only managed status helper
+
+The repo now also includes:
+
+- `print-shelley-managed-status.sh`
+
+That helper reads the managed rebuild state plus bridge-profile state and reports:
+
+- configured / enabled
+- checkout path and binary presence
+- recorded vs current checkout commit
+- upstream current vs stale
+- profiles current vs stale
+- bridge-path validity
+- rebuild required vs not required
+
+It also supports `--json` for machine-readable status output.
