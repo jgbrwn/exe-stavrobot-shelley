@@ -265,6 +265,7 @@ Algorithm:
 Current repo-owned helper for this path:
 
 - `print-shelley-managed-status.sh`
+- installer entrypoint: `./install-stavrobot.sh --print-shelley-mode-status`
 
 ## Refresh / rebuild check
 
@@ -363,6 +364,11 @@ Recommended behavior:
 - use stored state
 - fail clearly if state is malformed or missing required fields
 - refresh checkout/profile/build state
+
+Current repo-owned helper for this path:
+
+- `refresh-shelley-managed-s1.sh`
+- installer entrypoint: `./install-stavrobot.sh --refresh-shelley-mode`
 
 ### `--print-shelley-mode-status`
 

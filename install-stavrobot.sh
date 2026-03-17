@@ -16,6 +16,10 @@ CONFIG_ONLY=0
 SKIP_CONFIG=0
 SKIP_PLUGINS=0
 SHOW_SECRETS=0
+SHELLEY_STATUS_ONLY=0
+SHELLEY_REFRESH_ONLY=0
+SHELLEY_ALLOW_DIRTY=0
+SHELLEY_SKIP_SMOKE=0
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 
 ENV_PATH=""
@@ -46,10 +50,20 @@ Flags:
   --skip-config
   --skip-plugins
   --show-secrets
+  --print-shelley-mode-status
+  --refresh-shelley-mode
+  --allow-dirty-shelley
+  --skip-shelley-smoke
   --help
 
 Environment:
   STAVROBOT_BASE_URL   Local Stavrobot URL for readiness/plugin calls (default: http://localhost:8000)
+
+Shelley mode helpers:
+  --print-shelley-mode-status   Read-only managed Shelley mode status
+  --refresh-shelley-mode        Apply/rebuild/smoke managed Shelley mode in /opt/shelley
+  --allow-dirty-shelley         Allow managed Shelley refresh against a dirty checkout
+  --skip-shelley-smoke          Skip isolated Shelley smoke validation during refresh
 EOF
 }
 
@@ -291,6 +305,22 @@ while [[ $# -gt 0 ]]; do
       SHOW_SECRETS=1
       shift
       ;;
+    --print-shelley-mode-status)
+      SHELLEY_STATUS_ONLY=1
+      shift
+      ;;
+    --refresh-shelley-mode)
+      SHELLEY_REFRESH_ONLY=1
+      shift
+      ;;
+    --allow-dirty-shelley)
+      SHELLEY_ALLOW_DIRTY=1
+      shift
+      ;;
+    --skip-shelley-smoke)
+      SHELLEY_SKIP_SMOKE=1
+      shift
+      ;;
     --help)
       usage
       exit 0
@@ -300,6 +330,21 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if (( SHELLEY_STATUS_ONLY )); then
+  exec "$ROOT_DIR/print-shelley-managed-status.sh"
+fi
+
+if (( SHELLEY_REFRESH_ONLY )); then
+  refresh_args=(--shelley-dir /opt/shelley --profile-state-path /var/lib/stavrobot-installer/shelley-bridge-profiles.json)
+  if (( SHELLEY_ALLOW_DIRTY )); then
+    refresh_args+=(--allow-dirty)
+  fi
+  if (( SHELLEY_SKIP_SMOKE )); then
+    refresh_args+=(--skip-smoke)
+  fi
+  exec "$ROOT_DIR/refresh-shelley-managed-s1.sh" "${refresh_args[@]}"
+fi
 
 [[ -n "$STAVROBOT_DIR" ]] || die "--stavrobot-dir is required"
 

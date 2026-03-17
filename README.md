@@ -66,6 +66,7 @@ Still manual in this track:
 - the managed `/opt/shelley` rebuild path has now also been revalidated end-to-end in isolated mode: rebuild, isolated serve, normal conversation smoke, Stavrobot first turn, Stavrobot continuation, and persisted mapping verification
 - `refresh-shelley-managed-s1.sh` now provides a repo-owned managed refresh helper that reapplies/skips `0001` → `0004`, rebuilds Shelley, optionally runs isolated smoke validation, and writes `state/shelley-mode-build.json`
 - `print-shelley-managed-status.sh` now provides a repo-owned read-only status view over managed Shelley rebuild state, bridge-profile state, checkout/binary presence, and whether a rebuild appears required
+- `install-stavrobot.sh` now exposes explicit Shelley-mode entrypoints for the current managed flow via `--print-shelley-mode-status` and `--refresh-shelley-mode`
 - `patches/shelley/series/0004-stavrobot-runtime-unit.patch-plan.md` now gives a concrete function-by-function apply scaffold for the focused Shelley runtime-unit extraction
 - `patches/shelley/s1-stavrobot-mode-cleaned-runtime-prototype.patch` now captures the first real cleaned-runtime prototype diff from a managed `/opt/shelley` checkout, including the first prototype-hardening pass for a less text-locked `server/stavrobot.go` result shape
 - long-lived Shelley conversations should remain viable if Stavrobot mode is implemented as frontend-to-Stavrobot continuation rather than replaying an ever-growing Shelley transcript through a normal model-provider path each turn

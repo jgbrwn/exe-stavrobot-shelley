@@ -964,3 +964,4 @@ The split prototype series has now also been replay/apply validated in order aga
 - the higher-level isolated managed rebuild flow has now also been revalidated on `/opt/shelley` using rebuilt UI/sqlc/templates/binary plus `smoke-test-shelley-managed-s1.sh` against `/var/lib/stavrobot-installer/shelley-bridge-profiles.json`
 - `refresh-shelley-managed-s1.sh` now captures the managed patch/rebuild/smoke/state-update flow as a repo-owned helper
 - `print-shelley-managed-status.sh` now captures the read-only managed status/reporting path as a repo-owned helper
+- `install-stavrobot.sh` now exposes the current managed Shelley path directly via `--print-shelley-mode-status` and `--refresh-shelley-mode`

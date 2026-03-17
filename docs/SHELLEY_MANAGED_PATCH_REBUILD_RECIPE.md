@@ -670,3 +670,21 @@ That helper reads the managed rebuild state plus bridge-profile state and report
 - rebuild required vs not required
 
 It also supports `--json` for machine-readable status output.
+
+## Installer-facing Shelley mode entrypoints
+
+The main installer now exposes the current managed Shelley helpers directly:
+
+```bash
+./install-stavrobot.sh --print-shelley-mode-status
+./install-stavrobot.sh --refresh-shelley-mode
+./install-stavrobot.sh --refresh-shelley-mode --allow-dirty-shelley
+./install-stavrobot.sh --refresh-shelley-mode --skip-shelley-smoke
+```
+
+Current behavior:
+
+- `--print-shelley-mode-status` delegates to `print-shelley-managed-status.sh`
+- `--refresh-shelley-mode` delegates to `refresh-shelley-managed-s1.sh`
+- `--allow-dirty-shelley` passes through to the managed refresh helper
+- `--skip-shelley-smoke` skips the isolated Shelley smoke pass during managed refresh
