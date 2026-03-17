@@ -70,6 +70,7 @@ result = {
     'binary_path': '',
     'recorded_upstream_commit': '',
     'current_checkout_commit': '',
+    'checkout_dirty': False,
     'upstream_current': 'unknown',
     'profiles_current': 'unknown',
     'profiles_missing': [],
@@ -112,14 +113,24 @@ if result['checkout_path']:
                 ['git', '-C', result['checkout_path'], 'rev-parse', 'HEAD'],
                 text=True,
             ).strip()
+            dirty = subprocess.check_output(
+                ['git', '-C', result['checkout_path'], 'status', '--porcelain'],
+                text=True,
+            )
+            result['checkout_dirty'] = bool(dirty.strip())
         except Exception as e:
-            result['notes'].append(f'failed to read checkout commit: {e}')
+            result['notes'].append(f'failed to read checkout commit/status: {e}')
 
 if result['binary_path']:
     result['binary_exists'] = Path(result['binary_path']).exists()
 
 if result['recorded_upstream_commit'] and result['current_checkout_commit']:
-    result['upstream_current'] = 'current' if result['recorded_upstream_commit'] == result['current_checkout_commit'] else 'stale'
+    if result['recorded_upstream_commit'] != result['current_checkout_commit']:
+        result['upstream_current'] = 'stale'
+    elif result['checkout_dirty']:
+        result['upstream_current'] = 'current-dirty'
+    else:
+        result['upstream_current'] = 'current'
 
 if state and profiles:
     recorded = set(((state.get('profiles') or {}).get('available') or []))
@@ -145,7 +156,7 @@ if not result['configured'] or not result['enabled']:
     rebuild_required = True
 elif not result['checkout_exists'] or not result['binary_exists']:
     rebuild_required = True
-elif result['upstream_current'] == 'stale' or result['profiles_current'] == 'stale' or not result['bridge_paths_ok']:
+elif result['upstream_current'] in ('stale', 'current-dirty') or result['profiles_current'] == 'stale' or not result['bridge_paths_ok']:
     rebuild_required = True
 
 result['rebuild_required'] = rebuild_required
@@ -166,6 +177,8 @@ if result['recorded_upstream_commit']:
     print(f"recorded_upstream_commit: {result['recorded_upstream_commit']}")
 if result['current_checkout_commit']:
     print(f"current_checkout_commit: {result['current_checkout_commit']}")
+if result['checkout_exists']:
+    print(f"checkout_dirty: {'yes' if result['checkout_dirty'] else 'no'}")
 print(f"upstream_status: {result['upstream_current']}")
 print(f"profiles_status: {result['profiles_current']}")
 if result['profiles_missing']:

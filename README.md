@@ -119,7 +119,9 @@ What they do:
 Common status interpretation:
 
 - `upstream_status: current`
-  - recorded rebuild commit matches the current managed checkout
+  - recorded rebuild commit matches the current managed checkout and the checkout is clean
+- `upstream_status: current-dirty`
+  - recorded rebuild commit matches, but the managed checkout has local modifications
 - `profiles_status: current`
   - recorded bridge-profile snapshot still matches current profile state
 - `rebuild_required: no`

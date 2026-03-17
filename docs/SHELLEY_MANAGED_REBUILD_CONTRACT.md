@@ -258,7 +258,7 @@ Algorithm:
 8. compare profile names + contract versions to recorded values
 9. print status summary:
    - configured / not configured
-   - upstream current / stale / unknown
+   - upstream current / current-dirty / stale / unknown
    - profiles current / stale / missing
    - rebuild likely required / not required
 

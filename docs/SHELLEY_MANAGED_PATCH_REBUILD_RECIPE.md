@@ -754,6 +754,9 @@ Or for automation:
 Expected healthy result for the current S1 managed path:
 
 - `upstream_status: current`
+- `checkout_dirty: no`
 - `profiles_status: current`
 - `bridge_paths_ok: yes`
 - `rebuild_required: no`
+
+If status instead shows `upstream_status: current-dirty`, the managed checkout still matches the recorded commit but has local modifications, so refresh policy should treat it as rebuild-required unless the operator is intentionally working in a dirty checkout.
