@@ -742,3 +742,37 @@ Important recommendation:
 
 - do not assume Shelley must own cross-conversation retrieval before testing Stavrobot's native behavior more deeply
 - if Stavrobot already answers broader recall prompts well enough, that is one less integration layer to build and maintain
+
+
+## Draft validation checklist summary for Shelley phases
+
+Each Shelley-side phase should have explicit acceptance checks.
+
+### S1 checks
+
+- per-conversation mode selection works
+- first-turn remote mapping works
+- ongoing mapped continuation works
+- existing `Agent Working...` is reused
+- degraded-state handling is actionable
+- reset/remap behavior is explicit and correct
+
+### S2 checks
+
+- canonical bridge exposes stable structured output
+- Shelley preserves markdown/media/tool fidelity better than plain response-only mode
+- single-bridge contract remains intact
+
+### S3 checks
+
+- remote history/event reconciliation improves diagnostics and trace visibility
+- reconciliation remains separate from the core send-turn path
+
+### S4 checks
+
+- first test whether Stavrobot already handles cross-conversation recall well enough naturally
+- only proceed to explicit Shelley-side retrieval machinery if real testing shows native Stavrobot recall is inadequate
+
+Recommended principle:
+
+- every later Shelley phase should be justified by validation evidence, not just architectural neatness

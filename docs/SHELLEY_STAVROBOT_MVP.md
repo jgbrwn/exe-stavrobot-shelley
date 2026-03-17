@@ -1298,3 +1298,202 @@ Recommended order:
 4. S4 only after deeper real-world validation of Stavrobot's own recall behavior
 
 That ordering keeps the project grounded in validated behavior and avoids prematurely solving a memory problem that Stavrobot may already handle acceptably on its own.
+
+
+## Draft validation plan for the phased Shelley roadmap
+
+The roadmap is only useful if it can be executed against concrete validation criteria. The following checklists are intended to make future Shelley-side work testable rather than purely conceptual.
+
+## S1 validation checklist: minimal per-conversation Stavrobot mode
+
+### Setup preconditions
+
+- a Shelley build exists with optional Stavrobot mode support enabled
+- at least one installer-managed Stavrobot bridge profile exists
+- `shelley-stavrobot-bridge.sh` is present and executable
+- a live Stavrobot instance is reachable for the selected profile
+
+### Core happy-path checks
+
+1. create a new ordinary Shelley conversation
+2. verify it behaves exactly like normal Shelley
+3. create or convert another conversation into Stavrobot mode
+4. verify Shelley stores mode/profile metadata without requiring a remote `conversation_id` yet
+5. send first user turn
+6. verify Shelley shows existing `Agent Working...`
+7. verify successful response appears in the normal Shelley message flow
+8. verify returned remote `conversation_id` is stored
+9. send second user turn in the same conversation
+10. verify the same remote `conversation_id` is reused
+11. verify `last_message_id` updates when available
+
+### UX/state checks
+
+- configured-but-unmapped state is visible before first successful turn
+- active mapped state is visible after successful turn
+- context label shows mode-aware wording such as `Context managed by Stavrobot`
+- normal conversations do not show Stavrobot-specific UI
+
+### Failure-path checks
+
+- missing profile blocks Stavrobot mode activation cleanly
+- broken bridge path yields actionable degraded state
+- remote auth failure yields actionable degraded state
+- remote request failure does not silently fall back to normal Shelley mode
+- degraded conversation can recover on retry after underlying issue is fixed
+
+### Reset/remap checks
+
+- `Reset remote mapping` clears stored remote IDs but keeps Stavrobot mode/profile selection
+- next successful turn after reset creates a fresh remote conversation mapping
+- disabling Stavrobot mode stops bridge dispatch for future turns
+
+### S1 acceptance criteria
+
+- ordinary Shelley behavior remains intact
+- Stavrobot mode works per conversation
+- first-turn mapping and ongoing continuation both work reliably
+- failure handling is explicit and non-destructive
+
+## S2 validation checklist: richer structured bridge output
+
+### Setup preconditions
+
+- S1 behavior already passes
+- canonical bridge exposes a stable machine-readable/structured output mode
+
+### Structured-output checks
+
+1. send a Stavrobot-mode turn that returns ordinary markdown text
+2. verify markdown renders cleanly in Shelley without destructive flattening
+3. verify structured response includes stable IDs and expected metadata
+4. verify Shelley consumes structured bridge output without calling lower-level wrappers directly
+
+### Rich-content checks
+
+Where available from Stavrobot or simulated through the bridge contract:
+
+- tool/event summaries map into Shelley display affordances legibly
+- image/screenshot/media references map into Shelley's native content model rather than raw debug text
+- plain response-text mode still works as a conservative fallback
+
+### Contract-discipline checks
+
+- Shelley still shells out only to `shelley-stavrobot-bridge.sh`
+- lower-level wrappers remain implementation details
+- bridge JSON shape is stable enough that Shelley mapping logic does not depend on fragile ad hoc parsing
+
+### S2 acceptance criteria
+
+- structured bridge mode improves fidelity without breaking the single-bridge contract
+- Shelley-native markdown/media/tool rendering is improved relative to response-only mode
+
+## S3 validation checklist: remote history/event reconciliation
+
+### Setup preconditions
+
+- S1 and S2 behavior already pass
+- validated Stavrobot history/event APIs are reachable through the selected profile
+
+### History reconciliation checks
+
+1. continue a Stavrobot-mode conversation across multiple turns
+2. trigger an explicit history refresh or reconciliation path
+3. verify Shelley can reconcile local state with remote message history
+4. verify `last_message_id` is treated as a hint rather than the sole source of truth
+
+### Event/trace checks
+
+1. use a Stavrobot flow that produces tool events
+2. inspect remote events through the Shelley-side path
+3. verify tool/event information becomes more legible in Shelley
+4. verify event inspection failures do not break ordinary send-turn behavior
+
+### Recovery checks
+
+- stale local metadata can be diagnosed more clearly
+- remote conversation mismatch produces better actionable detail
+- ordinary message sending still works even when history/event enrichment is unavailable temporarily
+
+### S3 acceptance criteria
+
+- history/event reconciliation improves debuggability and trace visibility
+- the core send-turn path remains simple and resilient
+
+## S4 validation checklist: cross-conversation recall
+
+This phase should explicitly test whether Stavrobot already handles broader recall well enough before Shelley adds extra retrieval machinery.
+
+### Test matrix
+
+Recommended scenarios to create:
+
+1. **single long-lived conversation**
+   - keep one Stavrobot-mapped Shelley conversation going across many turns
+   - later ask it to recall older work from earlier in the same thread
+2. **multiple separate conversations**
+   - create at least two or three distinct Stavrobot conversations with clearly different topics/tasks
+   - later ask from one conversation about work done in another
+3. **time-separated work**
+   - if practical, simulate older work with distinct timestamps/topics or at least clearly separated conversation sessions
+4. **tool/event-heavy conversation history**
+   - include conversations where tools/actions were used so recall is not text-only
+
+### Prompt probes
+
+Recommended prompts to test:
+
+- `Remember when we worked on X a while ago?`
+- `What did we decide about Y last week?`
+- `Did we already solve the problem with Z in another conversation?`
+- `Find the earlier conversation where we discussed A.`
+- `What was the plugin/config change we made before?`
+
+### Observations to capture
+
+For each probe, record whether Stavrobot:
+
+- answers correctly without extra Shelley-side retrieval help
+- answers partially/correctly but inconsistently
+- confuses conversations
+- refuses or claims not to know
+- appears to rely only on the active mapped conversation
+
+Also record:
+
+- whether response quality changes depending on how the question is phrased
+- whether long-lived single-thread continuity is already good enough to reduce pressure for cross-conversation retrieval
+- whether event/tool-heavy history is remembered usefully or lost
+
+### Fork decision criteria
+
+#### Choose S4A (no major extra Shelley retrieval layer yet) if:
+
+- Stavrobot answers cross-conversation-style prompts well enough in realistic usage
+- failures are occasional edge cases rather than systemic
+- the user experience is already acceptable without explicit retrieval UX
+
+#### Choose S4B (build explicit Shelley retrieval layer) if:
+
+- Stavrobot frequently fails to recall relevant older work across conversations
+- behavior is inconsistent enough to confuse users
+- explicit history selection/retrieval materially improves answer quality in testing
+
+### S4 acceptance criteria
+
+- the project makes a deliberate evidence-based decision about recall strategy
+- extra Shelley retrieval machinery is only added if validation shows it is truly needed
+
+## Recommended validation output format later
+
+When future Shelley-side work begins, each phase should probably produce a short validation note containing at least:
+
+- build/commit under test
+- local Shelley profile used
+- Stavrobot base URL/profile used
+- scenarios executed
+- pass/fail summary
+- known caveats
+- next decision or follow-up work
+
+That will keep the rebuild effort grounded in observable behavior rather than drifting back into purely speculative planning.
