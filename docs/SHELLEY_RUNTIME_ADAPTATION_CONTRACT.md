@@ -197,6 +197,27 @@ Should not own:
 - raw JSON string scraping from the bridge
 - low-level subprocess argument assembly
 
+## Concrete upstream Shelley capability notes
+
+A quick direct review of current upstream Shelley shows a few important implementation constraints/opportunities for this contract:
+
+- `llm.Content` today is richer than plain text, but its stable first-class content types are still centered on:
+  - text
+  - thinking / redacted thinking
+  - tool_use
+  - tool_result
+- image-like binary payloads can already ride through Shelley content using `MediaType` + `Data`, and current UI rendering is strongest when those appear inside tool-result-oriented flows
+- compact `display_data` rendering in the UI is currently driven primarily by tool-result `Display` extraction, not by arbitrary assistant-side rich blocks
+- HTML/embed rendering exists in Shelley today through the `output_iframe` tool UI path, which is sandboxed and responsive, not through generic raw assistant HTML rendering
+- there is not yet an obvious generic first-class assistant content block for arbitrary HTML/audio/video/embed payloads independent of tool-style rendering
+
+Practical consequence:
+
+- markdown/text adaptation is low-risk now
+- compact tool-summary metadata is also low-risk now
+- image/screenshot handling may become viable soon if the runtime later chooses a Shelley-native image/tool-result shape deliberately
+- HTML/audio/video should stay deferred until the bridge supplies a stable shape and the runtime chooses a native Shelley-safe mapping path instead of dumping raw markup into ordinary assistant text
+
 ## Recommended normalization rules
 
 ## Rule 1: `ResponseText` stays mandatory

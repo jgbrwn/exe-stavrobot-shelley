@@ -128,3 +128,4 @@ Practically, future sessions should treat this as a review rule for patch `0004`
 - compact display metadata is preferred over large custom Stavrobot panels
 - existing Shelley message/content surfaces should be preferred over bespoke layouts
 - richer output should still degrade cleanly to ordinary assistant content when necessary
+- even though Shelley is rich, generic raw assistant HTML/embed/audio/video should not be forced into the first Stavrobot adaptation cut unless a clearly native Shelley-safe shape is identified; sandboxed iframe/tool-style rendering and existing media-aware paths are better guides

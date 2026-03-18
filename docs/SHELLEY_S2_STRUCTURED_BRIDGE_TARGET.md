@@ -218,6 +218,14 @@ The first S2 implementation should support only:
 2. `display.tool_summary`
 3. one simple image/media reference shape
 
+Why this scope is still right after inspecting upstream Shelley more closely:
+
+- markdown/text already map cleanly into normal Shelley assistant content
+- compact tool summaries fit Shelley's existing display-oriented metadata approach without needing a separate Stavrobot renderer
+- Shelley clearly has rich image/screenshot handling, but today that richness is strongest through tool-result/media patterns rather than a generic arbitrary rich assistant block
+- Shelley does have strong HTML/embed presentation via the sandboxed `output_iframe` tool path, but not yet an obvious generic assistant-HTML content primitive that Stavrobot should target directly on the first cut
+- audio/video may also be possible later, but they should follow a concrete Shelley-native shape rather than arriving first as opaque raw payload attachments
+
 That is enough to improve fidelity meaningfully without overexpanding the patch.
 
 ## Things to defer even within S2

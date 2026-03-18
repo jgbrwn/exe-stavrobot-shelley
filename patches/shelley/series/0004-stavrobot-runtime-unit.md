@@ -254,3 +254,11 @@ toward:
 
 - structured payload in
 - Shelley-native content/display mapping out
+
+Current upstream Shelley review also suggests a concrete caution/order:
+
+- markdown/text are immediately safe adaptation targets
+- compact tool/display summaries are immediately safe adaptation targets
+- image/screenshot/media references look promising because Shelley already has media-aware rendering, especially around tool-result flows
+- sandboxed HTML/embed rendering exists today through the `output_iframe` tool path, but generic raw assistant HTML should still be treated as deferred
+- audio/video should likewise stay deferred until the bridge/runtime contract picks a real Shelley-native representation rather than inventing a Stavrobot-only side channel

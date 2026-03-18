@@ -67,6 +67,7 @@ The docs consistently point to S2 as the next Shelley-facing fidelity phase:
    - image/media reference mapping if the bridge can supply it cleanly
 3. Keep text fallback mandatory for every richer shape.
 4. Implement at the adaptation boundary rather than adding Stavrobot-specific rendering paths throughout the UI.
+5. Treat generic HTML/audio/video embedding as later work even though Shelley is rich there overall; current upstream strengths appear to be sandboxed iframe/tool-style rendering and media-aware content paths, not arbitrary raw assistant HTML blocks.
 
 ## Implementation guardrails
 
