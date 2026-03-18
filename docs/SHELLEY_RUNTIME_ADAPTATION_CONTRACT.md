@@ -360,3 +360,21 @@ The next implementation-facing move should be either:
 
 1. update the patch-0004 plan docs to reference this widened runtime contract explicitly
 2. or apply a small doc-only refinement to the patch-series notes so future sessions know the preferred `StavrobotTurnResult` widening path before editing upstream Shelley code
+
+## Runtime safety parity for raw-inline media (phase 1)
+
+To mirror bridge-side safety controls, runtime adaptation in patch `0004` should apply equivalent checks before persisting raw-inline media refs:
+
+- accept only `transport = raw_inline_base64`
+- normalize and allowlist image MIME (`image/png`, `image/jpeg`, `image/gif`, `image/webp`)
+- strict base64 decode validation
+- decoded payload must be non-empty and <= 256 KiB
+- if provider-reported `byte_length` is present, it must match decoded length
+
+Failure policy:
+
+- do not fail the turn
+- do not persist invalid raw payload into `display_data.media_refs`
+- record compact unsupported reason in `unsupported_kinds` (for example `artifact:image:invalid raw media base64`)
+
+This keeps `response`/text fallback intact while preventing unbounded or malformed raw payload persistence.

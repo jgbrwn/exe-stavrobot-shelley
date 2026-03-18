@@ -318,17 +318,19 @@ new file mode 100644
 index 0000000..f2fd349
 --- /dev/null
 +++ b/server/stavrobot.go
-@@ -0,0 +1,435 @@
+@@ -0,0 +1,491 @@
 +package server
 +
 +import (
 +	"context"
++	"encoding/base64"
 +	"encoding/json"
 +	"fmt"
 +	"net/url"
 +	"os"
 +	"os/exec"
 +	"path/filepath"
++	"strings"
 +
 +	"shelley.exe.dev/db"
 +	"shelley.exe.dev/db/generated"
@@ -337,6 +339,7 @@ index 0000000..f2fd349
 +
 +const supportedStavrobotProfileSchemaVersion = 1
 +const supportedStavrobotBridgeContractVersion = 1
++const supportedStavrobotRawMediaMaxBytes = 262144
 +
 +// StavrobotBridgeProfiles is the installer-managed bridge profile state file shape.
 +type StavrobotBridgeProfiles struct {
@@ -396,13 +399,77 @@ index 0000000..f2fd349
 +}
 +
 +type StavrobotArtifact struct {
-+	Kind      string `json:"kind"`
-+	URL       string `json:"url,omitempty"`
-+	Title     string `json:"title,omitempty"`
-+	MimeType  string `json:"mime_type,omitempty"`
-+	Transport string `json:"transport,omitempty"`
++	Kind       string `json:"kind"`
++	URL        string `json:"url,omitempty"`
++	Title      string `json:"title,omitempty"`
++	MimeType   string `json:"mime_type,omitempty"`
++	Transport  string `json:"transport,omitempty"`
 +	DataBase64 string `json:"data_base64,omitempty"`
 +	ByteLength int    `json:"byte_length,omitempty"`
++}
++
++func normalizeStavrobotRawMediaMime(raw string) string {
++	mime := strings.TrimSpace(strings.ToLower(raw))
++	if mime == "" {
++		return ""
++	}
++	if idx := strings.Index(mime, ";"); idx >= 0 {
++		mime = strings.TrimSpace(mime[:idx])
++	}
++	if mime == "image/jpg" {
++		return "image/jpeg"
++	}
++	return mime
++}
++
++func isSupportedStavrobotRawMediaMime(mime string) bool {
++	switch normalizeStavrobotRawMediaMime(mime) {
++	case "image/png", "image/jpeg", "image/gif", "image/webp":
++		return true
++	default:
++		return false
++	}
++}
++
++func validateStavrobotRawInlineArtifact(artifact StavrobotArtifact) (map[string]any, string) {
++	if artifact.Transport != "raw_inline_base64" || artifact.DataBase64 == "" {
++		return nil, ""
++	}
++
++	mime := normalizeStavrobotRawMediaMime(artifact.MimeType)
++	if mime == "" {
++		mime = "image/png"
++	}
++	if !isSupportedStavrobotRawMediaMime(mime) {
++		return nil, "unsupported raw media mime"
++	}
++
++	decoded, err := base64.StdEncoding.DecodeString(artifact.DataBase64)
++	if err != nil {
++		return nil, "invalid raw media base64"
++	}
++	decodedLen := len(decoded)
++	if decodedLen == 0 {
++		return nil, "empty raw media payload"
++	}
++	if decodedLen > supportedStavrobotRawMediaMaxBytes {
++		return nil, "raw media payload exceeds max bytes"
++	}
++	if artifact.ByteLength > 0 && artifact.ByteLength != decodedLen {
++		return nil, "raw media byte_length mismatch"
++	}
++
++	ref := map[string]any{
++		"kind":        "artifact:image",
++		"transport":   "raw_inline_base64",
++		"mime_type":   mime,
++		"byte_length": decodedLen,
++		"data_base64": artifact.DataBase64,
++	}
++	if artifact.Title != "" {
++		ref["title"] = artifact.Title
++	}
++	return ref, ""
 +}
 +
 +// StavrobotTurnResult is the parsed bridge response for one S1/S2-ready turn.
@@ -583,22 +650,11 @@ index 0000000..f2fd349
 +				})
 +				continue
 +			}
-+			if artifact.Transport == "raw_inline_base64" && artifact.DataBase64 != "" {
-+				rawRef := map[string]any{
-+					"kind":       "artifact:" + kind,
-+					"transport":  artifact.Transport,
-+					"data_base64": artifact.DataBase64,
-+				}
-+				if artifact.MimeType != "" {
-+					rawRef["mime_type"] = artifact.MimeType
-+				}
-+				if artifact.Title != "" {
-+					rawRef["title"] = artifact.Title
-+				}
-+				if artifact.ByteLength > 0 {
-+					rawRef["byte_length"] = artifact.ByteLength
-+				}
++			if rawRef, rawErr := validateStavrobotRawInlineArtifact(artifact); rawRef != nil {
 +				mediaRefs = append(mediaRefs, rawRef)
++				continue
++			} else if rawErr != "" {
++				result.UnsupportedKinds = append(result.UnsupportedKinds, "artifact:"+kind+":"+rawErr)
 +				continue
 +			}
 +			result.UnsupportedKinds = append(result.UnsupportedKinds, "artifact:"+kind)
