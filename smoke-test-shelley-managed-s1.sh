@@ -18,6 +18,7 @@ STAVROBOT_EXPECTED="managed spike first turn ok"
 STAVROBOT_SECOND_EXPECTED="managed spike second turn ok"
 TMUX_SESSION="shelley-managed-s1-smoke"
 KEEP_SERVER=0
+EXPECT_DISPLAY_DATA=0
 SERVER_LOG="/tmp/shelley-managed-s1-smoke.log"
 
 usage() {
@@ -35,6 +36,7 @@ Flags:
   --bridge-profile NAME          Bridge profile name for Stavrobot conversation (default: local-default)
   --tmux-session NAME            tmux session name used for test server
   --keep-server                  Leave test Shelley server running after success
+  --expect-display-data          Assert Stavrobot assistant messages persist display_data
   --help
 
 Notes:
@@ -164,6 +166,10 @@ while [[ $# -gt 0 ]]; do
       KEEP_SERVER=1
       shift
       ;;
+    --expect-display-data)
+      EXPECT_DISPLAY_DATA=1
+      shift
+      ;;
     --help)
       usage
       exit 0
@@ -284,6 +290,48 @@ if not st.get("conversation_id"):
 if not st.get("last_message_id"):
     raise SystemExit("remote stavrobot last_message_id missing")
 PY
+
+if (( EXPECT_DISPLAY_DATA == 1 )); then
+  info "Checking persisted display_data on Stavrobot assistant messages"
+  sqlite_display_tmp=$(mktemp)
+  sqlite3 -json "$DB_PATH" "SELECT sequence_id, user_data, display_data FROM messages WHERE conversation_id='$stavrobot_conversation_id' AND type='agent' ORDER BY sequence_id;" >"$sqlite_display_tmp"
+  check_result=$(python3 - "$sqlite_display_tmp" <<'PY'
+import json, sys
+rows = json.load(open(sys.argv[1]))
+requires_display = 0
+missing = []
+for row in rows:
+    ud = row.get("user_data")
+    if not ud:
+        continue
+    try:
+        parsed = json.loads(ud)
+    except Exception:
+        continue
+    st = (parsed.get("stavrobot") or {}) if isinstance(parsed, dict) else {}
+    raw = st.get("raw_payload") if isinstance(st, dict) else None
+    if not isinstance(raw, dict):
+        continue
+    has_tool_summary = isinstance(raw.get("display"), dict) and bool(raw.get("display", {}).get("tool_summary"))
+    has_media_ref = any(isinstance(item, dict) and item.get("kind") == "image_ref" and item.get("url") for item in (raw.get("content") or []))
+    has_artifact_media = any(isinstance(item, dict) and item.get("kind") == "image" and item.get("url") for item in (raw.get("artifacts") or []))
+    if has_tool_summary or has_media_ref or has_artifact_media:
+        requires_display += 1
+        if not row.get("display_data"):
+            missing.append(str(row.get("sequence_id")))
+
+if requires_display == 0:
+    print("not_required")
+elif missing:
+    raise SystemExit("display_data missing for agent sequence_ids: " + ",".join(missing))
+else:
+    print("required_ok")
+PY
+)
+  if [[ "$check_result" == "not_required" ]]; then
+    info "No display-hint payloads observed in smoke turn outputs; display_data assertion not required for this run"
+  fi
+fi
 
 info "Managed Shelley S1 smoke test passed"
 info "Normal conversation: $normal_conversation_id"

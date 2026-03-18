@@ -282,6 +282,24 @@ Expected:
 - conversation creation succeeds
 - normal predictable-model path still works
 
+## Optional display-data assertion during smoke
+
+If you want smoke validation to assert that Stavrobot assistant messages persist compact native Shelley `display_data` (when bridge turns actually carry display-hint payloads), run:
+
+```bash
+./smoke-test-shelley-managed-s1.sh \
+  --shelley-dir /opt/shelley \
+  --shelley-bin /opt/shelley/bin/shelley \
+  --profile-state-path /var/lib/stavrobot-installer/shelley-bridge-profiles.json \
+  --expect-display-data
+```
+
+Behavior note:
+
+- this assertion is conditional by design
+- the smoke script only requires non-null `display_data` when the sampled Stavrobot turns include display-hint payloads (such as `display.tool_summary` or media/image references)
+- if sampled turns are plain markdown/text with no display hints, the smoke output will report that display-data assertion was not required for that run
+
 ## D. Stavrobot-mode conversation create
 
 Create a conversation using Stavrobot conversation options similar to:

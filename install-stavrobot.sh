@@ -21,6 +21,7 @@ SHELLEY_STATUS_JSON=0
 SHELLEY_REFRESH_ONLY=0
 SHELLEY_ALLOW_DIRTY=0
 SHELLEY_SKIP_SMOKE=0
+SHELLEY_EXPECT_DISPLAY_DATA=0
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 
 ENV_PATH=""
@@ -56,6 +57,7 @@ Flags:
   --refresh-shelley-mode
   --allow-dirty-shelley
   --skip-shelley-smoke
+  --expect-shelley-display-data Assert persisted display_data during Shelley smoke validation
   --help
 
 Environment:
@@ -67,6 +69,7 @@ Shelley mode helpers:
   --refresh-shelley-mode        Apply/rebuild/smoke managed Shelley mode in /opt/shelley
   --allow-dirty-shelley         Allow managed Shelley refresh against a dirty checkout
   --skip-shelley-smoke          Skip isolated Shelley smoke validation during refresh
+  --expect-shelley-display-data Assert persisted display_data during Shelley smoke validation
 EOF
 }
 
@@ -366,6 +369,10 @@ while [[ $# -gt 0 ]]; do
       SHELLEY_SKIP_SMOKE=1
       shift
       ;;
+    --expect-shelley-display-data)
+      SHELLEY_EXPECT_DISPLAY_DATA=1
+      shift
+      ;;
     --help)
       usage
       exit 0
@@ -385,7 +392,7 @@ if (( SHELLEY_STATUS_ONLY )); then
   [[ -z "$STAVROBOT_DIR" ]] || die "--print-shelley-mode-status cannot be combined with --stavrobot-dir"
   (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHOW_SECRETS == 0 )) || \
     die "--print-shelley-mode-status cannot be combined with normal installer mutation flags"
-  (( SHELLEY_ALLOW_DIRTY == 0 && SHELLEY_SKIP_SMOKE == 0 )) || \
+  (( SHELLEY_ALLOW_DIRTY == 0 && SHELLEY_SKIP_SMOKE == 0 && SHELLEY_EXPECT_DISPLAY_DATA == 0 )) || \
     die "--print-shelley-mode-status cannot be combined with Shelley refresh-only flags"
 else
   (( SHELLEY_STATUS_JSON == 0 )) || die "--json currently requires --print-shelley-mode-status"
@@ -397,8 +404,8 @@ if (( SHELLEY_REFRESH_ONLY )); then
     die "--refresh-shelley-mode cannot be combined with normal installer mutation flags"
 fi
 
-if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE) && SHELLEY_REFRESH_ONLY == 0 )); then
-  die "--allow-dirty-shelley and --skip-shelley-smoke require --refresh-shelley-mode"
+if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE || SHELLEY_EXPECT_DISPLAY_DATA) && SHELLEY_REFRESH_ONLY == 0 )); then
+  die "--allow-dirty-shelley, --skip-shelley-smoke, and --expect-shelley-display-data require --refresh-shelley-mode"
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then
@@ -416,6 +423,9 @@ if (( SHELLEY_REFRESH_ONLY )); then
   fi
   if (( SHELLEY_SKIP_SMOKE )); then
     refresh_args+=(--skip-smoke)
+  fi
+  if (( SHELLEY_EXPECT_DISPLAY_DATA )); then
+    refresh_args+=(--smoke-expect-display-data)
   fi
   exec "$ROOT_DIR/refresh-shelley-managed-s1.sh" "${refresh_args[@]}"
 fi

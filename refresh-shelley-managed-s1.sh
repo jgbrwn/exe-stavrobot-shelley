@@ -10,6 +10,7 @@ PNPM_CMD="${PNPM_CMD:-npx --yes pnpm@10.28.0}"
 STATE_FILE="$ROOT_DIR/state/shelley-mode-build.json"
 RUN_SMOKE=1
 ALLOW_DIRTY=0
+SMOKE_EXPECT_DISPLAY_DATA=0
 SMOKE_PORT="8765"
 SMOKE_DB_PATH="/tmp/shelley-stavrobot-managed-test.db"
 SMOKE_TMUX_SESSION="shelley-managed-s1-smoke"
@@ -37,6 +38,7 @@ Flags:
   --smoke-port PORT            Smoke-test port (default: 8765)
   --smoke-db-path PATH         Smoke-test sqlite db path
   --smoke-tmux-session NAME    Smoke-test tmux session name
+  --smoke-expect-display-data  Assert persisted display_data during smoke validation
   --help
 
 Behavior:
@@ -153,6 +155,10 @@ while [[ $# -gt 0 ]]; do
       SMOKE_TMUX_SESSION="$2"
       shift 2
       ;;
+    --smoke-expect-display-data)
+      SMOKE_EXPECT_DISPLAY_DATA=1
+      shift
+      ;;
     --help)
       usage
       exit 0
@@ -206,13 +212,18 @@ info "Building Shelley binary"
 
 if (( RUN_SMOKE == 1 )); then
   info "Running isolated managed Shelley smoke test"
-  "$ROOT_DIR/smoke-test-shelley-managed-s1.sh" \
-    --shelley-dir "$SHELLEY_DIR" \
-    --shelley-bin "$SHELLEY_DIR/bin/shelley" \
-    --profile-state-path "$PROFILE_STATE_PATH" \
-    --port "$SMOKE_PORT" \
-    --db-path "$SMOKE_DB_PATH" \
+  smoke_args=(
+    --shelley-dir "$SHELLEY_DIR"
+    --shelley-bin "$SHELLEY_DIR/bin/shelley"
+    --profile-state-path "$PROFILE_STATE_PATH"
+    --port "$SMOKE_PORT"
+    --db-path "$SMOKE_DB_PATH"
     --tmux-session "$SMOKE_TMUX_SESSION"
+  )
+  if (( SMOKE_EXPECT_DISPLAY_DATA == 1 )); then
+    smoke_args+=(--expect-display-data)
+  fi
+  "$ROOT_DIR/smoke-test-shelley-managed-s1.sh" "${smoke_args[@]}"
 fi
 
 write_state_file
