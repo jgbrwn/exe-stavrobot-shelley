@@ -20,6 +20,8 @@ TMUX_SESSION="shelley-managed-s1-smoke"
 KEEP_SERVER=0
 EXPECT_DISPLAY_DATA=0
 REQUIRE_DISPLAY_HINTS=0
+EXPECT_MEDIA_REFS=0
+REQUIRE_MEDIA_REFS=0
 BRIDGE_FIXTURE=""
 SERVER_LOG="/tmp/shelley-managed-s1-smoke.log"
 
@@ -40,6 +42,8 @@ Flags:
   --keep-server                  Leave test Shelley server running after success
   --expect-display-data          Assert Stavrobot assistant messages persist display_data
   --require-display-hints        With --expect-display-data, fail if no display-hint payloads are observed
+  --expect-media-refs            Assert persisted display_data.media_refs when artifact/image hints are present
+  --require-media-refs           With --expect-media-refs, fail if no media-ref hints are observed
   --bridge-fixture NAME          Optional bridge fixture mode for smoke server (e.g. tool_summary)
   --help
 
@@ -178,6 +182,14 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_DISPLAY_HINTS=1
       shift
       ;;
+    --expect-media-refs)
+      EXPECT_MEDIA_REFS=1
+      shift
+      ;;
+    --require-media-refs)
+      REQUIRE_MEDIA_REFS=1
+      shift
+      ;;
     --bridge-fixture)
       BRIDGE_FIXTURE="$2"
       shift 2
@@ -204,6 +216,9 @@ require_cmd sqlite3
 [[ "$PORT" =~ ^[0-9]+$ ]] || die "--port must be numeric"
 if (( REQUIRE_DISPLAY_HINTS == 1 && EXPECT_DISPLAY_DATA == 0 )); then
   die "--require-display-hints requires --expect-display-data"
+fi
+if (( REQUIRE_MEDIA_REFS == 1 && EXPECT_MEDIA_REFS == 0 )); then
+  die "--require-media-refs requires --expect-media-refs"
 fi
 
 python3 "$ROOT_DIR/py/shelley_bridge_profiles.py" validate "$PROFILE_STATE_PATH" >/dev/null
@@ -353,6 +368,70 @@ PY
       die "Expected display-hint payloads but none were observed in sampled Stavrobot turns"
     fi
     info "No display-hint payloads observed in smoke turn outputs; display_data assertion not required for this run"
+  fi
+fi
+
+if (( EXPECT_MEDIA_REFS == 1 )); then
+  info "Checking persisted display_data.media_refs on Stavrobot assistant messages"
+  sqlite_media_tmp=$(mktemp)
+  sqlite3 -json "$DB_PATH" "SELECT sequence_id, user_data, display_data FROM messages WHERE conversation_id='$stavrobot_conversation_id' AND type='agent' ORDER BY sequence_id;" >"$sqlite_media_tmp"
+  media_result=$(python3 - "$sqlite_media_tmp" <<'PY'
+import json, sys
+rows = json.load(open(sys.argv[1]))
+requires_media = 0
+missing = []
+for row in rows:
+    ud = row.get("user_data")
+    if not ud:
+        continue
+    try:
+        parsed = json.loads(ud)
+    except Exception:
+        continue
+    st = (parsed.get("stavrobot") or {}) if isinstance(parsed, dict) else {}
+    raw = st.get("raw_payload") if isinstance(st, dict) else None
+    if not isinstance(raw, dict):
+        continue
+
+    has_hint = False
+    for item in (raw.get("content") or []):
+        if isinstance(item, dict) and item.get("kind") == "image_ref" and item.get("url"):
+            has_hint = True
+            break
+    if not has_hint:
+        for item in (raw.get("artifacts") or []):
+            if isinstance(item, dict) and item.get("kind") == "image" and item.get("url"):
+                has_hint = True
+                break
+
+    if has_hint:
+        requires_media += 1
+        display_raw = row.get("display_data")
+        if not display_raw:
+            missing.append(f"{row.get('sequence_id')}:display_data_missing")
+            continue
+        try:
+            display = json.loads(display_raw)
+        except Exception:
+            missing.append(f"{row.get('sequence_id')}:display_data_invalid_json")
+            continue
+        media_refs = display.get("media_refs")
+        if not isinstance(media_refs, list) or not media_refs:
+            missing.append(f"{row.get('sequence_id')}:media_refs_missing")
+
+if requires_media == 0:
+    print("not_required")
+elif missing:
+    raise SystemExit("media_refs missing for agent sequence_ids: " + ",".join(missing))
+else:
+    print("required_ok")
+PY
+)
+  if [[ "$media_result" == "not_required" ]]; then
+    if (( REQUIRE_MEDIA_REFS == 1 )); then
+      die "Expected media-ref hints but none were observed in sampled Stavrobot turns"
+    fi
+    info "No media-ref hints observed in smoke turn outputs; media_refs assertion not required for this run"
   fi
 fi
 

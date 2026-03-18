@@ -23,6 +23,8 @@ SHELLEY_ALLOW_DIRTY=0
 SHELLEY_SKIP_SMOKE=0
 SHELLEY_EXPECT_DISPLAY_DATA=0
 SHELLEY_REQUIRE_DISPLAY_HINTS=0
+SHELLEY_EXPECT_MEDIA_REFS=0
+SHELLEY_REQUIRE_MEDIA_REFS=0
 SHELLEY_BRIDGE_FIXTURE=""
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 
@@ -61,6 +63,8 @@ Flags:
   --skip-shelley-smoke
   --expect-shelley-display-data Assert persisted display_data during Shelley smoke validation
   --require-shelley-display-hints  With --expect-shelley-display-data, fail if sampled turns have no display hints
+  --expect-shelley-media-refs   Assert persisted media_refs when sampled turns contain image/media hints
+  --require-shelley-media-refs  With --expect-shelley-media-refs, fail if no media-ref hints are observed
   --shelley-bridge-fixture NAME  Optional test fixture mode for Shelley smoke bridge payloads
   --help
 
@@ -75,6 +79,8 @@ Shelley mode helpers:
   --skip-shelley-smoke          Skip isolated Shelley smoke validation during refresh
   --expect-shelley-display-data Assert persisted display_data during Shelley smoke validation
   --require-shelley-display-hints  With --expect-shelley-display-data, fail if sampled turns have no display hints
+  --expect-shelley-media-refs   Assert persisted media_refs when sampled turns contain image/media hints
+  --require-shelley-media-refs  With --expect-shelley-media-refs, fail if no media-ref hints are observed
   --shelley-bridge-fixture NAME  Optional test fixture mode for Shelley smoke bridge payloads
 EOF
 }
@@ -383,6 +389,14 @@ while [[ $# -gt 0 ]]; do
       SHELLEY_REQUIRE_DISPLAY_HINTS=1
       shift
       ;;
+    --expect-shelley-media-refs)
+      SHELLEY_EXPECT_MEDIA_REFS=1
+      shift
+      ;;
+    --require-shelley-media-refs)
+      SHELLEY_REQUIRE_MEDIA_REFS=1
+      shift
+      ;;
     --shelley-bridge-fixture)
       SHELLEY_BRIDGE_FIXTURE="$2"
       shift 2
@@ -406,7 +420,7 @@ if (( SHELLEY_STATUS_ONLY )); then
   [[ -z "$STAVROBOT_DIR" ]] || die "--print-shelley-mode-status cannot be combined with --stavrobot-dir"
   (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHOW_SECRETS == 0 )) || \
     die "--print-shelley-mode-status cannot be combined with normal installer mutation flags"
-  (( SHELLEY_ALLOW_DIRTY == 0 && SHELLEY_SKIP_SMOKE == 0 && SHELLEY_EXPECT_DISPLAY_DATA == 0 && SHELLEY_REQUIRE_DISPLAY_HINTS == 0 )) && [[ -z "$SHELLEY_BRIDGE_FIXTURE" ]] || \
+  (( SHELLEY_ALLOW_DIRTY == 0 && SHELLEY_SKIP_SMOKE == 0 && SHELLEY_EXPECT_DISPLAY_DATA == 0 && SHELLEY_REQUIRE_DISPLAY_HINTS == 0 && SHELLEY_EXPECT_MEDIA_REFS == 0 && SHELLEY_REQUIRE_MEDIA_REFS == 0 )) && [[ -z "$SHELLEY_BRIDGE_FIXTURE" ]] || \
     die "--print-shelley-mode-status cannot be combined with Shelley refresh-only flags"
 else
   (( SHELLEY_STATUS_JSON == 0 )) || die "--json currently requires --print-shelley-mode-status"
@@ -418,11 +432,14 @@ if (( SHELLEY_REFRESH_ONLY )); then
     die "--refresh-shelley-mode cannot be combined with normal installer mutation flags"
 fi
 
-if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE || SHELLEY_EXPECT_DISPLAY_DATA || SHELLEY_REQUIRE_DISPLAY_HINTS) && SHELLEY_REFRESH_ONLY == 0 )) || ([[ -n "$SHELLEY_BRIDGE_FIXTURE" ]] && (( SHELLEY_REFRESH_ONLY == 0 ))); then
-  die "--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, and --shelley-bridge-fixture require --refresh-shelley-mode"
+if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE || SHELLEY_EXPECT_DISPLAY_DATA || SHELLEY_REQUIRE_DISPLAY_HINTS || SHELLEY_EXPECT_MEDIA_REFS || SHELLEY_REQUIRE_MEDIA_REFS) && SHELLEY_REFRESH_ONLY == 0 )) || ([[ -n "$SHELLEY_BRIDGE_FIXTURE" ]] && (( SHELLEY_REFRESH_ONLY == 0 ))); then
+  die "--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, --expect-shelley-media-refs, --require-shelley-media-refs, and --shelley-bridge-fixture require --refresh-shelley-mode"
 fi
 if (( SHELLEY_REQUIRE_DISPLAY_HINTS == 1 && SHELLEY_EXPECT_DISPLAY_DATA == 0 )); then
   die "--require-shelley-display-hints requires --expect-shelley-display-data"
+fi
+if (( SHELLEY_REQUIRE_MEDIA_REFS == 1 && SHELLEY_EXPECT_MEDIA_REFS == 0 )); then
+  die "--require-shelley-media-refs requires --expect-shelley-media-refs"
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then
@@ -446,6 +463,12 @@ if (( SHELLEY_REFRESH_ONLY )); then
   fi
   if (( SHELLEY_REQUIRE_DISPLAY_HINTS )); then
     refresh_args+=(--smoke-require-display-hints)
+  fi
+  if (( SHELLEY_EXPECT_MEDIA_REFS )); then
+    refresh_args+=(--smoke-expect-media-refs)
+  fi
+  if (( SHELLEY_REQUIRE_MEDIA_REFS )); then
+    refresh_args+=(--smoke-require-media-refs)
   fi
   if [[ -n "$SHELLEY_BRIDGE_FIXTURE" ]]; then
     refresh_args+=(--smoke-bridge-fixture "$SHELLEY_BRIDGE_FIXTURE")

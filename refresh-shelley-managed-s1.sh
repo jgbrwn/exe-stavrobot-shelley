@@ -12,6 +12,8 @@ RUN_SMOKE=1
 ALLOW_DIRTY=0
 SMOKE_EXPECT_DISPLAY_DATA=0
 SMOKE_REQUIRE_DISPLAY_HINTS=0
+SMOKE_EXPECT_MEDIA_REFS=0
+SMOKE_REQUIRE_MEDIA_REFS=0
 SMOKE_BRIDGE_FIXTURE=""
 SMOKE_PORT="8765"
 SMOKE_DB_PATH="/tmp/shelley-stavrobot-managed-test.db"
@@ -42,6 +44,8 @@ Flags:
   --smoke-tmux-session NAME    Smoke-test tmux session name
   --smoke-expect-display-data  Assert persisted display_data during smoke validation
   --smoke-require-display-hints  With --smoke-expect-display-data, fail if sampled turns have no display hints
+  --smoke-expect-media-refs      Assert persisted media_refs when sampled turns contain image/media hints
+  --smoke-require-media-refs     With --smoke-expect-media-refs, fail if no media-ref hints are observed
   --smoke-bridge-fixture NAME    Optional bridge fixture mode passed to smoke server (e.g. tool_summary)
   --help
 
@@ -168,6 +172,14 @@ while [[ $# -gt 0 ]]; do
       SMOKE_REQUIRE_DISPLAY_HINTS=1
       shift
       ;;
+    --smoke-expect-media-refs)
+      SMOKE_EXPECT_MEDIA_REFS=1
+      shift
+      ;;
+    --smoke-require-media-refs)
+      SMOKE_REQUIRE_MEDIA_REFS=1
+      shift
+      ;;
     --smoke-bridge-fixture)
       SMOKE_BRIDGE_FIXTURE="$2"
       shift 2
@@ -240,6 +252,12 @@ if (( RUN_SMOKE == 1 )); then
   fi
   if (( SMOKE_REQUIRE_DISPLAY_HINTS == 1 )); then
     smoke_args+=(--require-display-hints)
+  fi
+  if (( SMOKE_EXPECT_MEDIA_REFS == 1 )); then
+    smoke_args+=(--expect-media-refs)
+  fi
+  if (( SMOKE_REQUIRE_MEDIA_REFS == 1 )); then
+    smoke_args+=(--require-media-refs)
   fi
   if [[ -n "$SMOKE_BRIDGE_FIXTURE" ]]; then
     smoke_args+=(--bridge-fixture "$SMOKE_BRIDGE_FIXTURE")

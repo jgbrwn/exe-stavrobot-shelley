@@ -91,3 +91,27 @@ When obvious image URLs are present (for example `.png`/`.jpg` links in payload 
 
 This remains intentionally conservative and URL-based for now.
 It is meant to support managed runtime `media_refs` preservation and later promotion into richer native Shelley media handling.
+
+## Media-ref persistence validation
+
+Managed smoke now also supports media-ref assertions:
+
+```bash
+./install-stavrobot.sh \
+  --refresh-shelley-mode \
+  --expect-shelley-media-refs
+```
+
+Strict mode:
+
+```bash
+./install-stavrobot.sh \
+  --refresh-shelley-mode \
+  --expect-shelley-media-refs \
+  --require-shelley-media-refs
+```
+
+Current rule:
+
+- assertion is required only when sampled raw bridge payloads include image/media hints (`content.kind=image_ref` or `artifacts.kind=image` with URL)
+- strict mode fails when no such hints are observed
