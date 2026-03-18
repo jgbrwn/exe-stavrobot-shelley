@@ -21,6 +21,8 @@ REQUEST_TIMEOUT=300
 RETRIES=1
 RETRY_DELAY=2
 CONVERSATION_ID=""
+STAVROBOT_SESSION_BIN="${STAVROBOT_SESSION_BIN:-$ROOT_DIR/shelley-stavrobot-session.sh}"
+STAVROBOT_CLIENT_BIN="${STAVROBOT_CLIENT_BIN:-$ROOT_DIR/client-stavrobot.sh}"
 
 usage() {
   cat <<'EOF'
@@ -54,6 +56,7 @@ Flags:
 
 Notes:
   - default output is full JSON so Shelley/runtime callers can parse response text plus IDs
+  - chat output now also includes narrow S2-ready fields like content/display/raw while preserving response/conversation_id/message_id
   - use --extract response for human-oriented text-only output
   --pretty                Pretty-print JSON output
   --connect-timeout SEC   Curl connect timeout in seconds
@@ -61,13 +64,17 @@ Notes:
   --retries COUNT         Retry count on transport failure
   --retry-delay SEC       Sleep between retries
   --help
+
+Environment:
+  STAVROBOT_SESSION_BIN   Override session helper used by the bridge
+  STAVROBOT_CLIENT_BIN    Override client helper used by the bridge
 EOF
 }
 
 run_session() {
   local -a cmd
   cmd=(
-    "$ROOT_DIR/shelley-stavrobot-session.sh"
+    "$STAVROBOT_SESSION_BIN"
     --base-url "$BASE_URL"
     --state-file "$STATE_FILE"
     --connect-timeout "$CONNECT_TIMEOUT"
@@ -105,7 +112,7 @@ run_session() {
 run_client() {
   local -a cmd
   cmd=(
-    "$ROOT_DIR/client-stavrobot.sh"
+    "$STAVROBOT_CLIENT_BIN"
     --base-url "$BASE_URL"
     --connect-timeout "$CONNECT_TIMEOUT"
     --request-timeout "$REQUEST_TIMEOUT"
@@ -221,13 +228,51 @@ done
 [[ "$RETRY_DELAY" =~ ^[0-9]+$ ]] || die "--retry-delay must be an integer"
 (( RETRIES >= 1 )) || die "--retries must be at least 1"
 
+render_bridge_chat_json() {
+  local response_json="$1"
+  python3 - "$response_json" <<'PY'
+import json, sys
+payload = json.loads(sys.argv[1])
+response = payload.get('response', '')
+out = {
+    'ok': True,
+    'response': response,
+    'conversation_id': payload.get('conversation_id', ''),
+    'message_id': payload.get('message_id', ''),
+    'content': [],
+    'display': {},
+    'raw': payload,
+}
+if response:
+    out['content'].append({'kind': 'markdown', 'text': response})
+tool_summary = []
+for key in ('events', 'tool_events', 'tool_summary'):
+    value = payload.get(key)
+    if isinstance(value, list) and value:
+        for item in value:
+            if not isinstance(item, dict):
+                continue
+            tool_summary.append({
+                'tool': str(item.get('tool') or item.get('name') or item.get('type') or 'tool'),
+                'status': str(item.get('status') or item.get('result') or 'ok'),
+                'title': str(item.get('title') or item.get('summary') or item.get('message') or ''),
+            })
+        break
+if tool_summary:
+    out['display']['tool_summary'] = tool_summary
+if not out['display']:
+    out.pop('display')
+print(json.dumps(out, indent=2))
+PY
+}
+
 case "$COMMAND" in
   chat)
     if (( STATEFUL )); then
       if [[ -n "$MESSAGE" ]]; then
-        run_session chat --message "$MESSAGE"
+        chat_json=$(run_session chat --message "$MESSAGE")
       else
-        run_session chat
+        chat_json=$(run_session chat)
       fi
     else
       args=(chat)
@@ -243,7 +288,28 @@ case "$COMMAND" in
       if [[ -n "$SENDER" ]]; then
         args+=(--sender "$SENDER")
       fi
-      run_client "${args[@]}"
+      chat_json=$(run_client "${args[@]}")
+    fi
+
+    if [[ -n "$EXTRACT" ]]; then
+      python3 - "$EXTRACT" "$chat_json" <<'PY'
+import json, sys
+field, response_json = sys.argv[1:3]
+data = json.loads(response_json)
+value = data.get(field, '')
+if isinstance(value, bool):
+    print('true' if value else 'false')
+elif value is None:
+    print('')
+elif isinstance(value, (dict, list)):
+    print(json.dumps(value))
+else:
+    print(value)
+PY
+    elif (( PRETTY )); then
+      render_bridge_chat_json "$chat_json"
+    else
+      render_bridge_chat_json "$chat_json"
     fi
     ;;
   show-session)
