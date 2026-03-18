@@ -163,7 +163,33 @@ Lightweight helper/status validation:
 ./tests/run.sh test-print-shelley-managed-status.sh
 ./tests/run.sh test-install-stavrobot-openrouter-path.sh
 ./tests/run.sh test-manage-shelley-bridge-profiles.sh
+./tests/run.sh test-manage-stavrobot-model.sh
 ```
+
+## Operator helper: Stavrobot backend model control
+
+For current operator/admin use, this repo now includes a separate helper for shared Stavrobot backend model inspection and OpenRouter model changes:
+
+```bash
+./manage-stavrobot-model.sh get-current --stavrobot-dir /opt/stavrobot
+./manage-stavrobot-model.sh list-openrouter-free --stavrobot-dir /opt/stavrobot
+./manage-stavrobot-model.sh apply --stavrobot-dir /opt/stavrobot --model openrouter/free
+```
+
+Current behavior:
+
+- `get-current`
+  - prints machine-readable JSON describing current `provider`, `model`, auth mode, and whether OpenRouter model selection is currently applicable
+- `list-openrouter-free`
+  - returns live OpenRouter free-model suggestions only when active Stavrobot config is actually using `provider = "openrouter"` with corresponding auth/config
+- `apply --model MODEL_ID`
+  - edits Stavrobot `config.toml`, restarts the `app` service, falls back to force-recreate if needed, and waits for health to report the expected provider/model
+
+Important scope notes:
+
+- this is an explicit operator helper, not part of the normal installer flow
+- this mutates the shared local Stavrobot backend model, not per-conversation Shelley metadata
+- Shelley-native UI exposure for this should remain a later Stavrobot-mode-only admin surface layered on top of this helper boundary
 
 ## Status
 

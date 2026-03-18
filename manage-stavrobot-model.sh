@@ -11,6 +11,8 @@ TIMEOUT=60
 POLL_INTERVAL=2
 ACTION=""
 MODEL=""
+STAVROBOT_CLIENT_BIN="${STAVROBOT_CLIENT_BIN:-$ROOT_DIR/client-stavrobot.sh}"
+OPENROUTER_MODELS_SCRIPT="${OPENROUTER_MODELS_SCRIPT:-$ROOT_DIR/py/openrouter_models.py}"
 
 usage() {
   cat <<'EOF'
@@ -29,6 +31,10 @@ Flags:
   --poll-interval SEC    Health poll interval for apply (default: 2)
   --model MODEL_ID       Model to apply
   --help
+
+Environment:
+  STAVROBOT_CLIENT_BIN     Override client helper used for health checks
+  OPENROUTER_MODELS_SCRIPT Override OpenRouter model catalog script
 EOF
 }
 
@@ -100,7 +106,7 @@ PY
 }
 
 health_json() {
-  "$ROOT_DIR/client-stavrobot.sh" \
+  "$STAVROBOT_CLIENT_BIN" \
     --config-path "$CONFIG_PATH" \
     --base-url "$BASE_URL" \
     --request-timeout 30 \
@@ -136,9 +142,9 @@ wait_for_health_model() {
 
 list_openrouter_free() {
   ensure_openrouter_active
-  python3 - <<'PY'
+  python3 - "$OPENROUTER_MODELS_SCRIPT" <<'PY'
 import json, subprocess, sys
-out = subprocess.check_output(["python3", "py/openrouter_models.py"], text=True)
+out = subprocess.check_output(["python3", sys.argv[1]], text=True)
 payload = json.loads(out)
 payload = {
   "status": "ok",

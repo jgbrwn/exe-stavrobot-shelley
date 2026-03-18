@@ -875,6 +875,8 @@ Disposable helper follow-up:
 - `manage-stavrobot-model.sh` and `py/stavrobot_model_control.py` now provide a validated first local prototype for Stavrobot model inspection/list/apply flows
 - the prototype was validated against `/tmp/stavrobot` for `get-current`, gated `list-openrouter-free`, `apply --model openrouter/free`, and restore back to the prior model
 - it should still be treated as a prototype pending TOML-edit hardening, privilege-boundary hardening, and Shelley UI wiring
+- near-term operator UX should expose this as a documented standalone helper rather than mixing shared-backend model mutation into the main installer config flow
+- lightweight regression coverage should protect current helper behavior before any future Shelley-native admin-panel wiring
 
 Managed recipe follow-up:
 
