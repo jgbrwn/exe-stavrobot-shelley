@@ -377,3 +377,9 @@ Current improved shape includes room for:
 - optional display metadata
 
 This is still S1 behaviorally text-first, but it is a better S2 starting point because the runtime result no longer implies that plain response text is the only meaningful output of the bridge/runtime boundary.
+
+See also:
+
+- `docs/SHELLEY_RUNTIME_ADAPTATION_CONTRACT.md`
+
+That contract is the preferred widening guide for patch `0004` when future sessions refine `ExecuteStavrobotTurn(...)` and `ProcessStavrobotConversationTurn(...)` toward structured bridge content/display/artifact adaptation.

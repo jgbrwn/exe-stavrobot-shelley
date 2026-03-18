@@ -792,6 +792,7 @@ Strategic follow-up artifact:
 - recommended next order remains: narrow S2 scope first, then collect S4 recall evidence before deciding on any Shelley-side retrieval layer
 - `docs/SHELLEY_S2_STRUCTURED_BRIDGE_TARGET.md` now defines the smallest useful next structured-output/adaptation target so S2 can improve markdown/tool-summary/media-reference fidelity without abandoning the current text-first fallback
 - `docs/SHELLEY_S4_RECALL_VALIDATION_TEMPLATE.md` now turns the S4 recall plan into a repeatable validation procedure/result template so future evidence gathering can drive the retrieval-layer decision
+- `docs/SHELLEY_RUNTIME_ADAPTATION_CONTRACT.md` now defines the preferred widening path for the managed Shelley runtime unit so patch `0004` can preserve `ResponseText` fallback while accepting richer normalized content/display/artifact/raw bridge data later
 
 
 ## Compact Shelley handoff summary
