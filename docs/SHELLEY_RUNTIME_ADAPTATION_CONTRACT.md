@@ -99,6 +99,7 @@ Conceptual shape:
 ```go
 type StavrobotBridgeDisplay struct {
     ToolSummary []StavrobotToolSummary `json:"tool_summary,omitempty"`
+    MediaNotes  []string               `json:"media_notes,omitempty"`
 }
 
 type StavrobotToolSummary struct {
@@ -116,9 +117,13 @@ Conceptual shape:
 
 ```go
 type StavrobotArtifact struct {
-    Kind  string `json:"kind"`
-    URL   string `json:"url,omitempty"`
-    Title string `json:"title,omitempty"`
+    Kind       string `json:"kind"`
+    URL        string `json:"url,omitempty"`
+    Title      string `json:"title,omitempty"`
+    MimeType   string `json:"mime_type,omitempty"`
+    Transport  string `json:"transport,omitempty"`
+    DataBase64 string `json:"data_base64,omitempty"`
+    ByteLength int    `json:"byte_length,omitempty"`
 }
 ```
 
@@ -236,7 +241,9 @@ Initial normalization target:
 
 - `markdown` → markdown-friendly `llm.Content`
 - `text` → text content
-- `image_ref` / simple image artifact → first preserve compact `media_refs` metadata when URL/title are available; later promote into fuller Shelley-native media content only when the runtime chooses a stable native shape
+- `image_ref` / simple image artifact → first preserve compact `media_refs` metadata when URL/title are available
+- bounded raw image artifacts (`transport = raw_inline_base64`) may also be preserved in `media_refs` as explicit transport-tagged entries (`mime_type`, `byte_length`, `data_base64`) so runtime persistence can prove lossless handoff before richer native rendering is chosen
+- later promote both URL and raw-inline cases into fuller Shelley-native media content only when the runtime chooses a stable native shape
 
 Unsupported kinds:
 

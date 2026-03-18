@@ -42,7 +42,7 @@ Flags:
   --keep-server                  Leave test Shelley server running after success
   --expect-display-data          Assert Stavrobot assistant messages persist display_data
   --require-display-hints        With --expect-display-data, fail if no display-hint payloads are observed
-  --expect-media-refs            Assert persisted display_data.media_refs when artifact/image hints are present
+  --expect-media-refs            Assert persisted display_data.media_refs when artifact/image hints are present (URL and/or raw-inline hints)
   --require-media-refs           With --expect-media-refs, fail if no media-ref hints are observed
   --bridge-fixture NAME          Optional bridge fixture mode for smoke server (e.g. tool_summary)
   --help
@@ -394,15 +394,19 @@ for row in rows:
         continue
 
     has_hint = False
+    requires_raw_media = False
     for item in (raw.get("content") or []):
         if isinstance(item, dict) and item.get("kind") == "image_ref" and item.get("url"):
             has_hint = True
             break
-    if not has_hint:
-        for item in (raw.get("artifacts") or []):
-            if isinstance(item, dict) and item.get("kind") == "image" and item.get("url"):
-                has_hint = True
-                break
+    for item in (raw.get("artifacts") or []):
+        if not isinstance(item, dict) or item.get("kind") != "image":
+            continue
+        if item.get("url"):
+            has_hint = True
+        if item.get("transport") == "raw_inline_base64" or item.get("data_base64"):
+            has_hint = True
+            requires_raw_media = True
 
     if has_hint:
         requires_media += 1
@@ -418,6 +422,18 @@ for row in rows:
         media_refs = display.get("media_refs")
         if not isinstance(media_refs, list) or not media_refs:
             missing.append(f"{row.get('sequence_id')}:media_refs_missing")
+            continue
+        if requires_raw_media:
+            raw_refs = [
+                ref for ref in media_refs
+                if isinstance(ref, dict)
+                and (
+                    ref.get("transport") == "raw_inline_base64"
+                    or bool(ref.get("data_base64"))
+                )
+            ]
+            if not raw_refs:
+                missing.append(f"{row.get('sequence_id')}:raw_media_ref_missing")
 
 if requires_media == 0:
     print("not_required")

@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..f2fd349
 --- /dev/null
 +++ b/server/stavrobot.go
-@@ -0,0 +1,403 @@
+@@ -0,0 +1,435 @@
 +package server
 +
 +import (
@@ -71,6 +71,7 @@ index 0000000..f2fd349
 +
 +type StavrobotBridgeDisplay struct {
 +	ToolSummary []StavrobotToolSummary `json:"tool_summary,omitempty"`
++	MediaNotes  []string               `json:"media_notes,omitempty"`
 +}
 +
 +type StavrobotToolSummary struct {
@@ -80,9 +81,13 @@ index 0000000..f2fd349
 +}
 +
 +type StavrobotArtifact struct {
-+	Kind  string `json:"kind"`
-+	URL   string `json:"url,omitempty"`
-+	Title string `json:"title,omitempty"`
++	Kind      string `json:"kind"`
++	URL       string `json:"url,omitempty"`
++	Title     string `json:"title,omitempty"`
++	MimeType  string `json:"mime_type,omitempty"`
++	Transport string `json:"transport,omitempty"`
++	DataBase64 string `json:"data_base64,omitempty"`
++	ByteLength int    `json:"byte_length,omitempty"`
 +}
 +
 +// StavrobotTurnResult is the parsed bridge response for one S1/S2-ready turn.
@@ -215,7 +220,7 @@ index 0000000..f2fd349
 +	}
 +
 +	var toolSummary []map[string]string
-+	var mediaRefs []map[string]string
++	var mediaRefs []map[string]any
 +
 +	for _, item := range payload.Content {
 +		kind := item.Kind
@@ -238,7 +243,7 @@ index 0000000..f2fd349
 +				result.UnsupportedKinds = append(result.UnsupportedKinds, kind)
 +				continue
 +			}
-+			mediaRefs = append(mediaRefs, map[string]string{
++			mediaRefs = append(mediaRefs, map[string]any{
 +				"kind":  kind,
 +				"url":   item.URL,
 +				"title": item.Title,
@@ -255,15 +260,33 @@ index 0000000..f2fd349
 +		}
 +		switch kind {
 +		case "image":
-+			if artifact.URL == "" {
-+				result.UnsupportedKinds = append(result.UnsupportedKinds, "artifact:"+kind)
++			if artifact.URL != "" {
++				mediaRefs = append(mediaRefs, map[string]any{
++					"kind":  "artifact:" + kind,
++					"url":   artifact.URL,
++					"title": artifact.Title,
++				})
 +				continue
 +			}
-+			mediaRefs = append(mediaRefs, map[string]string{
-+				"kind":  "artifact:" + kind,
-+				"url":   artifact.URL,
-+				"title": artifact.Title,
-+			})
++			if artifact.Transport == "raw_inline_base64" && artifact.DataBase64 != "" {
++				rawRef := map[string]any{
++					"kind":       "artifact:" + kind,
++					"transport":  artifact.Transport,
++					"data_base64": artifact.DataBase64,
++				}
++				if artifact.MimeType != "" {
++					rawRef["mime_type"] = artifact.MimeType
++				}
++				if artifact.Title != "" {
++					rawRef["title"] = artifact.Title
++				}
++				if artifact.ByteLength > 0 {
++					rawRef["byte_length"] = artifact.ByteLength
++				}
++				mediaRefs = append(mediaRefs, rawRef)
++				continue
++			}
++			result.UnsupportedKinds = append(result.UnsupportedKinds, "artifact:"+kind)
 +		default:
 +			result.UnsupportedKinds = append(result.UnsupportedKinds, "artifact:"+kind)
 +		}
@@ -273,27 +296,36 @@ index 0000000..f2fd349
 +		result.AssistantContent = []llm.Content{{Type: llm.ContentTypeText, Text: result.ResponseText}}
 +	}
 +
-+	if payload.Display != nil && len(payload.Display.ToolSummary) > 0 {
-+		toolSummary = make([]map[string]string, 0, len(payload.Display.ToolSummary))
-+		for _, item := range payload.Display.ToolSummary {
-+			if item.Tool == "" && item.Status == "" && item.Title == "" {
-+				continue
++	var mediaNotes []string
++	if payload.Display != nil {
++		if len(payload.Display.ToolSummary) > 0 {
++			toolSummary = make([]map[string]string, 0, len(payload.Display.ToolSummary))
++			for _, item := range payload.Display.ToolSummary {
++				if item.Tool == "" && item.Status == "" && item.Title == "" {
++					continue
++				}
++				toolSummary = append(toolSummary, map[string]string{
++					"tool":   item.Tool,
++					"status": item.Status,
++					"title":  item.Title,
++				})
 +			}
-+			toolSummary = append(toolSummary, map[string]string{
-+				"tool":   item.Tool,
-+				"status": item.Status,
-+				"title":  item.Title,
-+			})
++		}
++		if len(payload.Display.MediaNotes) > 0 {
++			mediaNotes = append([]string{}, payload.Display.MediaNotes...)
 +		}
 +	}
 +
-+	if len(toolSummary) > 0 || len(mediaRefs) > 0 {
++	if len(toolSummary) > 0 || len(mediaRefs) > 0 || len(mediaNotes) > 0 {
 +		result.DisplayData = map[string]any{}
 +		if len(toolSummary) > 0 {
 +			result.DisplayData["tool_summary"] = toolSummary
 +		}
 +		if len(mediaRefs) > 0 {
 +			result.DisplayData["media_refs"] = mediaRefs
++		}
++		if len(mediaNotes) > 0 {
++			result.DisplayData["media_notes"] = mediaNotes
 +		}
 +	}
 +
