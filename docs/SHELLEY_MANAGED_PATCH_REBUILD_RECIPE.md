@@ -301,6 +301,7 @@ Behavior note:
 - if sampled turns are plain markdown/text with no display hints, the smoke output will report that display-data assertion was not required for that run
 - for stricter CI/validation behavior, use `--require-display-hints` together with `--expect-display-data` to fail when no display-hint payloads are observed
 - if live Stavrobot turns are too plain to trigger hint payloads deterministically, pass `--bridge-fixture tool_summary` to smoke for a controlled fixture that injects `display.tool_summary` only when no real summary is available
+- see also `docs/SHELLEY_DISPLAY_DATA_FIXTURE_VALIDATION_NOTE.md` for a compact strict-proof runbook and expected DB evidence shape
 
 ## D. Stavrobot-mode conversation create
 

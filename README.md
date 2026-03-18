@@ -58,6 +58,7 @@ Still manual in this track:
 - `docs/SHELLEY_S2_STRUCTURED_BRIDGE_TARGET.md` now defines the minimal next structured bridge/adaptation target for Shelley-native markdown/tool-summary/media-reference fidelity while keeping text fallback mandatory
 - `docs/SHELLEY_S4_RECALL_VALIDATION_TEMPLATE.md` now turns the recall roadmap into an execution-ready validation template so future sessions can record evidence before deciding whether Shelley needs explicit retrieval orchestration
 - `docs/SHELLEY_RUNTIME_ADAPTATION_CONTRACT.md` now defines the preferred runtime-side result/adaptation boundary for managed Shelley patch `0004`, keeping `ResponseText` fallback while preserving room for bridge `content`/`display`/`artifacts`/`raw` widening
+- `docs/SHELLEY_DISPLAY_DATA_FIXTURE_VALIDATION_NOTE.md` now captures the deterministic fixture-backed validation path for proving Stavrobot `display_data` persistence in managed Shelley smoke runs
 - the roadmap now also has explicit validation checklists so future Shelley-side work can be judged phase by phase rather than by architecture discussion alone
 - the docs now also include a compact handoff summary so a future session can restart from the current recommendation stack quickly
 - a disposable official-Shelley S1 spike has now also validated the core seam: per-conversation Stavrobot mode works above the normal model/provider layer using `conversation_options` plus existing Shelley message/working-state plumbing
