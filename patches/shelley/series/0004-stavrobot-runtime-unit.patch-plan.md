@@ -352,8 +352,9 @@ Shelley already has native notions of content blocks, tool output, and display m
 A direct upstream UI/runtime review also surfaced one practical follow-on requirement:
 
 - Shelley message rendering uses persisted `display_data` for compact display-oriented UI
-- the current Stavrobot prototype shape preserves adaptation metadata under assistant `user_data`
-- so a future UI-facing follow-up should either add an explicit way for Stavrobot runtime recording to persist `DisplayData` into real `display_data`, or keep these fields documented as preserved/non-rendered until that plumbing exists
+- the current Stavrobot prototype shape initially preserved adaptation metadata under assistant `user_data`
+- the preferred next refinement is a focused Stavrobot assistant-message recording helper that can persist `DisplayData` into real `display_data` while still attaching broader debugging/adaptation state in `user_data`
+- if that refinement is not taken, these fields must stay documented as preserved/non-rendered until the plumbing exists
 
 That keeps the path open for later support of:
 

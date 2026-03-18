@@ -318,7 +318,7 @@ new file mode 100644
 index 0000000..f2fd349
 --- /dev/null
 +++ b/server/stavrobot.go
-@@ -0,0 +1,355 @@
+@@ -0,0 +1,387 @@
 +package server
 +
 +import (
@@ -331,6 +331,7 @@ index 0000000..f2fd349
 +	"path/filepath"
 +
 +	"shelley.exe.dev/db"
++	"shelley.exe.dev/db/generated"
 +	"shelley.exe.dev/llm"
 +)
 +
@@ -614,6 +615,42 @@ index 0000000..f2fd349
 +	return result, nil
 +}
 +
++func (s *Server) recordStavrobotAssistantMessage(ctx context.Context, conversationID string, message llm.Message, usage llm.Usage, userData any, displayData any) error {
++	messageType, err := s.getMessageType(message)
++	if err != nil {
++		return fmt.Errorf("failed to determine stavrobot message type: %w", err)
++	}
++
++	createdMsg, err := s.db.CreateMessage(ctx, db.CreateMessageParams{
++		ConversationID:      conversationID,
++		Type:                messageType,
++		LLMData:             message,
++		UserData:            userData,
++		UsageData:           usage,
++		DisplayData:         displayData,
++		ExcludedFromContext: message.ExcludedFromContext,
++	})
++	if err != nil {
++		return fmt.Errorf("failed to create stavrobot message: %w", err)
++	}
++
++	if err := s.db.QueriesTx(ctx, func(q *generated.Queries) error {
++		return q.UpdateConversationTimestamp(ctx, conversationID)
++	}); err != nil {
++		s.logger.Warn("Failed to update conversation timestamp", "conversationID", conversationID, "error", err)
++	}
++
++	s.mu.Lock()
++	mgr, ok := s.activeConversations[conversationID]
++	if ok {
++		mgr.Touch()
++	}
++	s.mu.Unlock()
++
++	go s.notifySubscribersNewMessage(context.WithoutCancel(ctx), conversationID, createdMsg)
++	return nil
++}
++
 +func (s *Server) ProcessStavrobotConversationTurn(ctx context.Context, manager *ConversationManager, userMessage llm.Message) error {
 +	if manager == nil {
 +		return fmt.Errorf("nil conversation manager")
@@ -675,13 +712,10 @@ index 0000000..f2fd349
 +			"raw_payload":     result.RawBridgePayload,
 +		},
 +	}
-+	if result.DisplayData != nil {
-+		userData["display"] = result.DisplayData
-+	}
 +	if len(result.UnsupportedKinds) > 0 {
 +		userData["stavrobot"].(map[string]any)["unsupported_kinds"] = result.UnsupportedKinds
 +	}
-+	if err := s.recordMessage(ctx, manager.conversationID, assistantMessage, llm.Usage{}, userData); err != nil {
++	if err := s.recordStavrobotAssistantMessage(ctx, manager.conversationID, assistantMessage, llm.Usage{}, userData, result.DisplayData); err != nil {
 +		return fmt.Errorf("failed to record stavrobot assistant message: %w", err)
 +	}
 +

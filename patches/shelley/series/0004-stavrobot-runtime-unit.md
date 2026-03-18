@@ -150,6 +150,15 @@ Responsibilities:
 - record operator-visible failure message when needed
 - remain the Shelley-side adaptation/recording boundary for richer content/display metadata
 
+`recordStavrobotAssistantMessage(...)`
+
+Responsibilities:
+
+- persist Stavrobot assistant messages with the normal Shelley message type/LLM/user-data shape
+- but allow explicit `DisplayData` from Stavrobot adaptation to be written into real persisted `display_data`
+- reuse Shelley's normal timestamp-touch and subscriber-notification behavior
+- avoid forcing Stavrobot display hints to hide only inside `user_data` once the runtime has compact native display metadata worth surfacing
+
 Near-term widening rule:
 
 - prefer recording normalized `AssistantContent` when supported
@@ -211,7 +220,7 @@ The captured prototype runtime patch currently does these S1-specific things:
 - currently normalizes `markdown` / `text` bridge content into Shelley text content while preserving `ResponseText` fallback
 - currently prepares compact tool-summary display metadata separately when present
 - now also preserves simple `image_ref` / `artifacts.image` references as compact `media_refs` display metadata when URLs are present
-- but in the current prototype these display-oriented hints are still attached in assistant-message metadata rather than Shelley's persisted `display_data` rendering path, so they should be treated as preserved adaptation state first, not as already-rendered UI
+- the current refined direction for this patch is to persist those compact display hints into real Shelley `display_data` via a focused Stavrobot assistant-message recording helper rather than burying them only inside `user_data`
 - still avoids claiming that generic Shelley-native assistant image/html/audio/video mapping is complete in this patch
 - keeps room for a richer runtime result shape carrying:
   - raw bridge payload
