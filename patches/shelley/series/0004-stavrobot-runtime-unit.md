@@ -210,7 +210,8 @@ The captured prototype runtime patch currently does these S1-specific things:
   - optional `raw`
 - currently normalizes `markdown` / `text` bridge content into Shelley text content while preserving `ResponseText` fallback
 - currently records compact tool-summary display metadata separately when present
-- still classifies `image_ref` and artifact/media shapes as explicit unsupported rich kinds for later S2 follow-up
+- now also preserves simple `image_ref` / `artifacts.image` references as compact `media_refs` display metadata when URLs are present
+- still avoids claiming that generic Shelley-native assistant image/html/audio/video mapping is complete in this patch
 - keeps room for a richer runtime result shape carrying:
   - raw bridge payload
   - pre-adapted assistant content blocks
@@ -259,6 +260,6 @@ Current upstream Shelley review also suggests a concrete caution/order:
 
 - markdown/text are immediately safe adaptation targets
 - compact tool/display summaries are immediately safe adaptation targets
-- image/screenshot/media references look promising because Shelley already has media-aware rendering, especially around tool-result flows
+- image/screenshot/media references look promising because Shelley already has media-aware rendering, especially around tool-result flows; as an intermediate step this patch can preserve compact `media_refs` metadata first
 - sandboxed HTML/embed rendering exists today through the `output_iframe` tool path, but generic raw assistant HTML should still be treated as deferred
 - audio/video should likewise stay deferred until the bridge/runtime contract picks a real Shelley-native representation rather than inventing a Stavrobot-only side channel

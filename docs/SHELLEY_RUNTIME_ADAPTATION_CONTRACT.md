@@ -216,6 +216,7 @@ Practical consequence:
 - markdown/text adaptation is low-risk now
 - compact tool-summary metadata is also low-risk now
 - image/screenshot handling may become viable soon if the runtime later chooses a Shelley-native image/tool-result shape deliberately
+- as an immediate intermediate step, the runtime can safely preserve compact image/media references in display-oriented metadata (`media_refs`) without pretending that generic assistant-side image rendering is fully solved yet
 - HTML/audio/video should stay deferred until the bridge supplies a stable shape and the runtime chooses a native Shelley-safe mapping path instead of dumping raw markup into ordinary assistant text
 
 ## Recommended normalization rules
@@ -232,7 +233,7 @@ Initial normalization target:
 
 - `markdown` → markdown-friendly `llm.Content`
 - `text` → text content
-- `image_ref` / simple image artifact → Shelley-native content only if a safe existing content form exists
+- `image_ref` / simple image artifact → first preserve compact `media_refs` metadata when URL/title are available; later promote into fuller Shelley-native media content only when the runtime chooses a stable native shape
 
 Unsupported kinds:
 

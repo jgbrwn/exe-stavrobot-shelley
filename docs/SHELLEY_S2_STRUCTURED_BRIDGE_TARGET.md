@@ -192,6 +192,7 @@ If `content` is present and supported:
 - map `markdown` into Shelley's normal markdown-friendly assistant content
 - map `text` into Shelley text content
 - map `image_ref` or `artifacts.image` into Shelley-native media/content surfaces when available
+- until a stable native media-content mapping is chosen, it is acceptable to preserve compact image/media references in display-oriented metadata rather than pretending they are already a first-class assistant block
 
 ## Rule 3: keep tool summaries compact
 

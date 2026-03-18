@@ -318,7 +318,7 @@ new file mode 100644
 index 0000000..f2fd349
 --- /dev/null
 +++ b/server/stavrobot.go
-@@ -0,0 +1,330 @@
+@@ -0,0 +1,355 @@
 +package server
 +
 +import (
@@ -528,6 +528,9 @@ index 0000000..f2fd349
 +		RawBridgePayload: &payload,
 +	}
 +
++	var toolSummary []map[string]string
++	var mediaRefs []map[string]string
++
 +	for _, item := range payload.Content {
 +		kind := item.Kind
 +		if kind == "" {
@@ -545,7 +548,15 @@ index 0000000..f2fd349
 +				result.ResponseText = text
 +			}
 +		case "image_ref":
-+			result.UnsupportedKinds = append(result.UnsupportedKinds, kind)
++			if item.URL == "" {
++				result.UnsupportedKinds = append(result.UnsupportedKinds, kind)
++				continue
++			}
++			mediaRefs = append(mediaRefs, map[string]string{
++				"kind":  kind,
++				"url":   item.URL,
++				"title": item.Title,
++			})
 +		default:
 +			result.UnsupportedKinds = append(result.UnsupportedKinds, kind)
 +		}
@@ -556,7 +567,20 @@ index 0000000..f2fd349
 +		if kind == "" {
 +			kind = "image"
 +		}
-+		result.UnsupportedKinds = append(result.UnsupportedKinds, "artifact:"+kind)
++		switch kind {
++		case "image":
++			if artifact.URL == "" {
++				result.UnsupportedKinds = append(result.UnsupportedKinds, "artifact:"+kind)
++				continue
++			}
++			mediaRefs = append(mediaRefs, map[string]string{
++				"kind":  "artifact:" + kind,
++				"url":   artifact.URL,
++				"title": artifact.Title,
++			})
++		default:
++			result.UnsupportedKinds = append(result.UnsupportedKinds, "artifact:"+kind)
++		}
 +	}
 +
 +	if len(result.AssistantContent) == 0 && result.ResponseText != "" {
@@ -564,7 +588,7 @@ index 0000000..f2fd349
 +	}
 +
 +	if payload.Display != nil && len(payload.Display.ToolSummary) > 0 {
-+		toolSummary := make([]map[string]string, 0, len(payload.Display.ToolSummary))
++		toolSummary = make([]map[string]string, 0, len(payload.Display.ToolSummary))
 +		for _, item := range payload.Display.ToolSummary {
 +			if item.Tool == "" && item.Status == "" && item.Title == "" {
 +				continue
@@ -575,10 +599,15 @@ index 0000000..f2fd349
 +				"title":  item.Title,
 +			})
 +		}
++	}
++
++	if len(toolSummary) > 0 || len(mediaRefs) > 0 {
++		result.DisplayData = map[string]any{}
 +		if len(toolSummary) > 0 {
-+			result.DisplayData = map[string]any{
-+				"tool_summary": toolSummary,
-+			}
++			result.DisplayData["tool_summary"] = toolSummary
++		}
++		if len(mediaRefs) > 0 {
++			result.DisplayData["media_refs"] = mediaRefs
 +		}
 +	}
 +
