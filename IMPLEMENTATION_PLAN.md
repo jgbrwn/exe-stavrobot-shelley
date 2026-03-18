@@ -786,6 +786,11 @@ Recommended principle:
 
 - every later Shelley phase should be justified by validation evidence, not just architectural neatness
 
+Strategic follow-up artifact:
+
+- `docs/SHELLEY_STRATEGIC_GAP_AUDIT.md` now summarizes the remaining post-S1 gaps, especially S2 rich-content fidelity, S4 recall validation, Stavrobot-mode-only backend-model UX placement, and mobile/responsive preservation rules
+- recommended next order remains: narrow S2 scope first, then collect S4 recall evidence before deciding on any Shelley-side retrieval layer
+
 
 ## Compact Shelley handoff summary
 
