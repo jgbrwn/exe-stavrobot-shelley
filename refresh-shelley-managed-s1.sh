@@ -44,6 +44,7 @@ Flags:
 Behavior:
   - applies the repo-owned 0001 -> 0004 Shelley patch series if not already applied
   - skips already-applied patches safely
+  - with --allow-dirty, can proceed when patch-check state is ambiguous on an intentionally dirty POC checkout
   - rebuilds sqlc, UI assets, templates, and bin/shelley
   - optionally runs smoke-test-shelley-managed-s1.sh
   - writes state/shelley-mode-build.json with current managed rebuild provenance
@@ -190,6 +191,8 @@ for patch in "${PATCHES[@]}"; do
     git -C "$SHELLEY_DIR" apply "$patch"
   elif git -C "$SHELLEY_DIR" apply --reverse --check "$patch" >/dev/null 2>&1; then
     info "Skipping already-applied $base"
+  elif [[ -n "$(git -C "$SHELLEY_DIR" status --porcelain)" ]] && (( ALLOW_DIRTY == 1 )); then
+    info "Dirty checkout with non-clean patch state for $base; continuing due to --allow-dirty"
   else
     die "Patch is neither cleanly applicable nor already applied: $base"
   fi

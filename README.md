@@ -136,6 +136,7 @@ What they do:
   - apply/skip the owned Shelley patch series, rebuild Shelley, and run isolated smoke validation
 - `--allow-dirty-shelley`
   - allow refresh against an already-modified `/opt/shelley` checkout
+  - if patch-check state is ambiguous on a deliberately dirty POC checkout, refresh can proceed in best-effort mode (rebuild/smoke/state update) rather than failing hard
 - `--skip-shelley-smoke`
   - skip the isolated Shelley smoke pass during refresh
 - `--expect-shelley-display-data`

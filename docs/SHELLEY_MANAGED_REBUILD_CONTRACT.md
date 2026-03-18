@@ -297,7 +297,8 @@ Algorithm:
 11. if rebuild required:
     - build Shelley UI if needed
     - build Shelley templates if needed
-    - apply/reapply managed S1 patch shape
+    - apply/reapply managed S1 patch shape when patch state is unambiguous
+    - when an operator intentionally uses a dirty POC checkout, refresh may proceed in allow-dirty mode even if patch-check state is ambiguous, but this should be treated as provisional/non-authoritative patch provenance
     - rebuild Shelley binary
     - run minimum validation checks
 12. write updated `state/shelley-mode-build.json`
