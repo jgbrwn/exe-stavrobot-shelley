@@ -177,3 +177,23 @@ Managed smoke helpers now fail fast when the smoke port is already in use.
 - smoke cleanup now also warns if a listener still exists on the smoke port after tmux shutdown.
 
 This prevents ambiguous failures where the shell session starts but Shelley exits immediately with bind errors.
+
+## Refresh-helper strict raw-media proof command
+
+With current updates, managed refresh can run a deterministic strict raw-media proof directly:
+
+```bash
+./refresh-shelley-managed-s1.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --smoke-port 8891 \
+  --smoke-expect-media-refs \
+  --smoke-require-media-refs \
+  --smoke-bridge-fixture raw_media_image
+```
+
+Notes:
+
+- refresh helper now fails fast if `--smoke-port` is already listening
+- when default smoke DB/session values are used, refresh now auto-suffixes them with port+timestamp to avoid stale-collision confusion
+- on smoke failure, refresh prints the exact smoke session/db/port tuple for fast diagnosis

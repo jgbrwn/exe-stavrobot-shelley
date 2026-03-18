@@ -17,7 +17,9 @@ SMOKE_REQUIRE_MEDIA_REFS=0
 SMOKE_BRIDGE_FIXTURE=""
 SMOKE_PORT="8765"
 SMOKE_DB_PATH="/tmp/shelley-stavrobot-managed-test.db"
+SMOKE_DB_PATH_DEFAULT=1
 SMOKE_TMUX_SESSION="shelley-managed-s1-smoke"
+SMOKE_TMUX_SESSION_DEFAULT=1
 PATCH_DIR="$ROOT_DIR/patches/shelley/series"
 PATCHES=(
   "$PATCH_DIR/0001-metadata-sql-ui.patch"
@@ -158,10 +160,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     --smoke-db-path)
       SMOKE_DB_PATH="$2"
+      SMOKE_DB_PATH_DEFAULT=0
       shift 2
       ;;
     --smoke-tmux-session)
       SMOKE_TMUX_SESSION="$2"
+      SMOKE_TMUX_SESSION_DEFAULT=0
       shift 2
       ;;
     --smoke-expect-display-data)
@@ -243,7 +247,18 @@ if (( RUN_SMOKE == 1 )); then
       die "Smoke port $SMOKE_PORT is already listening before smoke start (choose --smoke-port or stop listener)"
     fi
   fi
+
+  stamp=$(date +%s)
+  if (( SMOKE_DB_PATH_DEFAULT == 1 )); then
+    SMOKE_DB_PATH="/tmp/shelley-stavrobot-managed-test-${SMOKE_PORT}-${stamp}.db"
+  fi
+  if (( SMOKE_TMUX_SESSION_DEFAULT == 1 )); then
+    SMOKE_TMUX_SESSION="shelley-managed-s1-smoke-${SMOKE_PORT}-${stamp}"
+  fi
+
   info "Running isolated managed Shelley smoke test"
+  info "Smoke session: $SMOKE_TMUX_SESSION"
+  info "Smoke db path: $SMOKE_DB_PATH"
   smoke_args=(
     --shelley-dir "$SHELLEY_DIR"
     --shelley-bin "$SHELLEY_DIR/bin/shelley"
@@ -267,7 +282,10 @@ if (( RUN_SMOKE == 1 )); then
   if [[ -n "$SMOKE_BRIDGE_FIXTURE" ]]; then
     smoke_args+=(--bridge-fixture "$SMOKE_BRIDGE_FIXTURE")
   fi
-  "$ROOT_DIR/smoke-test-shelley-managed-s1.sh" "${smoke_args[@]}"
+  if ! "$ROOT_DIR/smoke-test-shelley-managed-s1.sh" "${smoke_args[@]}"; then
+    warn "Managed smoke failed (session=$SMOKE_TMUX_SESSION db=$SMOKE_DB_PATH port=$SMOKE_PORT)"
+    die "Managed refresh smoke validation failed"
+  fi
 fi
 
 write_state_file
