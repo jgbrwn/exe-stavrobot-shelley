@@ -97,6 +97,17 @@ But patch `0004` should continue to be reviewed against the explicit longer-term
 
 That means the current `server/stavrobot.go` shape is acceptable for S1, but should not be treated as proof that the final runtime boundary is permanently text-only.
 
+The preferred widening references are now:
+
+- `../../../docs/SHELLEY_S2_STRUCTURED_BRIDGE_TARGET.md`
+- `../../../docs/SHELLEY_RUNTIME_ADAPTATION_CONTRACT.md`
+
+Those docs together define:
+
+- the narrow first S2 bridge payload target
+- the preferred `StavrobotTurnResult` widening path
+- the fallback rule that `ResponseText` remains mandatory even as richer adaptation lands
+
 
 ## Current patch-0004 review notes
 
@@ -110,3 +121,9 @@ So while the current prototype `0004` patch is acceptable for S1, its helper/res
 All Shelley-side Stavrobot integration work should preserve upstream Shelley's existing excellent mobile/responsive presentation.
 
 So even future richer-output work should prefer native Shelley content/display mapping over any separate Stavrobot-specific rendering path.
+
+Practically, future sessions should treat this as a review rule for patch `0004` and later follow-ons:
+
+- compact display metadata is preferred over large custom Stavrobot panels
+- existing Shelley message/content surfaces should be preferred over bespoke layouts
+- richer output should still degrade cleanly to ordinary assistant content when necessary

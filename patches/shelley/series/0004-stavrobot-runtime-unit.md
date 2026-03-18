@@ -58,11 +58,27 @@ type StavrobotTurnResult struct {
 }
 ```
 
+Preferred widening direction after S1:
+
+```go
+type StavrobotTurnResult struct {
+    ResponseText     string
+    ConversationID   string
+    MessageID        string
+    RawBridgePayload *StavrobotBridgePayload
+    AssistantContent []llm.Content
+    DisplayData      map[string]any
+    UnsupportedKinds []string
+}
+```
+
 Important S2 guardrail:
 
-- this S1 shape is intentionally minimal
+- the first S1 shape is intentionally minimal
 - but patch 0004 should not freeze the runtime boundary into a permanent text-only abstraction
 - when the bridge grows stable structured output, this result shape should be allowed to evolve so Shelley can preserve native markdown/media/tool/display semantics rather than flattening everything into `ResponseText`
+- `ResponseText` should remain the mandatory fallback even after widening
+- the preferred widening guide now lives in `../../../docs/SHELLEY_RUNTIME_ADAPTATION_CONTRACT.md`
 
 ## Recommended internal helper boundaries
 
@@ -101,6 +117,13 @@ Responsibilities:
 - build argv as literal tokens
 - execute bridge
 - parse bridge JSON output into a `StavrobotTurnResult`
+- preserve raw parsed bridge payload when available
+- normalize only a narrow supported subset of richer content/display data at first
+
+Near-term widening rule:
+
+- this function should evolve toward returning both normalized fallback fields and richer parsed payload data
+- it should not become the place where Shelley UI rendering decisions are made
 
 Expected argv shape for S1:
 
@@ -124,6 +147,13 @@ Responsibilities:
 - record assistant message
 - notify subscribers
 - record operator-visible failure message when needed
+- remain the Shelley-side adaptation/recording boundary for richer content/display metadata
+
+Near-term widening rule:
+
+- prefer recording normalized `AssistantContent` when supported
+- otherwise fall back to `ResponseText`
+- keep compact display metadata separate from the main assistant body when possible
 
 ## Error classes this unit should distinguish
 
@@ -181,6 +211,20 @@ The captured prototype runtime patch currently does these S1-specific things:
   - optional display metadata
 
 These are acceptable S1 constraints, but they should stay documented as current limitations rather than becoming hidden architectural assumptions.
+
+## Runtime adaptation contract pointer
+
+For future implementation sessions, treat this patch note as the patch-local summary and use the repo doc below as the preferred widening contract:
+
+- `../../../docs/SHELLEY_RUNTIME_ADAPTATION_CONTRACT.md`
+
+That doc is the intended reference for:
+
+- raw bridge payload retention
+- normalized assistant-content preparation
+- compact display metadata handling
+- explicit unsupported-kind fallback behavior
+- ownership split between `ExecuteStavrobotTurn(...)` and `ProcessStavrobotConversationTurn(...)`
 
 ## Future-safe adaptation boundary guidance
 
