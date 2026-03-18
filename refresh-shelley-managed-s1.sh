@@ -14,7 +14,15 @@ SMOKE_EXPECT_DISPLAY_DATA=0
 SMOKE_REQUIRE_DISPLAY_HINTS=0
 SMOKE_EXPECT_MEDIA_REFS=0
 SMOKE_REQUIRE_MEDIA_REFS=0
+SMOKE_EXPECT_NATIVE_RAW_MEDIA_GATING=0
+SMOKE_REQUIRE_NATIVE_RAW_MEDIA_HINTS=0
+SMOKE_EXPECT_RAW_MEDIA_REJECTION=0
+SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS=0
 SMOKE_BRIDGE_FIXTURE=""
+PRINT_CLEAN_RESET_INSTRUCTIONS=0
+CLEAN_RESET_SHELLEY_CHECKOUT=0
+CLEAN_RESET_ONLY=0
+I_UNDERSTAND_RESET=0
 SMOKE_PORT="8765"
 SMOKE_DB_PATH="/tmp/shelley-stavrobot-managed-test.db"
 SMOKE_DB_PATH_DEFAULT=1
@@ -48,7 +56,15 @@ Flags:
   --smoke-require-display-hints  With --smoke-expect-display-data, fail if sampled turns have no display hints
   --smoke-expect-media-refs      Assert persisted media_refs when sampled turns contain image/media hints
   --smoke-require-media-refs     With --smoke-expect-media-refs, fail if no media-ref hints are observed
-  --smoke-bridge-fixture NAME    Optional bridge fixture mode passed to smoke server (e.g. tool_summary)
+  --smoke-expect-native-raw-media-gating  Assert runtime native raw-media mapping gate (only when no assistant text)
+  --smoke-require-native-raw-media-hints  With --smoke-expect-native-raw-media-gating, fail if no raw-inline hints are observed
+  --smoke-expect-raw-media-rejection  Assert runtime rejection of invalid raw-inline artifacts
+  --smoke-require-raw-media-rejection-hints  With --smoke-expect-raw-media-rejection, fail if no invalid raw-inline hints are observed
+  --smoke-bridge-fixture NAME    Optional bridge fixture mode passed to smoke server (e.g. tool_summary, runtime_raw_media_only, runtime_invalid_raw_media)
+  --print-clean-reset-instructions  Print safe /opt/shelley cleanup instructions and exit
+  --clean-reset-shelley-checkout   Hard reset and clean the managed Shelley checkout before refresh
+  --clean-reset-only               Perform cleanup reset and exit without patch/rebuild/smoke
+  --i-understand-reset             Required with --clean-reset-shelley-checkout to confirm destructive intent
   --help
 
 Behavior:
@@ -59,6 +75,34 @@ Behavior:
   - optionally runs smoke-test-shelley-managed-s1.sh
   - writes state/shelley-mode-build.json with current managed rebuild provenance
 EOF
+}
+
+print_clean_reset_instructions() {
+  cat <<EOF
+Managed checkout cleanup guidance for: $SHELLEY_DIR
+
+Safe inspect commands:
+  git -C "$SHELLEY_DIR" status --short --branch
+  git -C "$SHELLEY_DIR" diff --stat
+
+If you intend to discard local checkout changes and untracked files:
+  git -C "$SHELLEY_DIR" reset --hard HEAD
+  git -C "$SHELLEY_DIR" clean -fd
+
+Notes:
+  - this only affects the managed Shelley checkout, not this repo
+  - use this before refresh if prior allow-dirty runs left local modifications
+EOF
+}
+
+clean_reset_shelley_checkout() {
+  [[ -d "$SHELLEY_DIR/.git" ]] || die "Shelley checkout is not a git repo: $SHELLEY_DIR"
+  if (( I_UNDERSTAND_RESET == 0 )); then
+    die "--clean-reset-shelley-checkout is destructive; rerun with --i-understand-reset"
+  fi
+  info "Resetting managed Shelley checkout to HEAD and removing untracked files"
+  git -C "$SHELLEY_DIR" reset --hard HEAD
+  git -C "$SHELLEY_DIR" clean -fd
 }
 
 write_state_file() {
@@ -184,9 +228,41 @@ while [[ $# -gt 0 ]]; do
       SMOKE_REQUIRE_MEDIA_REFS=1
       shift
       ;;
+    --smoke-expect-native-raw-media-gating)
+      SMOKE_EXPECT_NATIVE_RAW_MEDIA_GATING=1
+      shift
+      ;;
+    --smoke-require-native-raw-media-hints)
+      SMOKE_REQUIRE_NATIVE_RAW_MEDIA_HINTS=1
+      shift
+      ;;
+    --smoke-expect-raw-media-rejection)
+      SMOKE_EXPECT_RAW_MEDIA_REJECTION=1
+      shift
+      ;;
+    --smoke-require-raw-media-rejection-hints)
+      SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS=1
+      shift
+      ;;
     --smoke-bridge-fixture)
       SMOKE_BRIDGE_FIXTURE="$2"
       shift 2
+      ;;
+    --print-clean-reset-instructions)
+      PRINT_CLEAN_RESET_INSTRUCTIONS=1
+      shift
+      ;;
+    --clean-reset-shelley-checkout)
+      CLEAN_RESET_SHELLEY_CHECKOUT=1
+      shift
+      ;;
+    --clean-reset-only)
+      CLEAN_RESET_ONLY=1
+      shift
+      ;;
+    --i-understand-reset)
+      I_UNDERSTAND_RESET=1
+      shift
       ;;
     --help)
       usage
@@ -205,11 +281,40 @@ require_cmd node
 require_cmd npx
 require_cmd python3
 [[ -d "$SHELLEY_DIR/.git" ]] || die "Shelley checkout is not a git repo: $SHELLEY_DIR"
+
+if (( PRINT_CLEAN_RESET_INSTRUCTIONS == 1 )); then
+  print_clean_reset_instructions
+  exit 0
+fi
+
+if (( CLEAN_RESET_SHELLEY_CHECKOUT == 1 || CLEAN_RESET_ONLY == 1 )); then
+  clean_reset_shelley_checkout
+  if (( CLEAN_RESET_ONLY == 1 )); then
+    info "Managed Shelley checkout reset complete (--clean-reset-only)"
+    exit 0
+  fi
+fi
+
 [[ -f "$PROFILE_STATE_PATH" ]] || die "Profile state file not found: $PROFILE_STATE_PATH"
 python3 "$ROOT_DIR/py/shelley_bridge_profiles.py" validate "$PROFILE_STATE_PATH" >/dev/null
 
+if (( SMOKE_REQUIRE_DISPLAY_HINTS == 1 && SMOKE_EXPECT_DISPLAY_DATA == 0 )); then
+  die "--smoke-require-display-hints requires --smoke-expect-display-data"
+fi
+if (( SMOKE_REQUIRE_MEDIA_REFS == 1 && SMOKE_EXPECT_MEDIA_REFS == 0 )); then
+  die "--smoke-require-media-refs requires --smoke-expect-media-refs"
+fi
+if (( SMOKE_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 && SMOKE_EXPECT_NATIVE_RAW_MEDIA_GATING == 0 )); then
+  die "--smoke-require-native-raw-media-hints requires --smoke-expect-native-raw-media-gating"
+fi
+if (( SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 && SMOKE_EXPECT_RAW_MEDIA_REJECTION == 0 )); then
+  die "--smoke-require-raw-media-rejection-hints requires --smoke-expect-raw-media-rejection"
+fi
+
 if (( ALLOW_DIRTY == 0 )) && [[ -n "$(git -C "$SHELLEY_DIR" status --porcelain)" ]]; then
-  die "Shelley checkout is not clean: $SHELLEY_DIR (use --allow-dirty if this is intentional)"
+  warn "Shelley checkout is not clean: $SHELLEY_DIR"
+  print_clean_reset_instructions
+  die "Refusing dirty checkout without --allow-dirty (or run --clean-reset-shelley-checkout --i-understand-reset)"
 fi
 
 for patch in "${PATCHES[@]}"; do
@@ -278,6 +383,18 @@ if (( RUN_SMOKE == 1 )); then
   fi
   if (( SMOKE_REQUIRE_MEDIA_REFS == 1 )); then
     smoke_args+=(--require-media-refs)
+  fi
+  if (( SMOKE_EXPECT_NATIVE_RAW_MEDIA_GATING == 1 )); then
+    smoke_args+=(--expect-native-raw-media-gating)
+  fi
+  if (( SMOKE_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 )); then
+    smoke_args+=(--require-native-raw-media-hints)
+  fi
+  if (( SMOKE_EXPECT_RAW_MEDIA_REJECTION == 1 )); then
+    smoke_args+=(--expect-raw-media-rejection)
+  fi
+  if (( SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 )); then
+    smoke_args+=(--require-raw-media-rejection-hints)
   fi
   if [[ -n "$SMOKE_BRIDGE_FIXTURE" ]]; then
     smoke_args+=(--bridge-fixture "$SMOKE_BRIDGE_FIXTURE")

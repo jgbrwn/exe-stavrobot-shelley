@@ -197,3 +197,52 @@ Notes:
 - refresh helper now fails fast if `--smoke-port` is already listening
 - when default smoke DB/session values are used, refresh now auto-suffixes them with port+timestamp to avoid stale-collision confusion
 - on smoke failure, refresh prints the exact smoke session/db/port tuple for fast diagnosis
+
+## Runtime native-mapping/rejection smoke assertions (new)
+
+Managed smoke helpers now support two additional runtime-focused assertions:
+
+- `--expect-native-raw-media-gating` (+ optional strict `--require-native-raw-media-hints`)
+  - validates phase-2 gate behavior: native raw-media mapping is allowed only when no assistant text content exists
+- `--expect-raw-media-rejection` (+ optional strict `--require-raw-media-rejection-hints`)
+  - validates invalid raw-inline artifacts are rejected non-fatally (no persisted invalid raw media ref + unsupported-kind reason evidence)
+
+Deterministic fixture aids were added for this:
+
+- `STAVROBOT_BRIDGE_FIXTURE=runtime_raw_media_only`
+- `STAVROBOT_BRIDGE_FIXTURE=runtime_invalid_raw_media`
+
+Plus additional rejection-shape fixtures:
+
+- `STAVROBOT_BRIDGE_FIXTURE=runtime_unsupported_raw_mime`
+- `STAVROBOT_BRIDGE_FIXTURE=runtime_oversize_raw_media`
+
+Example direct smoke command (gate proof):
+
+```bash
+./smoke-test-shelley-managed-s1.sh \
+  --shelley-dir /opt/shelley \
+  --shelley-bin /opt/shelley/bin/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8892 \
+  --db-path /tmp/shelley-smoke-gate.db \
+  --tmux-session shelley-smoke-gate \
+  --bridge-fixture runtime_raw_media_only \
+  --expect-native-raw-media-gating \
+  --require-native-raw-media-hints
+```
+
+Example rejection proof command:
+
+```bash
+./smoke-test-shelley-managed-s1.sh \
+  --shelley-dir /opt/shelley \
+  --shelley-bin /opt/shelley/bin/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8893 \
+  --db-path /tmp/shelley-smoke-reject.db \
+  --tmux-session shelley-smoke-reject \
+  --bridge-fixture runtime_invalid_raw_media \
+  --expect-raw-media-rejection \
+  --require-raw-media-rejection-hints
+```

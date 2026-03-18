@@ -71,4 +71,14 @@ assert_contains "$out_raw_fixture" '"artifacts": ['
 assert_contains "$out_raw_fixture" '"transport": "raw_inline_base64"'
 assert_contains "$out_raw_fixture" '"title": "fixture raw media image for managed smoke validation"'
 
+out_runtime_raw_only=$(STAVROBOT_SESSION_BIN="$SESSION_STUB" STAVROBOT_BRIDGE_FIXTURE=runtime_raw_media_only "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
+assert_contains "$out_runtime_raw_only" '"content": []'
+assert_contains "$out_runtime_raw_only" '"transport": "raw_inline_base64"'
+assert_contains "$out_runtime_raw_only" '"title": "fixture runtime raw-media only artifact"'
+
+out_runtime_invalid=$(STAVROBOT_SESSION_BIN="$SESSION_STUB" STAVROBOT_BRIDGE_FIXTURE=runtime_invalid_raw_media "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
+assert_contains "$out_runtime_invalid" '"content": []'
+assert_contains "$out_runtime_invalid" '"data_base64": "%%%not-base64%%%"'
+assert_contains "$out_runtime_invalid" '"title": "fixture runtime invalid raw-media artifact"'
+
 printf 'shelley-stavrobot-bridge fixture tests passed\n'

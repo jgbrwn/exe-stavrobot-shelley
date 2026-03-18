@@ -22,6 +22,10 @@ EXPECT_DISPLAY_DATA=0
 REQUIRE_DISPLAY_HINTS=0
 EXPECT_MEDIA_REFS=0
 REQUIRE_MEDIA_REFS=0
+EXPECT_NATIVE_RAW_MEDIA_GATING=0
+REQUIRE_NATIVE_RAW_MEDIA_HINTS=0
+EXPECT_RAW_MEDIA_REJECTION=0
+REQUIRE_RAW_MEDIA_REJECTION_HINTS=0
 BRIDGE_FIXTURE=""
 SERVER_LOG="/tmp/shelley-managed-s1-smoke.log"
 
@@ -56,7 +60,11 @@ Flags:
   --require-display-hints        With --expect-display-data, fail if no display-hint payloads are observed
   --expect-media-refs            Assert persisted display_data.media_refs when artifact/image hints are present (URL and/or raw-inline hints)
   --require-media-refs           With --expect-media-refs, fail if no media-ref hints are observed
-  --bridge-fixture NAME          Optional bridge fixture mode for smoke server (e.g. tool_summary)
+  --expect-native-raw-media-gating  Assert phase-2 native mapping gate: raw-inline media maps to native content only when no assistant text exists
+  --require-native-raw-media-hints  With --expect-native-raw-media-gating, fail if no raw-inline hints are observed
+  --expect-raw-media-rejection   Assert invalid raw-inline artifacts are rejected at runtime (no persisted raw media_ref + unsupported_kinds evidence)
+  --require-raw-media-rejection-hints  With --expect-raw-media-rejection, fail if no invalid raw-inline hints are observed
+  --bridge-fixture NAME          Optional bridge fixture mode for smoke server (e.g. tool_summary, runtime_raw_media_only, runtime_invalid_raw_media)
   --help
 
 Notes:
@@ -208,6 +216,22 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_MEDIA_REFS=1
       shift
       ;;
+    --expect-native-raw-media-gating)
+      EXPECT_NATIVE_RAW_MEDIA_GATING=1
+      shift
+      ;;
+    --require-native-raw-media-hints)
+      REQUIRE_NATIVE_RAW_MEDIA_HINTS=1
+      shift
+      ;;
+    --expect-raw-media-rejection)
+      EXPECT_RAW_MEDIA_REJECTION=1
+      shift
+      ;;
+    --require-raw-media-rejection-hints)
+      REQUIRE_RAW_MEDIA_REJECTION_HINTS=1
+      shift
+      ;;
     --bridge-fixture)
       BRIDGE_FIXTURE="$2"
       shift 2
@@ -237,6 +261,12 @@ if (( REQUIRE_DISPLAY_HINTS == 1 && EXPECT_DISPLAY_DATA == 0 )); then
 fi
 if (( REQUIRE_MEDIA_REFS == 1 && EXPECT_MEDIA_REFS == 0 )); then
   die "--require-media-refs requires --expect-media-refs"
+fi
+if (( REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 && EXPECT_NATIVE_RAW_MEDIA_GATING == 0 )); then
+  die "--require-native-raw-media-hints requires --expect-native-raw-media-gating"
+fi
+if (( REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 && EXPECT_RAW_MEDIA_REJECTION == 0 )); then
+  die "--require-raw-media-rejection-hints requires --expect-raw-media-rejection"
 fi
 
 python3 "$ROOT_DIR/py/shelley_bridge_profiles.py" validate "$PROFILE_STATE_PATH" >/dev/null
@@ -473,6 +503,205 @@ PY
       die "Expected media-ref hints but none were observed in sampled Stavrobot turns"
     fi
     info "No media-ref hints observed in smoke turn outputs; media_refs assertion not required for this run"
+  fi
+fi
+
+if (( EXPECT_NATIVE_RAW_MEDIA_GATING == 1 )); then
+  info "Checking runtime phase-2 native raw-media mapping gate"
+  sqlite_gate_tmp=$(mktemp)
+  sqlite3 -json "$DB_PATH" "SELECT sequence_id, llm_data, user_data, display_data FROM messages WHERE conversation_id='$stavrobot_conversation_id' AND type='agent' ORDER BY sequence_id;" >"$sqlite_gate_tmp"
+  gate_result=$(python3 - "$sqlite_gate_tmp" <<'PY'
+import json, sys
+rows = json.load(open(sys.argv[1]))
+hint_rows = 0
+violations = []
+for row in rows:
+    ud = row.get("user_data")
+    if not ud:
+        continue
+    try:
+        parsed = json.loads(ud)
+    except Exception:
+        continue
+    st = (parsed.get("stavrobot") or {}) if isinstance(parsed, dict) else {}
+    raw = st.get("raw_payload") if isinstance(st, dict) else None
+    if not isinstance(raw, dict):
+        continue
+
+    raw_artifacts = [
+        item for item in (raw.get("artifacts") or [])
+        if isinstance(item, dict)
+        and item.get("kind") == "image"
+        and (item.get("transport") == "raw_inline_base64" or item.get("data_base64"))
+    ]
+    if not raw_artifacts:
+        continue
+    hint_rows += 1
+
+    has_text = any(
+        isinstance(item, dict)
+        and item.get("kind") in ("text", "markdown")
+        and bool(item.get("text"))
+        for item in (raw.get("content") or [])
+    )
+
+    llm_raw = row.get("llm_data")
+    llm = {}
+    if isinstance(llm_raw, str) and llm_raw:
+        try:
+            llm = json.loads(llm_raw)
+        except Exception:
+            llm = {}
+    content = llm.get("Content") if isinstance(llm, dict) else []
+    if not isinstance(content, list):
+        content = []
+
+    has_native_raw_media = any(
+        isinstance(c, dict)
+        and c.get("MediaType")
+        and c.get("Data")
+        for c in content
+    )
+
+    display_raw = row.get("display_data")
+    display = {}
+    if isinstance(display_raw, str) and display_raw:
+        try:
+            display = json.loads(display_raw)
+        except Exception:
+            display = {}
+    media_refs = display.get("media_refs") if isinstance(display, dict) else None
+    if not isinstance(media_refs, list):
+        media_refs = []
+    has_persisted_raw_ref = any(
+        isinstance(ref, dict)
+        and (ref.get("transport") == "raw_inline_base64" or bool(ref.get("data_base64")))
+        for ref in media_refs
+    )
+    if not has_persisted_raw_ref:
+        violations.append(f"{row.get('sequence_id')}:missing_persisted_raw_media_ref")
+
+    if has_text and has_native_raw_media:
+        violations.append(f"{row.get('sequence_id')}:native_raw_media_present_with_assistant_text")
+    if (not has_text) and (not has_native_raw_media):
+        violations.append(f"{row.get('sequence_id')}:native_raw_media_missing_without_assistant_text")
+
+if hint_rows == 0:
+    print("not_required")
+elif violations:
+    raise SystemExit("native_raw_media_gate violations: " + ",".join(violations))
+else:
+    print("required_ok")
+PY
+)
+  if [[ "$gate_result" == "not_required" ]]; then
+    if (( REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 )); then
+      die "Expected raw-inline media hints for native mapping gate validation but none were observed"
+    fi
+    info "No raw-inline media hints observed; native mapping gate assertion not required for this run"
+  fi
+fi
+
+if (( EXPECT_RAW_MEDIA_REJECTION == 1 )); then
+  info "Checking runtime raw-media rejection path (invalid artifacts degrade non-fatally)"
+  sqlite_reject_tmp=$(mktemp)
+  sqlite3 -json "$DB_PATH" "SELECT sequence_id, llm_data, user_data, display_data FROM messages WHERE conversation_id='$stavrobot_conversation_id' AND type='agent' ORDER BY sequence_id;" >"$sqlite_reject_tmp"
+  rejection_result=$(python3 - "$sqlite_reject_tmp" <<'PY'
+import json, sys
+rows = json.load(open(sys.argv[1]))
+hint_rows = 0
+violations = []
+for row in rows:
+    ud = row.get("user_data")
+    if not ud:
+        continue
+    try:
+        parsed = json.loads(ud)
+    except Exception:
+        continue
+    st = (parsed.get("stavrobot") or {}) if isinstance(parsed, dict) else {}
+    raw = st.get("raw_payload") if isinstance(st, dict) else None
+    if not isinstance(raw, dict):
+        continue
+
+    raw_artifacts = [
+        item for item in (raw.get("artifacts") or [])
+        if isinstance(item, dict)
+        and item.get("kind") == "image"
+        and (item.get("transport") == "raw_inline_base64" or bool(item.get("data_base64")))
+    ]
+    if not raw_artifacts:
+        continue
+
+    has_invalid = False
+    for art in raw_artifacts:
+        mime = str(art.get("mime_type") or "").strip().lower().split(';', 1)[0]
+        if mime == "image/jpg":
+            mime = "image/jpeg"
+        if mime and mime not in {"image/png", "image/jpeg", "image/gif", "image/webp"}:
+            has_invalid = True
+            break
+        data = art.get("data_base64")
+        if not isinstance(data, str) or not data:
+            has_invalid = True
+            break
+        if "%%%" in data or "not-base64" in data:
+            has_invalid = True
+            break
+        if isinstance(art.get("byte_length"), int) and art.get("byte_length", 0) > 262144:
+            has_invalid = True
+            break
+
+    if not has_invalid:
+        continue
+
+    hint_rows += 1
+    unsupported = st.get("unsupported_kinds") if isinstance(st, dict) else None
+    if not isinstance(unsupported, list) or not any(isinstance(v, str) and v.startswith("artifact:image:") for v in unsupported):
+        violations.append(f"{row.get('sequence_id')}:missing_unsupported_kinds_reason")
+
+    display_raw = row.get("display_data")
+    display = {}
+    if isinstance(display_raw, str) and display_raw:
+        try:
+            display = json.loads(display_raw)
+        except Exception:
+            display = {}
+    media_refs = display.get("media_refs") if isinstance(display, dict) else None
+    if not isinstance(media_refs, list):
+        media_refs = []
+    has_persisted_raw_ref = any(
+        isinstance(ref, dict)
+        and (ref.get("transport") == "raw_inline_base64" or bool(ref.get("data_base64")))
+        for ref in media_refs
+    )
+    if has_persisted_raw_ref:
+        violations.append(f"{row.get('sequence_id')}:invalid_raw_media_persisted")
+
+    llm_raw = row.get("llm_data")
+    llm = {}
+    if isinstance(llm_raw, str) and llm_raw:
+        try:
+            llm = json.loads(llm_raw)
+        except Exception:
+            llm = {}
+    content = llm.get("Content") if isinstance(llm, dict) else []
+    if not isinstance(content, list) or len(content) == 0:
+        violations.append(f"{row.get('sequence_id')}:assistant_content_missing")
+
+if hint_rows == 0:
+    print("not_required")
+elif violations:
+    raise SystemExit("raw_media_rejection violations: " + ",".join(violations))
+else:
+    print("required_ok")
+PY
+)
+  if [[ "$rejection_result" == "not_required" ]]; then
+    if (( REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 )); then
+      die "Expected invalid raw-media hints for rejection validation but none were observed"
+    fi
+    info "No invalid raw-media hints observed; rejection assertion not required for this run"
   fi
 fi
 

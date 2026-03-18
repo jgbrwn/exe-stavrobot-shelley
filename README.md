@@ -154,7 +154,16 @@ What they do:
 - `--require-shelley-media-refs`
   - with `--expect-shelley-media-refs`, fail refresh/smoke if sampled turns contain no image/media hints
 - `--shelley-bridge-fixture`
-  - optional test fixture mode for smoke validation bridge payloads (for example `tool_summary`)
+  - optional test fixture mode for smoke validation bridge payloads (for example `tool_summary`, `runtime_raw_media_only`, `runtime_invalid_raw_media`)
+- `--expect-shelley-native-raw-media-gating`
+  - assert phase-2 runtime gate: native raw-media mapping is allowed only when no assistant text content exists
+- `--require-shelley-native-raw-media-hints`
+  - with `--expect-shelley-native-raw-media-gating`, fail when no raw-inline hints are observed
+- `--expect-shelley-raw-media-rejection`
+  - assert runtime rejects invalid raw-inline artifacts non-fatally (no persisted invalid raw media refs + unsupported-kind reason evidence)
+- `--require-shelley-raw-media-rejection-hints`
+  - with `--expect-shelley-raw-media-rejection`, fail when no invalid raw-inline hints are observed
+- cleanup ergonomics: `./refresh-shelley-managed-s1.sh --print-clean-reset-instructions` (or `--clean-reset-only --i-understand-reset`) helps keep `/opt/shelley` deterministic between refresh runs
 
 Common status interpretation:
 
@@ -190,6 +199,7 @@ Lightweight helper/status validation:
 ./tests/run.sh test-shelley-stavrobot-bridge-fixture.sh
 ./tests/run.sh test-shelley-stavrobot-bridge-raw-media-negative.sh
 ./tests/run.sh test-shelley-runtime-raw-media-patch-contract.sh
+./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
 ```
 
 ## Operator helper: Stavrobot backend model control
