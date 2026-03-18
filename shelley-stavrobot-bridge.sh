@@ -59,6 +59,7 @@ Notes:
   - default output is full JSON so Shelley/runtime callers can parse response text plus IDs
   - chat output now also includes narrow S2-ready fields like content/display/raw while preserving response/conversation_id/message_id
   - use --extract response for human-oriented text-only output
+  - bridge now also attempts to enrich compact tool_summary from the events endpoint when chat payload lacks direct event/display fields
   - when STAVROBOT_BRIDGE_FIXTURE=tool_summary is set, chat output injects deterministic display.tool_summary only if no real summary is available (test/validation aid)
   --pretty                Pretty-print JSON output
   --connect-timeout SEC   Curl connect timeout in seconds
@@ -233,10 +234,12 @@ done
 
 render_bridge_chat_json() {
   local response_json="$1"
-  python3 - "$response_json" "$STAVROBOT_BRIDGE_FIXTURE" <<'PY'
+  local events_json="${2:-}"
+  python3 - "$response_json" "$STAVROBOT_BRIDGE_FIXTURE" "$events_json" <<'PY'
 import json, sys
 payload = json.loads(sys.argv[1])
 fixture = sys.argv[2]
+events_json = sys.argv[3]
 response = payload.get('response', '')
 out = {
     'ok': True,
@@ -249,19 +252,58 @@ out = {
 }
 if response:
     out['content'].append({'kind': 'markdown', 'text': response})
+
 tool_summary = []
-for key in ('events', 'tool_events', 'tool_summary'):
-    value = payload.get(key)
-    if isinstance(value, list) and value:
-        for item in value:
-            if not isinstance(item, dict):
-                continue
-            tool_summary.append({
-                'tool': str(item.get('tool') or item.get('name') or item.get('type') or 'tool'),
-                'status': str(item.get('status') or item.get('result') or 'ok'),
-                'title': str(item.get('title') or item.get('summary') or item.get('message') or ''),
-            })
-        break
+seen = set()
+
+def append_summary_item(item):
+    if not isinstance(item, dict):
+        return
+    tool = str(item.get('tool') or item.get('name') or item.get('type') or 'tool')
+    status = str(item.get('status') or item.get('result') or 'ok')
+    title = str(item.get('title') or item.get('summary') or item.get('message') or '')
+    if tool == 'tool' and not title:
+        return
+    key = (tool, status, title)
+    if key in seen:
+        return
+    seen.add(key)
+    tool_summary.append({'tool': tool, 'status': status, 'title': title})
+
+# Prefer direct payload display summary when present.
+display = payload.get('display')
+if isinstance(display, dict):
+    for item in (display.get('tool_summary') or []):
+        append_summary_item(item)
+
+# Then accept direct payload event-ish lists.
+if not tool_summary:
+    for key in ('events', 'tool_events', 'tool_summary'):
+        value = payload.get(key)
+        if isinstance(value, list) and value:
+            for item in value:
+                append_summary_item(item)
+            if tool_summary:
+                break
+
+# If chat payload was text-only, enrich from events endpoint output when available.
+if not tool_summary and events_json:
+    try:
+        event_payload = json.loads(events_json)
+    except Exception:
+        event_payload = None
+    if isinstance(event_payload, dict):
+        events = event_payload.get('events') or []
+        if isinstance(events, list):
+            for item in events[-8:]:
+                if not isinstance(item, dict):
+                    continue
+                # Keep only tool-oriented event types for compact summary.
+                event_type = str(item.get('type') or '')
+                if event_type and not event_type.startswith('tool_'):
+                    continue
+                append_summary_item(item)
+
 if fixture == 'tool_summary' and not tool_summary:
     tool_summary = [{
         'tool': 'fixture.tool_summary',
@@ -269,11 +311,32 @@ if fixture == 'tool_summary' and not tool_summary:
         'title': 'fixture generated tool summary for managed smoke validation',
     }]
 if tool_summary:
-    out['display']['tool_summary'] = tool_summary
+    out['display']['tool_summary'] = tool_summary[:8]
 if not out['display']:
     out.pop('display')
 print(json.dumps(out, indent=2))
 PY
+}
+
+fetch_chat_events_json() {
+  local chat_json="$1"
+  local conv_id
+  conv_id=$(python3 - "$chat_json" <<'PY'
+import json, sys
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    print("")
+    raise SystemExit(0)
+print(data.get('conversation_id') or "")
+PY
+)
+  [[ -n "$conv_id" ]] || return 0
+
+  local events_json
+  if events_json=$(run_client events --conversation-id "$conv_id" 2>/dev/null); then
+    printf '%s\n' "$events_json"
+  fi
 }
 
 case "$COMMAND" in
@@ -316,10 +379,12 @@ elif isinstance(value, (dict, list)):
 else:
     print(value)
 PY
-    elif (( PRETTY )); then
-      render_bridge_chat_json "$chat_json"
     else
-      render_bridge_chat_json "$chat_json"
+      events_json=""
+      if [[ -z "$STAVROBOT_BRIDGE_FIXTURE" || "$STAVROBOT_BRIDGE_FIXTURE" == "tool_summary" ]]; then
+        events_json=$(fetch_chat_events_json "$chat_json" || true)
+      fi
+      render_bridge_chat_json "$chat_json" "$events_json"
     fi
     ;;
   show-session)

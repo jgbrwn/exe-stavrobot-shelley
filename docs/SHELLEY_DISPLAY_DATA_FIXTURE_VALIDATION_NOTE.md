@@ -67,3 +67,12 @@ This fixture is a validation aid only.
 - It should not be treated as production content behavior.
 - It should be used to prove runtime persistence plumbing deterministically.
 - Live/non-fixture behavior remains governed by real bridge/Stavrobot payloads.
+
+## Live non-fixture validation update
+
+The bridge now attempts live `tool_summary` enrichment from the events endpoint whenever chat output does not already include usable event/display summary fields.
+
+Practical consequence:
+
+- strict smoke runs with `--expect-display-data --require-display-hints` can now pass without fixture mode when Stavrobot event data is available for the sampled conversation
+- fixture mode remains useful as a deterministic fallback for CI/POC environments where live behavior may vary

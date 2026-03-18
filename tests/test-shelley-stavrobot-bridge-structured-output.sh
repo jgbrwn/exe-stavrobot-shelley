@@ -46,7 +46,36 @@ exit 1
 EOF_SESSION
 chmod +x "$SESSION_STUB"
 
-out=$(STAVROBOT_SESSION_BIN="$SESSION_STUB" "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
+CLIENT_STUB="$TMP_DIR/client-stub.sh"
+cat > "$CLIENT_STUB" <<'EOF_CLIENT'
+#!/usr/bin/env bash
+set -euo pipefail
+cmd=""
+conv=""
+for ((i=1;i<=$#;i++)); do
+  arg="${!i}"
+  case "$arg" in
+    events|chat|health|conversations|messages)
+      cmd="$arg"
+      ;;
+    --conversation-id)
+      j=$((i+1))
+      conv="${!j}"
+      ;;
+  esac
+done
+if [[ "$cmd" == "events" ]]; then
+  cat <<'EOF_JSON'
+{"conversation_id":"conv_123","events":[{"event_id":"evt_1","type":"tool_call","name":"browser.open","status":"completed","summary":"Opened page"},{"event_id":"evt_2","type":"tool_result","name":"browser.open","status":"completed","summary":"Got 200"}]}
+EOF_JSON
+  exit 0
+fi
+printf 'unexpected client command: %s\n' "$*" >&2
+exit 1
+EOF_CLIENT
+chmod +x "$CLIENT_STUB"
+
+out=$(STAVROBOT_SESSION_BIN="$SESSION_STUB" STAVROBOT_CLIENT_BIN="$CLIENT_STUB" "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
 assert_contains "$out" '"ok": true'
 assert_contains "$out" '"response": "# Hello\n\nStructured bridge test."'
 assert_contains "$out" '"conversation_id": "conv_123"'
@@ -65,3 +94,63 @@ extract_conv=$(STAVROBOT_SESSION_BIN="$SESSION_STUB" "$ROOT_DIR/shelley-stavrobo
 assert_contains "$extract_conv" 'conv_123'
 
 printf 'shelley-stavrobot-bridge structured-output tests passed\n'
+
+SESSION_STUB_TEXT_ONLY="$TMP_DIR/session-stub-text-only.sh"
+cat > "$SESSION_STUB_TEXT_ONLY" <<'EOF_SESSION2'
+#!/usr/bin/env bash
+set -euo pipefail
+cmd=""
+for arg in "$@"; do
+  case "$arg" in
+    chat|show|reset)
+      cmd="$arg"
+      break
+      ;;
+  esac
+done
+if [[ "$cmd" == chat ]]; then
+  cat <<'EOF_JSON'
+{"response":"events enrichment test","conversation_id":"conv_events","message_id":"msg_events"}
+EOF_JSON
+  exit 0
+fi
+if [[ "$cmd" == show ]]; then
+  echo '{"conversation_id":"conv_events"}'
+  exit 0
+fi
+if [[ "$cmd" == reset ]]; then
+  exit 0
+fi
+printf 'unexpected session command: %s\n' "$*" >&2
+exit 1
+EOF_SESSION2
+chmod +x "$SESSION_STUB_TEXT_ONLY"
+
+CLIENT_STUB_EVENTS="$TMP_DIR/client-stub-events.sh"
+cat > "$CLIENT_STUB_EVENTS" <<'EOF_CLIENT2'
+#!/usr/bin/env bash
+set -euo pipefail
+cmd=""
+for arg in "$@"; do
+  case "$arg" in
+    events|chat|health|conversations|messages)
+      cmd="$arg"
+      ;;
+  esac
+done
+if [[ "$cmd" == "events" ]]; then
+  cat <<'EOF_JSON'
+{"conversation_id":"conv_events","events":[{"event_id":"evt_a","type":"tool_call","name":"execute_sql","status":"completed","summary":"Called execute_sql(...)"},{"event_id":"evt_b","type":"tool_result","name":"execute_sql","status":"completed","summary":"Result from execute_sql: ok"}]}
+EOF_JSON
+  exit 0
+fi
+printf 'unexpected client command: %s\n' "$*" >&2
+exit 1
+EOF_CLIENT2
+chmod +x "$CLIENT_STUB_EVENTS"
+
+out_events=$(STAVROBOT_SESSION_BIN="$SESSION_STUB_TEXT_ONLY" STAVROBOT_CLIENT_BIN="$CLIENT_STUB_EVENTS" "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
+assert_contains "$out_events" '"response": "events enrichment test"'
+assert_contains "$out_events" '"display": {'
+assert_contains "$out_events" '"tool_summary": ['
+assert_contains "$out_events" '"tool": "execute_sql"'
