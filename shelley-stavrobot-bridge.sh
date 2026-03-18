@@ -24,6 +24,8 @@ CONVERSATION_ID=""
 STAVROBOT_SESSION_BIN="${STAVROBOT_SESSION_BIN:-$ROOT_DIR/shelley-stavrobot-session.sh}"
 STAVROBOT_CLIENT_BIN="${STAVROBOT_CLIENT_BIN:-$ROOT_DIR/client-stavrobot.sh}"
 STAVROBOT_BRIDGE_FIXTURE="${STAVROBOT_BRIDGE_FIXTURE:-}"
+STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED="${STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED:-1}"
+STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES="${STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES:-262144}"
 
 usage() {
   cat <<'EOF'
@@ -73,6 +75,8 @@ Environment:
   STAVROBOT_SESSION_BIN   Override session helper used by the bridge
   STAVROBOT_CLIENT_BIN    Override client helper used by the bridge
   STAVROBOT_BRIDGE_FIXTURE  Optional test fixture payload mode (e.g. tool_summary)
+  STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED  Enable/disable narrow raw-media extraction (1/0, default: 1)
+  STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES  Max decoded bytes per raw media item (default: 262144)
 EOF
 }
 
@@ -231,18 +235,23 @@ done
 [[ "$REQUEST_TIMEOUT" =~ ^[0-9]+$ ]] || die "--request-timeout must be an integer"
 [[ "$RETRIES" =~ ^[0-9]+$ ]] || die "--retries must be an integer"
 [[ "$RETRY_DELAY" =~ ^[0-9]+$ ]] || die "--retry-delay must be an integer"
+[[ "$STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED" =~ ^[01]$ ]] || die "STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED must be 0 or 1"
+[[ "$STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES" =~ ^[0-9]+$ ]] || die "STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES must be an integer"
 (( RETRIES >= 1 )) || die "--retries must be at least 1"
+(( STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES > 0 )) || die "STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES must be greater than 0"
 
 render_bridge_chat_json() {
   local response_json="$1"
   local events_json="${2:-}"
-  python3 - "$response_json" "$STAVROBOT_BRIDGE_FIXTURE" "$events_json" <<'PY'
-import json, re, sys
+  python3 - "$response_json" "$STAVROBOT_BRIDGE_FIXTURE" "$events_json" "$STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED" "$STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES" <<'PY'
+import base64, binascii, hashlib, json, re, sys
 from urllib.parse import urlparse
 
 payload = json.loads(sys.argv[1])
 fixture = sys.argv[2]
 events_json = sys.argv[3]
+raw_media_enabled = sys.argv[4] == '1'
+raw_media_max_bytes = int(sys.argv[5])
 response = payload.get('response', '')
 out = {
     'ok': True,
@@ -321,9 +330,18 @@ if tool_summary:
     out['display']['tool_summary'] = tool_summary[:8]
 
 artifact_seen = set()
+raw_media_seen = set()
 artifacts = []
+media_notes = []
 url_pattern = re.compile(r'https?://[^\s)\]>",]+')
 image_exts = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp')
+allowed_raw_image_mimes = {
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/gif',
+    'image/webp',
+}
 
 def looks_like_image_url(url):
     try:
@@ -339,9 +357,9 @@ def add_image_artifact(url, title=''):
         return
     if not looks_like_image_url(url):
         return
-    if url in artifact_seen:
+    if ('url', url) in artifact_seen:
         return
-    artifact_seen.add(url)
+    artifact_seen.add(('url', url))
     artifacts.append({'kind': 'image', 'url': url, 'title': str(title or '')})
 
 
@@ -349,6 +367,89 @@ def extract_urls_from_text(text):
     if not isinstance(text, str) or not text:
         return []
     return url_pattern.findall(text)
+
+
+def normalize_mime(value):
+    if not isinstance(value, str):
+        return ''
+    mime = value.strip().lower()
+    if not mime:
+        return ''
+    if ';' in mime:
+        mime = mime.split(';', 1)[0].strip()
+    if mime == 'image/jpg':
+        mime = 'image/jpeg'
+    return mime
+
+
+def decode_base64_media(raw_value):
+    if not isinstance(raw_value, str):
+        return None, 'missing-data'
+    raw = raw_value.strip()
+    if not raw:
+        return None, 'missing-data'
+    if raw.startswith('data:') and ',' in raw:
+        raw = raw.split(',', 1)[1]
+    try:
+        decoded = base64.b64decode(raw, validate=True)
+    except (binascii.Error, ValueError):
+        return None, 'invalid-base64'
+    if not decoded:
+        return None, 'empty-data'
+    return decoded, ''
+
+
+def add_raw_media_artifact(item, source_key=''):
+    if not raw_media_enabled:
+        return
+    if not isinstance(item, dict):
+        return
+    mime = normalize_mime(item.get('mime_type') or item.get('mime') or item.get('content_type') or item.get('type') or '')
+    if mime and mime not in allowed_raw_image_mimes:
+        media_notes.append(f'ignored raw media with unsupported mime {mime}')
+        return
+    raw_value = (
+        item.get('data_base64')
+        or item.get('base64')
+        or item.get('b64')
+        or item.get('data')
+        or item.get('content')
+    )
+    decoded, err = decode_base64_media(raw_value)
+    if err:
+        media_notes.append(f'ignored raw media ({source_key or "payload"}): {err}')
+        return
+    byte_len = len(decoded)
+    if byte_len > raw_media_max_bytes:
+        media_notes.append(f'ignored raw media ({source_key or "payload"}): too-large ({byte_len} > {raw_media_max_bytes})')
+        return
+    digest = hashlib.sha256(decoded).hexdigest()
+    if digest in raw_media_seen:
+        return
+    raw_media_seen.add(digest)
+    title = str(item.get('title') or item.get('name') or item.get('label') or item.get('alt') or '')
+    effective_mime = mime or 'image/png'
+    artifacts.append({
+        'kind': 'image',
+        'mime_type': effective_mime,
+        'transport': 'raw_inline_base64',
+        'byte_length': byte_len,
+        'data_base64': base64.b64encode(decoded).decode('ascii'),
+        'title': title,
+    })
+
+
+def maybe_add_raw_media_from_item(item, source_key=''):
+    if not isinstance(item, dict):
+        return
+    # Preserve current narrow URL path first.
+    url = item.get('url') or item.get('href') or item.get('src') or item.get('image_url') or item.get('download_url')
+    kind = str(item.get('kind') or item.get('type') or item.get('mime') or '').lower()
+    title = item.get('title') or item.get('name') or item.get('label') or item.get('alt') or ''
+    if 'image' in kind or looks_like_image_url(str(url or '')):
+        add_image_artifact(str(url or ''), title)
+    add_raw_media_artifact(item, source_key)
+
 
 # 1) First try direct payload media/artifact-like fields.
 for key in ('artifacts', 'images', 'media', 'attachments', 'files'):
@@ -359,13 +460,13 @@ for key in ('artifacts', 'images', 'media', 'attachments', 'files'):
         if isinstance(item, str):
             add_image_artifact(item)
             continue
-        if not isinstance(item, dict):
-            continue
-        url = item.get('url') or item.get('href') or item.get('src') or item.get('image_url') or item.get('download_url')
-        kind = str(item.get('kind') or item.get('type') or item.get('mime') or '').lower()
-        title = item.get('title') or item.get('name') or item.get('label') or item.get('alt') or ''
-        if 'image' in kind or looks_like_image_url(str(url or '')):
-            add_image_artifact(str(url or ''), title)
+        maybe_add_raw_media_from_item(item, key)
+
+# 1b) Try top-level raw media fields for bounded first-cut support.
+for top_key in ('image_base64', 'screenshot_base64', 'media_base64'):
+    top_value = payload.get(top_key)
+    if isinstance(top_value, str) and top_value.strip():
+        add_raw_media_artifact({'data_base64': top_value, 'mime_type': payload.get('mime_type') or payload.get('content_type')}, top_key)
 
 # 2) Try common top-level image URL fields.
 for key in ('image_url', 'screenshot_url', 'thumbnail_url'):
@@ -387,6 +488,9 @@ if not artifacts and isinstance(parsed_events, dict):
             for field in ('summary', 'message', 'title'):
                 for url in extract_urls_from_text(str(item.get(field) or '')):
                     add_image_artifact(url, title)
+
+if media_notes:
+    out.setdefault('display', {})['media_notes'] = media_notes[:8]
 
 if artifacts:
     out['artifacts'] = artifacts

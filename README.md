@@ -40,6 +40,7 @@ Still manual in this track:
 - `chat-with-stavrobot.sh` is a thin adapter around Stavrobot's authenticated `POST /chat` endpoint
 - `shelley-stavrobot-bridge.sh` is the canonical Shelley-facing local bridge and should be the default integration target for any future Shelley rebuild; it now defaults to full JSON output so Shelley/runtime callers can parse response text plus remote IDs without extra flags, while `--extract response` remains available for human-oriented text-only use
 - the canonical bridge chat output now also carries the first narrow S2-ready richer fields in a backward-compatible envelope: `content` (markdown-first), compact `display.tool_summary` when available, and `raw` payload retention, while still preserving top-level `response`, `conversation_id`, and `message_id`
+- a bounded phase-1 raw image artifact path is now available in the bridge contract (`artifacts.kind=image` with `transport=raw_inline_base64`) behind strict size/type guards, while URL-based media extraction remains preserved as the primary compatibility path
 - `client-stavrobot.sh` is a lower-level machine-oriented wrapper around the validated authenticated `/api/client/*` surface
 - `shelley-stavrobot-session.sh` is a lower-level stateful convenience wrapper that persists and reuses the last `conversation_id`
 - `smoke-test-stavrobot-client.sh` validates the local client surface against the running stack

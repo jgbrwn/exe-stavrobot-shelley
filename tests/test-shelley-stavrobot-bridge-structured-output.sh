@@ -213,3 +213,87 @@ out_media=$(STAVROBOT_SESSION_BIN="$SESSION_STUB_MEDIA" STAVROBOT_CLIENT_BIN="$C
 assert_contains "$out_media" '"artifacts": ['
 assert_contains "$out_media" '"kind": "image"'
 assert_contains "$out_media" '"url": "https://cdn.example.test/capture.png"'
+
+SESSION_STUB_RAW_MEDIA="$TMP_DIR/session-stub-raw-media.sh"
+cat > "$SESSION_STUB_RAW_MEDIA" <<'EOF_SESSION4'
+#!/usr/bin/env bash
+set -euo pipefail
+cmd=""
+for arg in "$@"; do
+  case "$arg" in
+    chat|show|reset)
+      cmd="$arg"
+      break
+      ;;
+  esac
+done
+if [[ "$cmd" == chat ]]; then
+  cat <<'EOF_JSON'
+{"response":"raw media reply","conversation_id":"conv_raw","message_id":"msg_raw","artifacts":[{"kind":"image","mime_type":"image/png","data_base64":"iVBORw0KGgo="}]}
+EOF_JSON
+  exit 0
+fi
+if [[ "$cmd" == show ]]; then
+  echo '{"conversation_id":"conv_raw"}'
+  exit 0
+fi
+if [[ "$cmd" == reset ]]; then
+  exit 0
+fi
+printf 'unexpected session command: %s\n' "$*" >&2
+exit 1
+EOF_SESSION4
+chmod +x "$SESSION_STUB_RAW_MEDIA"
+
+out_raw=$(STAVROBOT_SESSION_BIN="$SESSION_STUB_RAW_MEDIA" "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
+assert_contains "$out_raw" '"artifacts": ['
+assert_contains "$out_raw" '"transport": "raw_inline_base64"'
+assert_contains "$out_raw" '"mime_type": "image/png"'
+assert_contains "$out_raw" '"data_base64": "iVBORw0KGgo="'
+
+big_b64=$(python3 - <<'PY'
+import base64
+print(base64.b64encode(b'a' * 64).decode())
+PY
+)
+
+SESSION_STUB_RAW_MEDIA_TOO_LARGE="$TMP_DIR/session-stub-raw-media-too-large.sh"
+cat > "$SESSION_STUB_RAW_MEDIA_TOO_LARGE" <<EOF_SESSION5
+#!/usr/bin/env bash
+set -euo pipefail
+cmd=""
+for arg in "\$@"; do
+  case "\$arg" in
+    chat|show|reset)
+      cmd="\$arg"
+      break
+      ;;
+  esac
+done
+if [[ "\$cmd" == chat ]]; then
+  cat <<'EOF_JSON'
+{"response":"oversize raw media","conversation_id":"conv_raw2","message_id":"msg_raw2","artifacts":[{"kind":"image","mime_type":"image/png","data_base64":"$big_b64"}]}
+EOF_JSON
+  exit 0
+fi
+if [[ "\$cmd" == show ]]; then
+  echo '{"conversation_id":"conv_raw2"}'
+  exit 0
+fi
+if [[ "\$cmd" == reset ]]; then
+  exit 0
+fi
+printf 'unexpected session command: %s\n' "\$*" >&2
+exit 1
+EOF_SESSION5
+chmod +x "$SESSION_STUB_RAW_MEDIA_TOO_LARGE"
+
+out_raw_large=$(STAVROBOT_SESSION_BIN="$SESSION_STUB_RAW_MEDIA_TOO_LARGE" STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES=16 "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
+assert_contains "$out_raw_large" '"display": {'
+assert_contains "$out_raw_large" '"media_notes": ['
+assert_contains "$out_raw_large" 'too-large (64 > 16)'
+if grep -Fq -- '"transport": "raw_inline_base64"' <<<"$out_raw_large"; then
+  printf 'did not expect oversized raw media artifact to be preserved\n' >&2
+  printf -- '--- output ---\n%s\n------------\n' "$out_raw_large" >&2
+  exit 1
+fi
