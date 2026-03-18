@@ -370,7 +370,7 @@ Current limitation:
 
 Current prototype-hardening status:
 
-- the runtime result shape has now been widened enough to retain raw bridge payload and carry pre-adapted Shelley content/display data without changing current S1 behavior
+- the runtime result shape has now been widened enough to retain a parsed canonical bridge payload, carry pre-adapted Shelley content/display data, and track unsupported rich kinds without changing current S1 fallback behavior
 - this keeps the S2 structured-output path more natural while preserving the current text-first implementation
 
 ## Captured per-patch prototype artifact status

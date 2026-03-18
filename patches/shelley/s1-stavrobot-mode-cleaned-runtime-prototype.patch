@@ -318,7 +318,7 @@ new file mode 100644
 index 0000000..f2fd349
 --- /dev/null
 +++ b/server/stavrobot.go
-@@ -0,0 +1,249 @@
+@@ -0,0 +1,311 @@
 +package server
 +
 +import (
@@ -364,14 +364,50 @@ index 0000000..f2fd349
 +	Args       []string
 +}
 +
-+// StavrobotTurnResult is the parsed bridge response for one S1 turn.
++// StavrobotBridgePayload is the parsed canonical bridge payload.
++type StavrobotBridgePayload struct {
++	OK             bool                     `json:"ok"`
++	Response       string                   `json:"response"`
++	ConversationID string                   `json:"conversation_id"`
++	MessageID      string                   `json:"message_id"`
++	Content        []StavrobotBridgeContent `json:"content,omitempty"`
++	Display        *StavrobotBridgeDisplay  `json:"display,omitempty"`
++	Artifacts      []StavrobotArtifact      `json:"artifacts,omitempty"`
++	Raw            map[string]any           `json:"raw,omitempty"`
++}
++
++type StavrobotBridgeContent struct {
++	Kind  string `json:"kind"`
++	Text  string `json:"text,omitempty"`
++	URL   string `json:"url,omitempty"`
++	Title string `json:"title,omitempty"`
++}
++
++type StavrobotBridgeDisplay struct {
++	ToolSummary []StavrobotToolSummary `json:"tool_summary,omitempty"`
++}
++
++type StavrobotToolSummary struct {
++	Tool   string `json:"tool"`
++	Status string `json:"status"`
++	Title  string `json:"title,omitempty"`
++}
++
++type StavrobotArtifact struct {
++	Kind  string `json:"kind"`
++	URL   string `json:"url,omitempty"`
++	Title string `json:"title,omitempty"`
++}
++
++// StavrobotTurnResult is the parsed bridge response for one S1/S2-ready turn.
 +type StavrobotTurnResult struct {
-+	RawPayload       json.RawMessage
 +	ResponseText     string
 +	ConversationID   string
 +	MessageID        string
++	RawBridgePayload *StavrobotBridgePayload
 +	AssistantContent []llm.Content
-+	Display          any
++	DisplayData      map[string]any
++	UnsupportedKinds []string
 +}
 +
 +func (s *Server) stavrobotProfileStatePath() string {
@@ -480,21 +516,44 @@ index 0000000..f2fd349
 +		return nil, fmt.Errorf("stavrobot bridge execution failed: %w", err)
 +	}
 +
-+	var payload struct {
-+		Response       string `json:"response"`
-+		ConversationID string `json:"conversation_id"`
-+		MessageID      string `json:"message_id"`
-+	}
++	var payload StavrobotBridgePayload
 +	if err := json.Unmarshal(output, &payload); err != nil {
 +		return nil, fmt.Errorf("failed to parse stavrobot bridge output: %w", err)
 +	}
-+	return &StavrobotTurnResult{
-+		RawPayload:       append(json.RawMessage(nil), output...),
++
++	result := &StavrobotTurnResult{
 +		ResponseText:     payload.Response,
 +		ConversationID:   payload.ConversationID,
 +		MessageID:        payload.MessageID,
-+		AssistantContent: []llm.Content{{Type: llm.ContentTypeText, Text: payload.Response}},
-+	}, nil
++		RawBridgePayload: &payload,
++	}
++
++	for _, item := range payload.Content {
++		switch item.Kind {
++		case "", "markdown", "text":
++			text := item.Text
++			if text == "" {
++				continue
++			}
++			result.AssistantContent = append(result.AssistantContent, llm.Content{Type: llm.ContentTypeText, Text: text})
++		case "image_ref":
++			result.UnsupportedKinds = append(result.UnsupportedKinds, item.Kind)
++		default:
++			result.UnsupportedKinds = append(result.UnsupportedKinds, item.Kind)
++		}
++	}
++
++	if len(result.AssistantContent) == 0 && payload.Response != "" {
++		result.AssistantContent = []llm.Content{{Type: llm.ContentTypeText, Text: payload.Response}}
++	}
++
++	if payload.Display != nil && len(payload.Display.ToolSummary) > 0 {
++		result.DisplayData = map[string]any{
++			"tool_summary": payload.Display.ToolSummary,
++		}
++	}
++
++	return result, nil
 +}
 +
 +func (s *Server) ProcessStavrobotConversationTurn(ctx context.Context, manager *ConversationManager, userMessage llm.Message) error {
@@ -555,11 +614,14 @@ index 0000000..f2fd349
 +			"conversation_id": result.ConversationID,
 +			"message_id":      result.MessageID,
 +			"bridge_profile":  opts.BridgeProfile,
-+			"raw_payload":     json.RawMessage(result.RawPayload),
++			"raw_payload":     result.RawBridgePayload,
 +		},
 +	}
-+	if result.Display != nil {
-+		userData["display"] = result.Display
++	if result.DisplayData != nil {
++		userData["display"] = result.DisplayData
++	}
++	if len(result.UnsupportedKinds) > 0 {
++		userData["stavrobot"].(map[string]any)["unsupported_kinds"] = result.UnsupportedKinds
 +	}
 +	if err := s.recordMessage(ctx, manager.conversationID, assistantMessage, llm.Usage{}, userData); err != nil {
 +		return fmt.Errorf("failed to record stavrobot assistant message: %w", err)
