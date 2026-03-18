@@ -790,6 +790,7 @@ Strategic follow-up artifact:
 
 - `docs/SHELLEY_STRATEGIC_GAP_AUDIT.md` now summarizes the remaining post-S1 gaps, especially S2 rich-content fidelity, S4 recall validation, Stavrobot-mode-only backend-model UX placement, and mobile/responsive preservation rules
 - recommended next order remains: narrow S2 scope first, then collect S4 recall evidence before deciding on any Shelley-side retrieval layer
+- `docs/SHELLEY_S2_STRUCTURED_BRIDGE_TARGET.md` now defines the smallest useful next structured-output/adaptation target so S2 can improve markdown/tool-summary/media-reference fidelity without abandoning the current text-first fallback
 
 
 ## Compact Shelley handoff summary
