@@ -23,6 +23,7 @@ RETRY_DELAY=2
 CONVERSATION_ID=""
 STAVROBOT_SESSION_BIN="${STAVROBOT_SESSION_BIN:-$ROOT_DIR/shelley-stavrobot-session.sh}"
 STAVROBOT_CLIENT_BIN="${STAVROBOT_CLIENT_BIN:-$ROOT_DIR/client-stavrobot.sh}"
+STAVROBOT_BRIDGE_FIXTURE="${STAVROBOT_BRIDGE_FIXTURE:-}"
 
 usage() {
   cat <<'EOF'
@@ -58,6 +59,7 @@ Notes:
   - default output is full JSON so Shelley/runtime callers can parse response text plus IDs
   - chat output now also includes narrow S2-ready fields like content/display/raw while preserving response/conversation_id/message_id
   - use --extract response for human-oriented text-only output
+  - when STAVROBOT_BRIDGE_FIXTURE=tool_summary is set, chat output injects deterministic display.tool_summary only if no real summary is available (test/validation aid)
   --pretty                Pretty-print JSON output
   --connect-timeout SEC   Curl connect timeout in seconds
   --request-timeout SEC   Total request timeout in seconds
@@ -68,6 +70,7 @@ Notes:
 Environment:
   STAVROBOT_SESSION_BIN   Override session helper used by the bridge
   STAVROBOT_CLIENT_BIN    Override client helper used by the bridge
+  STAVROBOT_BRIDGE_FIXTURE  Optional test fixture payload mode (e.g. tool_summary)
 EOF
 }
 
@@ -230,9 +233,10 @@ done
 
 render_bridge_chat_json() {
   local response_json="$1"
-  python3 - "$response_json" <<'PY'
+  python3 - "$response_json" "$STAVROBOT_BRIDGE_FIXTURE" <<'PY'
 import json, sys
 payload = json.loads(sys.argv[1])
+fixture = sys.argv[2]
 response = payload.get('response', '')
 out = {
     'ok': True,
@@ -258,6 +262,12 @@ for key in ('events', 'tool_events', 'tool_summary'):
                 'title': str(item.get('title') or item.get('summary') or item.get('message') or ''),
             })
         break
+if fixture == 'tool_summary' and not tool_summary:
+    tool_summary = [{
+        'tool': 'fixture.tool_summary',
+        'status': 'ok',
+        'title': 'fixture generated tool summary for managed smoke validation',
+    }]
 if tool_summary:
     out['display']['tool_summary'] = tool_summary
 if not out['display']:

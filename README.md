@@ -125,6 +125,7 @@ Current installer-facing Shelley mode commands:
 ./install-stavrobot.sh --refresh-shelley-mode --skip-shelley-smoke
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-display-data
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-display-data --require-shelley-display-hints
+./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-display-data --require-shelley-display-hints --shelley-bridge-fixture tool_summary
 ```
 
 What they do:
@@ -144,6 +145,8 @@ What they do:
   - require smoke validation to assert persisted `display_data` when sampled Stavrobot turns contain display-hint payloads
 - `--require-shelley-display-hints`
   - with `--expect-shelley-display-data`, fail refresh/smoke if sampled turns contain no display-hint payloads
+- `--shelley-bridge-fixture`
+  - optional test fixture mode for smoke validation bridge payloads (for example `tool_summary`)
 
 Common status interpretation:
 

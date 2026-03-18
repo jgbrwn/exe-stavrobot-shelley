@@ -20,6 +20,7 @@ TMUX_SESSION="shelley-managed-s1-smoke"
 KEEP_SERVER=0
 EXPECT_DISPLAY_DATA=0
 REQUIRE_DISPLAY_HINTS=0
+BRIDGE_FIXTURE=""
 SERVER_LOG="/tmp/shelley-managed-s1-smoke.log"
 
 usage() {
@@ -39,6 +40,7 @@ Flags:
   --keep-server                  Leave test Shelley server running after success
   --expect-display-data          Assert Stavrobot assistant messages persist display_data
   --require-display-hints        With --expect-display-data, fail if no display-hint payloads are observed
+  --bridge-fixture NAME          Optional bridge fixture mode for smoke server (e.g. tool_summary)
   --help
 
 Notes:
@@ -176,6 +178,10 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_DISPLAY_HINTS=1
       shift
       ;;
+    --bridge-fixture)
+      BRIDGE_FIXTURE="$2"
+      shift 2
+      ;;
     --help)
       usage
       exit 0
@@ -207,9 +213,14 @@ BASE_URL="http://localhost:$PORT"
 rm -f "$DB_PATH" "$SERVER_LOG"
 tmux kill-session -t "$TMUX_SESSION" >/dev/null 2>&1 || true
 
+server_env=""
+if [[ -n "$BRIDGE_FIXTURE" ]]; then
+  server_env="STAVROBOT_BRIDGE_FIXTURE='$BRIDGE_FIXTURE' "
+fi
+
 info "Starting isolated Shelley test server on port $PORT"
 tmux new-session -d -s "$TMUX_SESSION" \
-  "cd '$SHELLEY_DIR' && '$SHELLEY_BIN' -predictable-only -default-model predictable -model predictable -db '$DB_PATH' serve -port '$PORT' -socket none >'$SERVER_LOG' 2>&1"
+  "cd '$SHELLEY_DIR' && ${server_env}'$SHELLEY_BIN' -predictable-only -default-model predictable -model predictable -db '$DB_PATH' serve -port '$PORT' -socket none >'$SERVER_LOG' 2>&1"
 
 info "Waiting for Shelley server readiness"
 for _ in $(seq 1 30); do

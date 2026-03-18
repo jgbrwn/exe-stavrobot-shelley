@@ -12,6 +12,7 @@ RUN_SMOKE=1
 ALLOW_DIRTY=0
 SMOKE_EXPECT_DISPLAY_DATA=0
 SMOKE_REQUIRE_DISPLAY_HINTS=0
+SMOKE_BRIDGE_FIXTURE=""
 SMOKE_PORT="8765"
 SMOKE_DB_PATH="/tmp/shelley-stavrobot-managed-test.db"
 SMOKE_TMUX_SESSION="shelley-managed-s1-smoke"
@@ -41,6 +42,7 @@ Flags:
   --smoke-tmux-session NAME    Smoke-test tmux session name
   --smoke-expect-display-data  Assert persisted display_data during smoke validation
   --smoke-require-display-hints  With --smoke-expect-display-data, fail if sampled turns have no display hints
+  --smoke-bridge-fixture NAME    Optional bridge fixture mode passed to smoke server (e.g. tool_summary)
   --help
 
 Behavior:
@@ -166,6 +168,10 @@ while [[ $# -gt 0 ]]; do
       SMOKE_REQUIRE_DISPLAY_HINTS=1
       shift
       ;;
+    --smoke-bridge-fixture)
+      SMOKE_BRIDGE_FIXTURE="$2"
+      shift 2
+      ;;
     --help)
       usage
       exit 0
@@ -234,6 +240,9 @@ if (( RUN_SMOKE == 1 )); then
   fi
   if (( SMOKE_REQUIRE_DISPLAY_HINTS == 1 )); then
     smoke_args+=(--require-display-hints)
+  fi
+  if [[ -n "$SMOKE_BRIDGE_FIXTURE" ]]; then
+    smoke_args+=(--bridge-fixture "$SMOKE_BRIDGE_FIXTURE")
   fi
   "$ROOT_DIR/smoke-test-shelley-managed-s1.sh" "${smoke_args[@]}"
 fi
