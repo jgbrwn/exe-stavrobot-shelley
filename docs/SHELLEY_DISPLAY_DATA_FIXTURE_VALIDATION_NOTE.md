@@ -167,3 +167,13 @@ Expected evidence in persisted `display_data.media_refs`:
 - non-empty `data_base64`
 - `mime_type = image/png`
 - positive `byte_length`
+
+## Port-collision diagnostics update
+
+Managed smoke helpers now fail fast when the smoke port is already in use.
+
+- `refresh-shelley-managed-s1.sh` checks `--smoke-port` before starting smoke.
+- `smoke-test-shelley-managed-s1.sh` checks the target port before server start and prints listener details (`ss`/`lsof`) when occupied.
+- smoke cleanup now also warns if a listener still exists on the smoke port after tmux shutdown.
+
+This prevents ambiguous failures where the shell session starts but Shelley exits immediately with bind errors.

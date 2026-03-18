@@ -238,6 +238,11 @@ info "Building Shelley binary"
 (cd "$SHELLEY_DIR" && go build -o bin/shelley ./cmd/shelley)
 
 if (( RUN_SMOKE == 1 )); then
+  if command -v ss >/dev/null 2>&1; then
+    if ss -ltn "sport = :$SMOKE_PORT" | awk 'NR>1 {found=1} END {exit found?0:1}'; then
+      die "Smoke port $SMOKE_PORT is already listening before smoke start (choose --smoke-port or stop listener)"
+    fi
+  fi
   info "Running isolated managed Shelley smoke test"
   smoke_args=(
     --shelley-dir "$SHELLEY_DIR"

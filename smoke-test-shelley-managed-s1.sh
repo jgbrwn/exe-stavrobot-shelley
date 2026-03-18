@@ -25,6 +25,18 @@ REQUIRE_MEDIA_REFS=0
 BRIDGE_FIXTURE=""
 SERVER_LOG="/tmp/shelley-managed-s1-smoke.log"
 
+find_port_listener() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltnp "sport = :$PORT" 2>/dev/null | awk 'NR>1 {print}' || true
+    return
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | tail -n +2 || true
+    return
+  fi
+  printf ''
+}
+
 usage() {
   cat <<'EOF'
 Usage: ./smoke-test-shelley-managed-s1.sh [flags]
@@ -128,6 +140,12 @@ PY
 cleanup() {
   if (( KEEP_SERVER == 0 )); then
     tmux kill-session -t "$TMUX_SESSION" >/dev/null 2>&1 || true
+    local linger
+    linger=$(find_port_listener)
+    if [[ -n "$linger" ]]; then
+      warn "Port $PORT still has a listener after smoke cleanup"
+      warn "$linger"
+    fi
   fi
 }
 trap cleanup EXIT
@@ -227,6 +245,13 @@ python3 "$ROOT_DIR/py/shelley_bridge_profiles.py" resolve "$PROFILE_STATE_PATH" 
 BASE_URL="http://localhost:$PORT"
 rm -f "$DB_PATH" "$SERVER_LOG"
 tmux kill-session -t "$TMUX_SESSION" >/dev/null 2>&1 || true
+
+port_listener_before=$(find_port_listener)
+if [[ -n "$port_listener_before" ]]; then
+  printf '[error] Port %s is already in use before smoke start\n' "$PORT" >&2
+  printf '[error] Listener details:\n%s\n' "$port_listener_before" >&2
+  die "Choose a different --port/--tmux-session or stop the existing listener"
+fi
 
 server_env=""
 if [[ -n "$BRIDGE_FIXTURE" ]]; then
