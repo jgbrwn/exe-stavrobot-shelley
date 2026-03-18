@@ -188,6 +188,7 @@ Lightweight helper/status validation:
 ./tests/run.sh test-manage-shelley-bridge-profiles.sh
 ./tests/run.sh test-manage-stavrobot-model.sh
 ./tests/run.sh test-shelley-stavrobot-bridge-fixture.sh
+./tests/run.sh test-shelley-runtime-raw-media-patch-contract.sh
 ```
 
 ## Operator helper: Stavrobot backend model control
