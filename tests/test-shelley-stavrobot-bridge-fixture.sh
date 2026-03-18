@@ -66,4 +66,9 @@ assert_contains "$out_fixture" '"tool_summary": ['
 assert_contains "$out_fixture" '"tool": "fixture.tool_summary"'
 assert_contains "$out_fixture" '"title": "fixture generated tool summary for managed smoke validation"'
 
+out_raw_fixture=$(STAVROBOT_SESSION_BIN="$SESSION_STUB" STAVROBOT_BRIDGE_FIXTURE=raw_media_image "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
+assert_contains "$out_raw_fixture" '"artifacts": ['
+assert_contains "$out_raw_fixture" '"transport": "raw_inline_base64"'
+assert_contains "$out_raw_fixture" '"title": "fixture raw media image for managed smoke validation"'
+
 printf 'shelley-stavrobot-bridge fixture tests passed\n'

@@ -64,6 +64,7 @@ Notes:
   - bridge now also attempts to enrich compact tool_summary from the events endpoint when chat payload lacks direct event/display fields
   - bridge now also attempts narrow image/media reference extraction into artifacts.image from payload, response text URLs, and recent event summaries
   - when STAVROBOT_BRIDGE_FIXTURE=tool_summary is set, chat output injects deterministic display.tool_summary only if no real summary is available (test/validation aid)
+  - when STAVROBOT_BRIDGE_FIXTURE=raw_media_image is set, chat output injects a deterministic inline raw image artifact only if no real image artifact is present (test/validation aid)
   --pretty                Pretty-print JSON output
   --connect-timeout SEC   Curl connect timeout in seconds
   --request-timeout SEC   Total request timeout in seconds
@@ -74,7 +75,7 @@ Notes:
 Environment:
   STAVROBOT_SESSION_BIN   Override session helper used by the bridge
   STAVROBOT_CLIENT_BIN    Override client helper used by the bridge
-  STAVROBOT_BRIDGE_FIXTURE  Optional test fixture payload mode (e.g. tool_summary)
+  STAVROBOT_BRIDGE_FIXTURE  Optional test fixture payload mode (e.g. tool_summary, raw_media_image)
   STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED  Enable/disable narrow raw-media extraction (1/0, default: 1)
   STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES  Max decoded bytes per raw media item (default: 262144)
 EOF
@@ -489,6 +490,19 @@ if not artifacts and isinstance(parsed_events, dict):
                 for url in extract_urls_from_text(str(item.get(field) or '')):
                     add_image_artifact(url, title)
 
+if fixture == 'raw_media_image':
+    has_image_artifact = any(isinstance(item, dict) and item.get('kind') == 'image' for item in artifacts)
+    if not has_image_artifact:
+        raw_fixture = base64.b64encode(b'fixture-raw-image').decode('ascii')
+        artifacts.append({
+            'kind': 'image',
+            'mime_type': 'image/png',
+            'transport': 'raw_inline_base64',
+            'byte_length': len(b'fixture-raw-image'),
+            'data_base64': raw_fixture,
+            'title': 'fixture raw media image for managed smoke validation',
+        })
+
 if media_notes:
     out.setdefault('display', {})['media_notes'] = media_notes[:8]
 
@@ -563,7 +577,7 @@ else:
 PY
     else
       events_json=""
-      if [[ -z "$STAVROBOT_BRIDGE_FIXTURE" || "$STAVROBOT_BRIDGE_FIXTURE" == "tool_summary" ]]; then
+      if [[ -z "$STAVROBOT_BRIDGE_FIXTURE" || "$STAVROBOT_BRIDGE_FIXTURE" == "tool_summary" || "$STAVROBOT_BRIDGE_FIXTURE" == "raw_media_image" ]]; then
         events_json=$(fetch_chat_events_json "$chat_json" || true)
       fi
       render_bridge_chat_json "$chat_json" "$events_json"

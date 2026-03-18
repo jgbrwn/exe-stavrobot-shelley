@@ -115,3 +115,55 @@ Current rule:
 
 - assertion is required only when sampled raw bridge payloads include image/media hints (`content.kind=image_ref` or `artifacts.kind=image` with URL)
 - strict mode fails when no such hints are observed
+
+## Raw media fixture mode (phase-1 contract proof)
+
+A second deterministic fixture mode now exists for bounded raw media:
+
+- `STAVROBOT_BRIDGE_FIXTURE=raw_media_image`
+
+When enabled, bridge chat output injects a compact inline raw image artifact only if no real image artifact is already present.
+
+Example emitted artifact shape:
+
+```json
+{
+  "kind": "image",
+  "mime_type": "image/png",
+  "transport": "raw_inline_base64",
+  "byte_length": 17,
+  "data_base64": "Zml4dHVyZS1yYXctaW1hZ2U=",
+  "title": "fixture raw media image for managed smoke validation"
+}
+```
+
+## Live managed smoke proof for raw-inline `media_refs`
+
+Direct smoke command used against managed `/opt/shelley` binary:
+
+```bash
+./smoke-test-shelley-managed-s1.sh \
+  --shelley-dir /opt/shelley \
+  --shelley-bin /opt/shelley/bin/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8890 \
+  --db-path /tmp/shelley-smoke-debug.db \
+  --tmux-session shelley-smoke-debug \
+  --expect-media-refs \
+  --require-media-refs \
+  --bridge-fixture raw_media_image
+```
+
+Proof query:
+
+```bash
+sqlite3 -json /tmp/shelley-smoke-debug.db \
+  "SELECT sequence_id, type, display_data FROM messages WHERE conversation_id='CONV_ID' AND type='agent' ORDER BY sequence_id;"
+```
+
+Expected evidence in persisted `display_data.media_refs`:
+
+- `transport = raw_inline_base64`
+- non-empty `data_base64`
+- `mime_type = image/png`
+- positive `byte_length`
