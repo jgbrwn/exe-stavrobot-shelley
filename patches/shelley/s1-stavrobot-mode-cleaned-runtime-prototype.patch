@@ -318,7 +318,7 @@ new file mode 100644
 index 0000000..f2fd349
 --- /dev/null
 +++ b/server/stavrobot.go
-@@ -0,0 +1,491 @@
+@@ -0,0 +1,500 @@
 +package server
 +
 +import (
@@ -603,6 +603,7 @@ index 0000000..f2fd349
 +
 +	var toolSummary []map[string]string
 +	var mediaRefs []map[string]any
++	hasAssistantText := false
 +
 +	for _, item := range payload.Content {
 +		kind := item.Kind
@@ -616,6 +617,7 @@ index 0000000..f2fd349
 +			if text == "" {
 +				continue
 +			}
++			hasAssistantText = true
 +			result.AssistantContent = append(result.AssistantContent, llm.Content{Type: llm.ContentTypeText, Text: text})
 +			if result.ResponseText == "" {
 +				result.ResponseText = text
@@ -652,6 +654,13 @@ index 0000000..f2fd349
 +			}
 +			if rawRef, rawErr := validateStavrobotRawInlineArtifact(artifact); rawRef != nil {
 +				mediaRefs = append(mediaRefs, rawRef)
++				if !hasAssistantText {
++					result.AssistantContent = append(result.AssistantContent, llm.Content{
++						Type:      llm.ContentTypeText,
++						MediaType: fmt.Sprint(rawRef["mime_type"]),
++						Data:      fmt.Sprint(rawRef["data_base64"]),
++					})
++				}
 +				continue
 +			} else if rawErr != "" {
 +				result.UnsupportedKinds = append(result.UnsupportedKinds, "artifact:"+kind+":"+rawErr)

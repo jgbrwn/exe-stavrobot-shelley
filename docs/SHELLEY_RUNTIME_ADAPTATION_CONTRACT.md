@@ -378,3 +378,27 @@ Failure policy:
 - record compact unsupported reason in `unsupported_kinds` (for example `artifact:image:invalid raw media base64`)
 
 This keeps `response`/text fallback intact while preventing unbounded or malformed raw payload persistence.
+
+## Phase-2 narrow native mapping spike (first cut)
+
+After validation, runtime can attach a bounded image content item when:
+
+- bridge artifact validates as raw-inline image (all phase-1 checks pass), and
+- assistant turn has no explicit text content blocks.
+
+Recommended initial mapping:
+
+```go
+llm.Content{
+    Type:      llm.ContentTypeText,
+    MediaType: "image/png" | "image/jpeg" | ...,
+    Data:      "<base64>",
+}
+```
+
+This is intentionally narrow and additive:
+
+- keep `display_data.media_refs` as the persisted proof path
+- do not remove text fallback behavior
+- only synthesize native image content when no assistant text was provided
+- treat this as a spike to verify renderer behavior before broader promotion rules
