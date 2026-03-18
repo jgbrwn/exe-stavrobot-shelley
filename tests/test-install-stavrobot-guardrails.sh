@@ -34,6 +34,9 @@ assert_contains "$out" '--allow-dirty-shelley, --skip-shelley-smoke, --expect-sh
 out=$("$ROOT_DIR/install-stavrobot.sh" --refresh-shelley-mode --require-shelley-display-hints 2>&1 || true)
 assert_contains "$out" '--require-shelley-display-hints requires --expect-shelley-display-data'
 
+out=$("$ROOT_DIR/install-stavrobot.sh" --refresh-shelley-mode --expect-shelley-display-data --shelley-bridge-fixture tool_summary --skip-shelley-smoke --allow-dirty-shelley --stavrobot-dir /tmp/stavrobot 2>&1 || true)
+assert_contains "$out" '--refresh-shelley-mode cannot be combined with --stavrobot-dir'
+
 out=$("$ROOT_DIR/install-stavrobot.sh" --print-shelley-mode-status --refresh 2>&1 || true)
 assert_contains "$out" '--print-shelley-mode-status cannot be combined with normal installer mutation flags'
 
