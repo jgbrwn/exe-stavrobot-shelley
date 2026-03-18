@@ -318,7 +318,7 @@ new file mode 100644
 index 0000000..f2fd349
 --- /dev/null
 +++ b/server/stavrobot.go
-@@ -0,0 +1,311 @@
+@@ -0,0 +1,330 @@
 +package server
 +
 +import (
@@ -529,27 +529,56 @@ index 0000000..f2fd349
 +	}
 +
 +	for _, item := range payload.Content {
-+		switch item.Kind {
-+		case "", "markdown", "text":
++		kind := item.Kind
++		if kind == "" {
++			kind = "markdown"
++		}
++
++		switch kind {
++		case "markdown", "text":
 +			text := item.Text
 +			if text == "" {
 +				continue
 +			}
 +			result.AssistantContent = append(result.AssistantContent, llm.Content{Type: llm.ContentTypeText, Text: text})
++			if result.ResponseText == "" {
++				result.ResponseText = text
++			}
 +		case "image_ref":
-+			result.UnsupportedKinds = append(result.UnsupportedKinds, item.Kind)
++			result.UnsupportedKinds = append(result.UnsupportedKinds, kind)
 +		default:
-+			result.UnsupportedKinds = append(result.UnsupportedKinds, item.Kind)
++			result.UnsupportedKinds = append(result.UnsupportedKinds, kind)
 +		}
 +	}
 +
-+	if len(result.AssistantContent) == 0 && payload.Response != "" {
-+		result.AssistantContent = []llm.Content{{Type: llm.ContentTypeText, Text: payload.Response}}
++	for _, artifact := range payload.Artifacts {
++		kind := artifact.Kind
++		if kind == "" {
++			kind = "image"
++		}
++		result.UnsupportedKinds = append(result.UnsupportedKinds, "artifact:"+kind)
++	}
++
++	if len(result.AssistantContent) == 0 && result.ResponseText != "" {
++		result.AssistantContent = []llm.Content{{Type: llm.ContentTypeText, Text: result.ResponseText}}
 +	}
 +
 +	if payload.Display != nil && len(payload.Display.ToolSummary) > 0 {
-+		result.DisplayData = map[string]any{
-+			"tool_summary": payload.Display.ToolSummary,
++		toolSummary := make([]map[string]string, 0, len(payload.Display.ToolSummary))
++		for _, item := range payload.Display.ToolSummary {
++			if item.Tool == "" && item.Status == "" && item.Title == "" {
++				continue
++			}
++			toolSummary = append(toolSummary, map[string]string{
++				"tool":   item.Tool,
++				"status": item.Status,
++				"title":  item.Title,
++			})
++		}
++		if len(toolSummary) > 0 {
++			result.DisplayData = map[string]any{
++				"tool_summary": toolSummary,
++			}
 +		}
 +	}
 +

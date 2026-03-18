@@ -181,6 +181,7 @@ Recommended output behavior:
 - populate `AssistantContent` when bridge `content` can be normalized safely
 - populate `DisplayData` only with compact, stable summary data
 - record unsupported rich kinds in `UnsupportedKinds`
+- in the current repo state, this means normalizing the canonical bridge fields that already exist in practice today: markdown-first/text `content`, compact `display.tool_summary`, and `raw`, while still degrading unsupported media/artifact kinds explicitly
 
 ## `ProcessStavrobotConversationTurn(...)`
 

@@ -201,6 +201,7 @@ Current meaning of this artifact:
 - it keeps handler changes thin compared with the disposable helper-heavy shape
 - it targets installer-managed bridge-profile resolution via a stable profile-state path and contract-version checks
 - it now also reflects the next prototype-hardening pass that widens the runtime result toward the preferred S2-ready contract: parsed canonical bridge payload, normalized assistant content fallback, compact display metadata, and explicit unsupported-kind tracking
+- it should now be reviewed against the fact that the canonical `shelley-stavrobot-bridge.sh` already emits the first narrow S2-ready fields in practice (`content`, compact `display.tool_summary`, and `raw`) rather than only in forward-looking target docs
 
 Current limitation:
 

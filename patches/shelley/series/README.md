@@ -107,6 +107,7 @@ Those docs together define:
 - the narrow first S2 bridge payload target
 - the preferred `StavrobotTurnResult` widening path
 - the fallback rule that `ResponseText` remains mandatory even as richer adaptation lands
+- and, now, the bridge/runtime alignment rule that patch `0004` should normalize the canonical bridge fields that already exist in practice today: `content`, compact `display.tool_summary`, and `raw`
 
 
 ## Current patch-0004 review notes

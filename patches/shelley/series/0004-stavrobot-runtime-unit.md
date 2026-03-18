@@ -124,6 +124,7 @@ Near-term widening rule:
 
 - this function should evolve toward returning both normalized fallback fields and richer parsed payload data
 - it should not become the place where Shelley UI rendering decisions are made
+- the bridge now already emits the first narrow S2-ready fields in practice, so this function should normalize the real canonical `content` / compact `display.tool_summary` / `raw` envelope rather than only carrying hypothetical future placeholders
 
 Expected argv shape for S1:
 
@@ -200,12 +201,17 @@ Until that is wired in Shelley itself, this repo's prototype loader behavior is 
 The captured prototype runtime patch currently does these S1-specific things:
 
 - requires the incoming user message to start with `llm.ContentTypeText`
-- invokes the bridge expecting a minimal JSON shape with:
+- invokes the bridge against the canonical chat envelope, which now already carries:
   - `response`
   - `conversation_id`
   - `message_id`
-- defaults the returned assistant content to a single Shelley text content block
-- but now also keeps room for a richer runtime result shape carrying:
+  - optional `content`
+  - optional compact `display.tool_summary`
+  - optional `raw`
+- currently normalizes `markdown` / `text` bridge content into Shelley text content while preserving `ResponseText` fallback
+- currently records compact tool-summary display metadata separately when present
+- still classifies `image_ref` and artifact/media shapes as explicit unsupported rich kinds for later S2 follow-up
+- keeps room for a richer runtime result shape carrying:
   - raw bridge payload
   - pre-adapted assistant content blocks
   - optional display metadata
@@ -238,6 +244,7 @@ Preferred direction when the bridge evolves:
 4. preserve room for tool/display/media references in Shelley message content or associated display metadata
 5. preserve Shelley's existing excellent mobile/responsive presentation by adapting into native Shelley content/UI surfaces rather than inventing a parallel Stavrobot-specific presentation layer
 6. avoid forcing future S2 work to reverse a `ResponseText`-only abstraction baked too deeply into helper signatures
+7. treat the bridge's already-live `content`, compact `display.tool_summary`, and `raw` fields as the concrete first adaptation input, with unsupported media/artifact kinds degrading explicitly until Shelley-native handling is ready
 
 A practical consequence is that `ExecuteStavrobotTurn(...)` and `ProcessStavrobotConversationTurn(...)` should remain easy to widen from:
 
