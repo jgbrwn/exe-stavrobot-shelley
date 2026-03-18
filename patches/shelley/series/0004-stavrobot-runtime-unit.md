@@ -209,8 +209,9 @@ The captured prototype runtime patch currently does these S1-specific things:
   - optional compact `display.tool_summary`
   - optional `raw`
 - currently normalizes `markdown` / `text` bridge content into Shelley text content while preserving `ResponseText` fallback
-- currently records compact tool-summary display metadata separately when present
+- currently prepares compact tool-summary display metadata separately when present
 - now also preserves simple `image_ref` / `artifacts.image` references as compact `media_refs` display metadata when URLs are present
+- but in the current prototype these display-oriented hints are still attached in assistant-message metadata rather than Shelley's persisted `display_data` rendering path, so they should be treated as preserved adaptation state first, not as already-rendered UI
 - still avoids claiming that generic Shelley-native assistant image/html/audio/video mapping is complete in this patch
 - keeps room for a richer runtime result shape carrying:
   - raw bridge payload

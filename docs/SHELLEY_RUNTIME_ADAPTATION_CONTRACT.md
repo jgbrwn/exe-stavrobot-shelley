@@ -217,6 +217,8 @@ Practical consequence:
 - compact tool-summary metadata is also low-risk now
 - image/screenshot handling may become viable soon if the runtime later chooses a Shelley-native image/tool-result shape deliberately
 - as an immediate intermediate step, the runtime can safely preserve compact image/media references in display-oriented metadata (`media_refs`) without pretending that generic assistant-side image rendering is fully solved yet
+- but a direct upstream review also shows an important current limitation: Shelley UI compact rendering consumes persisted `display_data`, while the current Stavrobot prototype patch only stores these adaptation hints inside assistant-message `user_data`
+- so the next UI-facing increment should either teach the runtime recording path to persist explicit `display_data` for Stavrobot assistant messages, or keep `tool_summary` / `media_refs` explicitly documented as preserved-but-not-yet-rendered adaptation metadata
 - HTML/audio/video should stay deferred until the bridge supplies a stable shape and the runtime chooses a native Shelley-safe mapping path instead of dumping raw markup into ordinary assistant text
 
 ## Recommended normalization rules

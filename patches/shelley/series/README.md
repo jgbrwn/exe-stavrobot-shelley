@@ -130,3 +130,4 @@ Practically, future sessions should treat this as a review rule for patch `0004`
 - richer output should still degrade cleanly to ordinary assistant content when necessary
 - even though Shelley is rich, generic raw assistant HTML/embed/audio/video should not be forced into the first Stavrobot adaptation cut unless a clearly native Shelley-safe shape is identified; sandboxed iframe/tool-style rendering and existing media-aware paths are better guides
 - for image/media references specifically, a good intermediate patch-0004 step is compact `media_refs` preservation in display metadata before claiming a fuller native assistant-media mapping
+- but current upstream rendering uses persisted `display_data`, so patch review should distinguish between metadata preservation and actually-rendered UI until Stavrobot assistant messages can feed that native path directly

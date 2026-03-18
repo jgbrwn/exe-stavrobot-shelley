@@ -349,6 +349,12 @@ Why this matters:
 
 Shelley already has native notions of content blocks, tool output, and display metadata. Even though the current `llm.Content` model is still limited, patch 0004 should avoid making `ResponseText` the only permanent conceptual output of the runtime layer.
 
+A direct upstream UI/runtime review also surfaced one practical follow-on requirement:
+
+- Shelley message rendering uses persisted `display_data` for compact display-oriented UI
+- the current Stavrobot prototype shape preserves adaptation metadata under assistant `user_data`
+- so a future UI-facing follow-up should either add an explicit way for Stavrobot runtime recording to persist `DisplayData` into real `display_data`, or keep these fields documented as preserved/non-rendered until that plumbing exists
+
 That keeps the path open for later support of:
 
 - markdown-preserving responses

@@ -272,6 +272,7 @@ A minimal S2 validation pass should verify:
 6. unsupported `content.kind` does not break the turn
 7. ordinary non-Stavrobot Shelley conversations remain unchanged
 8. narrow/mobile layouts remain usable
+9. if compact display metadata is intentionally preserved only in message metadata at first, docs/tests should say so explicitly rather than implying it already renders through Shelley's `display_data` path
 
 ## Recommended next implementation artifact after this document
 
