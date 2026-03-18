@@ -60,6 +60,7 @@ Notes:
   - chat output now also includes narrow S2-ready fields like content/display/raw while preserving response/conversation_id/message_id
   - use --extract response for human-oriented text-only output
   - bridge now also attempts to enrich compact tool_summary from the events endpoint when chat payload lacks direct event/display fields
+  - bridge now also attempts narrow image/media reference extraction into artifacts.image from payload, response text URLs, and recent event summaries
   - when STAVROBOT_BRIDGE_FIXTURE=tool_summary is set, chat output injects deterministic display.tool_summary only if no real summary is available (test/validation aid)
   --pretty                Pretty-print JSON output
   --connect-timeout SEC   Curl connect timeout in seconds
@@ -236,7 +237,9 @@ render_bridge_chat_json() {
   local response_json="$1"
   local events_json="${2:-}"
   python3 - "$response_json" "$STAVROBOT_BRIDGE_FIXTURE" "$events_json" <<'PY'
-import json, sys
+import json, re, sys
+from urllib.parse import urlparse
+
 payload = json.loads(sys.argv[1])
 fixture = sys.argv[2]
 events_json = sys.argv[3]
@@ -254,7 +257,8 @@ if response:
     out['content'].append({'kind': 'markdown', 'text': response})
 
 tool_summary = []
-seen = set()
+summary_seen = set()
+
 
 def append_summary_item(item):
     if not isinstance(item, dict):
@@ -265,10 +269,11 @@ def append_summary_item(item):
     if tool == 'tool' and not title:
         return
     key = (tool, status, title)
-    if key in seen:
+    if key in summary_seen:
         return
-    seen.add(key)
+    summary_seen.add(key)
     tool_summary.append({'tool': tool, 'status': status, 'title': title})
+
 
 # Prefer direct payload display summary when present.
 display = payload.get('display')
@@ -286,23 +291,25 @@ if not tool_summary:
             if tool_summary:
                 break
 
-# If chat payload was text-only, enrich from events endpoint output when available.
-if not tool_summary and events_json:
+parsed_events = None
+if events_json:
     try:
-        event_payload = json.loads(events_json)
+        parsed_events = json.loads(events_json)
     except Exception:
-        event_payload = None
-    if isinstance(event_payload, dict):
-        events = event_payload.get('events') or []
-        if isinstance(events, list):
-            for item in events[-8:]:
-                if not isinstance(item, dict):
-                    continue
-                # Keep only tool-oriented event types for compact summary.
-                event_type = str(item.get('type') or '')
-                if event_type and not event_type.startswith('tool_'):
-                    continue
-                append_summary_item(item)
+        parsed_events = None
+
+# If chat payload was text-only, enrich from events endpoint output when available.
+if not tool_summary and isinstance(parsed_events, dict):
+    events = parsed_events.get('events') or []
+    if isinstance(events, list):
+        for item in events[-8:]:
+            if not isinstance(item, dict):
+                continue
+            # Keep only tool-oriented event types for compact summary.
+            event_type = str(item.get('type') or '')
+            if event_type and not event_type.startswith('tool_'):
+                continue
+            append_summary_item(item)
 
 if fixture == 'tool_summary' and not tool_summary:
     tool_summary = [{
@@ -312,6 +319,77 @@ if fixture == 'tool_summary' and not tool_summary:
     }]
 if tool_summary:
     out['display']['tool_summary'] = tool_summary[:8]
+
+artifact_seen = set()
+artifacts = []
+url_pattern = re.compile(r'https?://[^\s)\]>",]+')
+image_exts = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp')
+
+def looks_like_image_url(url):
+    try:
+        path = urlparse(url).path.lower()
+    except Exception:
+        return False
+    return any(path.endswith(ext) for ext in image_exts)
+
+def add_image_artifact(url, title=''):
+    if not isinstance(url, str) or not url:
+        return
+    if not url.startswith('http://') and not url.startswith('https://'):
+        return
+    if not looks_like_image_url(url):
+        return
+    if url in artifact_seen:
+        return
+    artifact_seen.add(url)
+    artifacts.append({'kind': 'image', 'url': url, 'title': str(title or '')})
+
+
+def extract_urls_from_text(text):
+    if not isinstance(text, str) or not text:
+        return []
+    return url_pattern.findall(text)
+
+# 1) First try direct payload media/artifact-like fields.
+for key in ('artifacts', 'images', 'media', 'attachments', 'files'):
+    value = payload.get(key)
+    if not isinstance(value, list):
+        continue
+    for item in value:
+        if isinstance(item, str):
+            add_image_artifact(item)
+            continue
+        if not isinstance(item, dict):
+            continue
+        url = item.get('url') or item.get('href') or item.get('src') or item.get('image_url') or item.get('download_url')
+        kind = str(item.get('kind') or item.get('type') or item.get('mime') or '').lower()
+        title = item.get('title') or item.get('name') or item.get('label') or item.get('alt') or ''
+        if 'image' in kind or looks_like_image_url(str(url or '')):
+            add_image_artifact(str(url or ''), title)
+
+# 2) Try common top-level image URL fields.
+for key in ('image_url', 'screenshot_url', 'thumbnail_url'):
+    add_image_artifact(str(payload.get(key) or ''))
+
+# 3) Fall back to URLs found in response text.
+if not artifacts:
+    for url in extract_urls_from_text(response):
+        add_image_artifact(url)
+
+# 4) Last resort: URLs found in recent event summaries.
+if not artifacts and isinstance(parsed_events, dict):
+    events = parsed_events.get('events') or []
+    if isinstance(events, list):
+        for item in events[-8:]:
+            if not isinstance(item, dict):
+                continue
+            title = item.get('title') or item.get('name') or ''
+            for field in ('summary', 'message', 'title'):
+                for url in extract_urls_from_text(str(item.get(field) or '')):
+                    add_image_artifact(url, title)
+
+if artifacts:
+    out['artifacts'] = artifacts
 if not out['display']:
     out.pop('display')
 print(json.dumps(out, indent=2))

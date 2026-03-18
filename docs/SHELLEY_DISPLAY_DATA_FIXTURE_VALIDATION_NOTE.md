@@ -76,3 +76,18 @@ Practical consequence:
 
 - strict smoke runs with `--expect-display-data --require-display-hints` can now pass without fixture mode when Stavrobot event data is available for the sampled conversation
 - fixture mode remains useful as a deterministic fallback for CI/POC environments where live behavior may vary
+
+## Narrow media/image follow-on note
+
+The bridge now also includes a narrow image/media-reference extraction path.
+
+When obvious image URLs are present (for example `.png`/`.jpg` links in payload fields, response text, or recent event summaries), bridge output includes:
+
+```json
+"artifacts": [
+  {"kind": "image", "url": "https://...", "title": ""}
+]
+```
+
+This remains intentionally conservative and URL-based for now.
+It is meant to support managed runtime `media_refs` preservation and later promotion into richer native Shelley media handling.

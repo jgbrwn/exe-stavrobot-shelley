@@ -219,6 +219,11 @@ The first S2 implementation should support only:
 2. `display.tool_summary`
 3. one simple image/media reference shape
 
+Current bridge-side progress note:
+
+- compact `tool_summary` can now be enriched from events endpoint output when chat payloads are text-only
+- a narrow image/media-reference extraction path now also exists for obvious image URLs (payload fields, response markdown/text URLs, and recent event-summary URLs), emitted as `artifacts.kind = image`
+
 Why this scope is still right after inspecting upstream Shelley more closely:
 
 - markdown/text already map cleanly into normal Shelley assistant content

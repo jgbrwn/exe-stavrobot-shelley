@@ -154,3 +154,62 @@ assert_contains "$out_events" '"response": "events enrichment test"'
 assert_contains "$out_events" '"display": {'
 assert_contains "$out_events" '"tool_summary": ['
 assert_contains "$out_events" '"tool": "execute_sql"'
+
+SESSION_STUB_MEDIA="$TMP_DIR/session-stub-media.sh"
+cat > "$SESSION_STUB_MEDIA" <<'EOF_SESSION3'
+#!/usr/bin/env bash
+set -euo pipefail
+cmd=""
+for arg in "$@"; do
+  case "$arg" in
+    chat|show|reset)
+      cmd="$arg"
+      break
+      ;;
+  esac
+done
+if [[ "$cmd" == chat ]]; then
+  cat <<'EOF_JSON'
+{"response":"See screenshot: https://cdn.example.test/capture.png","conversation_id":"conv_media","message_id":"msg_media"}
+EOF_JSON
+  exit 0
+fi
+if [[ "$cmd" == show ]]; then
+  echo '{"conversation_id":"conv_media"}'
+  exit 0
+fi
+if [[ "$cmd" == reset ]]; then
+  exit 0
+fi
+printf 'unexpected session command: %s\n' "$*" >&2
+exit 1
+EOF_SESSION3
+chmod +x "$SESSION_STUB_MEDIA"
+
+CLIENT_STUB_MEDIA="$TMP_DIR/client-stub-media.sh"
+cat > "$CLIENT_STUB_MEDIA" <<'EOF_CLIENT3'
+#!/usr/bin/env bash
+set -euo pipefail
+cmd=""
+for arg in "$@"; do
+  case "$arg" in
+    events|chat|health|conversations|messages)
+      cmd="$arg"
+      ;;
+  esac
+done
+if [[ "$cmd" == "events" ]]; then
+  cat <<'EOF_JSON'
+{"conversation_id":"conv_media","events":[{"event_id":"evt_m1","type":"tool_result","name":"browser.screenshot","status":"completed","summary":"Saved screenshot https://cdn.example.test/capture.png"}]}
+EOF_JSON
+  exit 0
+fi
+printf 'unexpected client command: %s\n' "$*" >&2
+exit 1
+EOF_CLIENT3
+chmod +x "$CLIENT_STUB_MEDIA"
+
+out_media=$(STAVROBOT_SESSION_BIN="$SESSION_STUB_MEDIA" STAVROBOT_CLIENT_BIN="$CLIENT_STUB_MEDIA" "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
+assert_contains "$out_media" '"artifacts": ['
+assert_contains "$out_media" '"kind": "image"'
+assert_contains "$out_media" '"url": "https://cdn.example.test/capture.png"'
