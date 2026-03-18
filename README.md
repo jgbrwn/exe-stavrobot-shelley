@@ -124,6 +124,7 @@ Current installer-facing Shelley mode commands:
 ./install-stavrobot.sh --refresh-shelley-mode --allow-dirty-shelley
 ./install-stavrobot.sh --refresh-shelley-mode --skip-shelley-smoke
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-display-data
+./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-display-data --require-shelley-display-hints
 ```
 
 What they do:
@@ -141,6 +142,8 @@ What they do:
   - skip the isolated Shelley smoke pass during refresh
 - `--expect-shelley-display-data`
   - require smoke validation to assert persisted `display_data` when sampled Stavrobot turns contain display-hint payloads
+- `--require-shelley-display-hints`
+  - with `--expect-shelley-display-data`, fail refresh/smoke if sampled turns contain no display-hint payloads
 
 Common status interpretation:
 

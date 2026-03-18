@@ -19,6 +19,7 @@ STAVROBOT_SECOND_EXPECTED="managed spike second turn ok"
 TMUX_SESSION="shelley-managed-s1-smoke"
 KEEP_SERVER=0
 EXPECT_DISPLAY_DATA=0
+REQUIRE_DISPLAY_HINTS=0
 SERVER_LOG="/tmp/shelley-managed-s1-smoke.log"
 
 usage() {
@@ -37,6 +38,7 @@ Flags:
   --tmux-session NAME            tmux session name used for test server
   --keep-server                  Leave test Shelley server running after success
   --expect-display-data          Assert Stavrobot assistant messages persist display_data
+  --require-display-hints        With --expect-display-data, fail if no display-hint payloads are observed
   --help
 
 Notes:
@@ -170,6 +172,10 @@ while [[ $# -gt 0 ]]; do
       EXPECT_DISPLAY_DATA=1
       shift
       ;;
+    --require-display-hints)
+      REQUIRE_DISPLAY_HINTS=1
+      shift
+      ;;
     --help)
       usage
       exit 0
@@ -190,6 +196,9 @@ require_cmd sqlite3
 [[ -f "$PROFILE_STATE_PATH" ]] || die "Managed bridge profile state file not found: $PROFILE_STATE_PATH"
 [[ -f "$STAVROBOT_CONFIG_PATH" ]] || die "Stavrobot config path not found: $STAVROBOT_CONFIG_PATH"
 [[ "$PORT" =~ ^[0-9]+$ ]] || die "--port must be numeric"
+if (( REQUIRE_DISPLAY_HINTS == 1 && EXPECT_DISPLAY_DATA == 0 )); then
+  die "--require-display-hints requires --expect-display-data"
+fi
 
 python3 "$ROOT_DIR/py/shelley_bridge_profiles.py" validate "$PROFILE_STATE_PATH" >/dev/null
 python3 "$ROOT_DIR/py/shelley_bridge_profiles.py" resolve "$PROFILE_STATE_PATH" "$BRIDGE_PROFILE" >/dev/null
@@ -329,6 +338,9 @@ else:
 PY
 )
   if [[ "$check_result" == "not_required" ]]; then
+    if (( REQUIRE_DISPLAY_HINTS == 1 )); then
+      die "Expected display-hint payloads but none were observed in sampled Stavrobot turns"
+    fi
     info "No display-hint payloads observed in smoke turn outputs; display_data assertion not required for this run"
   fi
 fi

@@ -299,6 +299,7 @@ Behavior note:
 - this assertion is conditional by design
 - the smoke script only requires non-null `display_data` when the sampled Stavrobot turns include display-hint payloads (such as `display.tool_summary` or media/image references)
 - if sampled turns are plain markdown/text with no display hints, the smoke output will report that display-data assertion was not required for that run
+- for stricter CI/validation behavior, use `--require-display-hints` together with `--expect-display-data` to fail when no display-hint payloads are observed
 
 ## D. Stavrobot-mode conversation create
 
