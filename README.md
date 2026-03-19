@@ -189,6 +189,8 @@ Strict runtime invalid raw-media rejection proof (managed refresh path):
   --shelley-bridge-fixture runtime_invalid_raw_media
 ```
 
+You can swap `runtime_invalid_raw_media` for `runtime_unsupported_raw_mime` and `runtime_oversize_raw_media` to prove those rejection paths too.
+
 Cleanup-only reset for `/opt/shelley` (discard local checkout edits/untracked files, no rebuild):
 
 ```bash

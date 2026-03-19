@@ -246,3 +246,100 @@ Example rejection proof command:
   --expect-raw-media-rejection \
   --require-raw-media-rejection-hints
 ```
+
+## Latest managed proof checkpoint (commit `d0af7e8`)
+
+The following strict managed refresh proofs were run successfully against `/opt/shelley` with the current patch series applied:
+
+### 1) Runtime native raw-media gate proof
+
+Command:
+
+```bash
+./refresh-shelley-managed-s1.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --smoke-port 8892 \
+  --smoke-db-path /tmp/shelley-proof-gate.db \
+  --smoke-tmux-session shelley-proof-gate \
+  --smoke-expect-native-raw-media-gating \
+  --smoke-require-native-raw-media-hints \
+  --smoke-expect-media-refs \
+  --smoke-require-media-refs \
+  --smoke-bridge-fixture runtime_raw_media_only
+```
+
+Observed DB evidence (`/tmp/shelley-proof-gate.db`):
+
+- assistant rows had `raw_payload.content=[]` + one raw-inline artifact
+- `llm_data.Content` contained native media entries (`MediaType` + `Data`)
+- `display_data.media_refs` contained persisted raw media refs
+
+### 2) Runtime invalid raw-media rejection proof
+
+Command:
+
+```bash
+./refresh-shelley-managed-s1.sh \
+  --allow-dirty \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --smoke-port 8893 \
+  --smoke-db-path /tmp/shelley-proof-reject-invalid.db \
+  --smoke-tmux-session shelley-proof-reject-invalid \
+  --smoke-expect-raw-media-rejection \
+  --smoke-require-raw-media-rejection-hints \
+  --smoke-bridge-fixture runtime_invalid_raw_media
+```
+
+Observed DB evidence (`/tmp/shelley-proof-reject-invalid.db`):
+
+- `unsupported_kinds` included `artifact:image:invalid raw media base64`
+- `display_data.media_refs` had no raw inline entry
+- assistant rows remained recorded (non-fatal degradation)
+
+### 3) Runtime unsupported-mime rejection proof
+
+Command:
+
+```bash
+./refresh-shelley-managed-s1.sh \
+  --allow-dirty \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --smoke-port 8894 \
+  --smoke-db-path /tmp/shelley-proof-reject-unsupported.db \
+  --smoke-tmux-session shelley-proof-reject-unsupported \
+  --smoke-expect-raw-media-rejection \
+  --smoke-require-raw-media-rejection-hints \
+  --smoke-bridge-fixture runtime_unsupported_raw_mime
+```
+
+Observed DB evidence (`/tmp/shelley-proof-reject-unsupported.db`):
+
+- `unsupported_kinds` included `artifact:image:unsupported raw media mime`
+- `display_data.media_refs` had no raw inline entry
+- assistant rows remained recorded (non-fatal degradation)
+
+### 4) Runtime oversize rejection proof
+
+Command:
+
+```bash
+./refresh-shelley-managed-s1.sh \
+  --allow-dirty \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --smoke-port 8895 \
+  --smoke-db-path /tmp/shelley-proof-reject-oversize.db \
+  --smoke-tmux-session shelley-proof-reject-oversize \
+  --smoke-expect-raw-media-rejection \
+  --smoke-require-raw-media-rejection-hints \
+  --smoke-bridge-fixture runtime_oversize_raw_media
+```
+
+Observed DB evidence (`/tmp/shelley-proof-reject-oversize.db`):
+
+- `unsupported_kinds` included `artifact:image:raw media payload exceeds max bytes`
+- `display_data.media_refs` had no raw inline entry
+- assistant rows remained recorded (non-fatal degradation)
