@@ -102,10 +102,7 @@ Still manual in this track:
 ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --refresh
 
 # Optional: refresh Shelley from upstream + reapply managed patch + run strict proof
-./install-stavrobot.sh \
-  --refresh-shelley-mode \
-  --sync-shelley-upstream-ff-only \
-  --strict-shelley-raw-media-profile
+./install-stavrobot.sh --refresh-shelley-mode-basic
 
 # Optional: inspect managed Shelley status
 ./install-stavrobot.sh --print-shelley-mode-status
@@ -153,6 +150,7 @@ Current installer-facing Shelley mode commands:
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-display-data --require-shelley-display-hints --shelley-bridge-fixture tool_summary
 ./install-stavrobot.sh --refresh-shelley-mode --strict-shelley-raw-media-profile
 ./install-stavrobot.sh --refresh-shelley-mode --sync-shelley-upstream-ff-only
+./install-stavrobot.sh --refresh-shelley-mode-basic
 ```
 
 What they do:
@@ -184,6 +182,8 @@ What they do:
 - `--sync-shelley-upstream-ff-only`
   - fetches and fast-forwards managed `/opt/shelley` upstream (`git fetch --prune origin` + `git pull --ff-only`) before patch/rebuild/smoke
   - fails if checkout is detached, lacks upstream tracking branch, or cannot be fast-forwarded
+- `--refresh-shelley-mode-basic`
+  - convenience alias for common users: equivalent to `--refresh-shelley-mode --sync-shelley-upstream-ff-only --strict-shelley-raw-media-profile`
 - `--expect-shelley-native-raw-media-gating`
   - assert phase-2 runtime gate: native raw-media mapping is allowed only when no assistant text content exists
 - `--require-shelley-native-raw-media-hints`
@@ -199,10 +199,7 @@ What they do:
 Authoritative strict managed raw-media runtime proof (recommended default):
 
 ```bash
-./install-stavrobot.sh \
-  --refresh-shelley-mode \
-  --sync-shelley-upstream-ff-only \
-  --strict-shelley-raw-media-profile
+./install-stavrobot.sh --refresh-shelley-mode-basic
 ```
 
 Direct helper equivalent:

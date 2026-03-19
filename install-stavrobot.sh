@@ -32,6 +32,7 @@ SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS=0
 SHELLEY_BRIDGE_FIXTURE=""
 SHELLEY_STRICT_RAW_MEDIA_PROFILE=0
 SHELLEY_SYNC_UPSTREAM_FF_ONLY=0
+SHELLEY_REFRESH_BASIC=0
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 
 ENV_PATH=""
@@ -61,10 +62,7 @@ Usage (most users):
   ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --refresh
 
   # 3) Optional: refresh managed Shelley mode from upstream + reapply patch + strict proof
-  ./install-stavrobot.sh \
-    --refresh-shelley-mode \
-    --sync-shelley-upstream-ff-only \
-    --strict-shelley-raw-media-profile
+  ./install-stavrobot.sh --refresh-shelley-mode-basic
 
   # 4) Optional: status checks
   ./install-stavrobot.sh --print-shelley-mode-status
@@ -102,6 +100,7 @@ Flags:
   --shelley-bridge-fixture NAME  Optional test fixture mode for Shelley smoke bridge payloads
   --strict-shelley-raw-media-profile  Run authoritative strict managed raw-media proof profile during Shelley refresh
   --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
+  --refresh-shelley-mode-basic      Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --strict-shelley-raw-media-profile
   --help-basic                 Print basic user quickstart and common commands
   --help
 
@@ -125,6 +124,7 @@ Shelley mode helpers:
   --shelley-bridge-fixture NAME  Optional test fixture mode for Shelley smoke bridge payloads
   --strict-shelley-raw-media-profile  Run authoritative strict managed raw-media proof profile during Shelley refresh
   --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
+  --refresh-shelley-mode-basic      Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --strict-shelley-raw-media-profile
 EOF
 }
 
@@ -468,6 +468,10 @@ while [[ $# -gt 0 ]]; do
       SHELLEY_SYNC_UPSTREAM_FF_ONLY=1
       shift
       ;;
+    --refresh-shelley-mode-basic)
+      SHELLEY_REFRESH_BASIC=1
+      shift
+      ;;
     --help-basic)
       usage_basic
       exit 0
@@ -481,6 +485,12 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if (( SHELLEY_REFRESH_BASIC )); then
+  SHELLEY_REFRESH_ONLY=1
+  SHELLEY_SYNC_UPSTREAM_FF_ONLY=1
+  SHELLEY_STRICT_RAW_MEDIA_PROFILE=1
+fi
 
 if (( SHELLEY_REFRESH_ONLY )) && (( SHELLEY_STATUS_JSON )); then
   die "--json cannot be combined with --refresh-shelley-mode"
