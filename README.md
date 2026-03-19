@@ -131,6 +131,7 @@ Current installer-facing Shelley mode commands:
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-media-refs --require-shelley-media-refs
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-display-data --require-shelley-display-hints --shelley-bridge-fixture tool_summary
 ./install-stavrobot.sh --refresh-shelley-mode --strict-shelley-raw-media-profile
+./install-stavrobot.sh --refresh-shelley-mode --sync-shelley-upstream-ff-only
 ```
 
 What they do:
@@ -159,6 +160,9 @@ What they do:
 - `--strict-shelley-raw-media-profile`
   - authoritative strict runtime proof profile: runs the deterministic fixture matrix (`runtime_raw_media_only`, `runtime_invalid_raw_media`, `runtime_unsupported_raw_mime`, `runtime_oversize_raw_media`) with strict assertions via `run-shelley-managed-strict-raw-media-proof.sh`
   - this should be the default operator proof mode for managed raw-media runtime validation
+- `--sync-shelley-upstream-ff-only`
+  - fetches and fast-forwards managed `/opt/shelley` upstream (`git fetch --prune origin` + `git pull --ff-only`) before patch/rebuild/smoke
+  - fails if checkout is detached, lacks upstream tracking branch, or cannot be fast-forwarded
 - `--expect-shelley-native-raw-media-gating`
   - assert phase-2 runtime gate: native raw-media mapping is allowed only when no assistant text content exists
 - `--require-shelley-native-raw-media-hints`
@@ -176,6 +180,7 @@ Authoritative strict managed raw-media runtime proof (recommended default):
 ```bash
 ./install-stavrobot.sh \
   --refresh-shelley-mode \
+  --sync-shelley-upstream-ff-only \
   --strict-shelley-raw-media-profile
 ```
 

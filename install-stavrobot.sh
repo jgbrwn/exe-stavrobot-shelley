@@ -31,6 +31,7 @@ SHELLEY_EXPECT_RAW_MEDIA_REJECTION=0
 SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS=0
 SHELLEY_BRIDGE_FIXTURE=""
 SHELLEY_STRICT_RAW_MEDIA_PROFILE=0
+SHELLEY_SYNC_UPSTREAM_FF_ONLY=0
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 
 ENV_PATH=""
@@ -76,6 +77,7 @@ Flags:
   --require-shelley-raw-media-rejection-hints  With --expect-shelley-raw-media-rejection, fail if no invalid raw-inline hints are observed
   --shelley-bridge-fixture NAME  Optional test fixture mode for Shelley smoke bridge payloads
   --strict-shelley-raw-media-profile  Run authoritative strict managed raw-media proof profile during Shelley refresh
+  --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
   --help
 
 Environment:
@@ -97,6 +99,7 @@ Shelley mode helpers:
   --require-shelley-raw-media-rejection-hints  With --expect-shelley-raw-media-rejection, fail if no invalid raw-inline hints are observed
   --shelley-bridge-fixture NAME  Optional test fixture mode for Shelley smoke bridge payloads
   --strict-shelley-raw-media-profile  Run authoritative strict managed raw-media proof profile during Shelley refresh
+  --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
 EOF
 }
 
@@ -436,6 +439,10 @@ while [[ $# -gt 0 ]]; do
       SHELLEY_STRICT_RAW_MEDIA_PROFILE=1
       shift
       ;;
+    --sync-shelley-upstream-ff-only)
+      SHELLEY_SYNC_UPSTREAM_FF_ONLY=1
+      shift
+      ;;
     --help)
       usage
       exit 0
@@ -455,7 +462,7 @@ if (( SHELLEY_STATUS_ONLY )); then
   [[ -z "$STAVROBOT_DIR" ]] || die "--print-shelley-mode-status cannot be combined with --stavrobot-dir"
   (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHOW_SECRETS == 0 )) || \
     die "--print-shelley-mode-status cannot be combined with normal installer mutation flags"
-  (( SHELLEY_ALLOW_DIRTY == 0 && SHELLEY_SKIP_SMOKE == 0 && SHELLEY_EXPECT_DISPLAY_DATA == 0 && SHELLEY_REQUIRE_DISPLAY_HINTS == 0 && SHELLEY_EXPECT_MEDIA_REFS == 0 && SHELLEY_REQUIRE_MEDIA_REFS == 0 && SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING == 0 && SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 0 && SHELLEY_EXPECT_RAW_MEDIA_REJECTION == 0 && SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 0 && SHELLEY_STRICT_RAW_MEDIA_PROFILE == 0 )) && [[ -z "$SHELLEY_BRIDGE_FIXTURE" ]] || \
+  (( SHELLEY_ALLOW_DIRTY == 0 && SHELLEY_SKIP_SMOKE == 0 && SHELLEY_EXPECT_DISPLAY_DATA == 0 && SHELLEY_REQUIRE_DISPLAY_HINTS == 0 && SHELLEY_EXPECT_MEDIA_REFS == 0 && SHELLEY_REQUIRE_MEDIA_REFS == 0 && SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING == 0 && SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 0 && SHELLEY_EXPECT_RAW_MEDIA_REJECTION == 0 && SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 0 && SHELLEY_STRICT_RAW_MEDIA_PROFILE == 0 && SHELLEY_SYNC_UPSTREAM_FF_ONLY == 0 )) && [[ -z "$SHELLEY_BRIDGE_FIXTURE" ]] || \
     die "--print-shelley-mode-status cannot be combined with Shelley refresh-only flags"
 else
   (( SHELLEY_STATUS_JSON == 0 )) || die "--json currently requires --print-shelley-mode-status"
@@ -467,8 +474,8 @@ if (( SHELLEY_REFRESH_ONLY )); then
     die "--refresh-shelley-mode cannot be combined with normal installer mutation flags"
 fi
 
-if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE || SHELLEY_EXPECT_DISPLAY_DATA || SHELLEY_REQUIRE_DISPLAY_HINTS || SHELLEY_EXPECT_MEDIA_REFS || SHELLEY_REQUIRE_MEDIA_REFS || SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING || SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS || SHELLEY_EXPECT_RAW_MEDIA_REJECTION || SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS || SHELLEY_STRICT_RAW_MEDIA_PROFILE) && SHELLEY_REFRESH_ONLY == 0 )) || ([[ -n "$SHELLEY_BRIDGE_FIXTURE" ]] && (( SHELLEY_REFRESH_ONLY == 0 ))); then
-  die "--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, --expect-shelley-media-refs, --require-shelley-media-refs, --expect-shelley-native-raw-media-gating, --require-shelley-native-raw-media-hints, --expect-shelley-raw-media-rejection, --require-shelley-raw-media-rejection-hints, --strict-shelley-raw-media-profile, and --shelley-bridge-fixture require --refresh-shelley-mode"
+if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE || SHELLEY_EXPECT_DISPLAY_DATA || SHELLEY_REQUIRE_DISPLAY_HINTS || SHELLEY_EXPECT_MEDIA_REFS || SHELLEY_REQUIRE_MEDIA_REFS || SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING || SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS || SHELLEY_EXPECT_RAW_MEDIA_REJECTION || SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS || SHELLEY_STRICT_RAW_MEDIA_PROFILE || SHELLEY_SYNC_UPSTREAM_FF_ONLY) && SHELLEY_REFRESH_ONLY == 0 )) || ([[ -n "$SHELLEY_BRIDGE_FIXTURE" ]] && (( SHELLEY_REFRESH_ONLY == 0 ))); then
+  die "--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, --expect-shelley-media-refs, --require-shelley-media-refs, --expect-shelley-native-raw-media-gating, --require-shelley-native-raw-media-hints, --expect-shelley-raw-media-rejection, --require-shelley-raw-media-rejection-hints, --strict-shelley-raw-media-profile, --sync-shelley-upstream-ff-only, and --shelley-bridge-fixture require --refresh-shelley-mode"
 fi
 if (( SHELLEY_REQUIRE_DISPLAY_HINTS == 1 && SHELLEY_EXPECT_DISPLAY_DATA == 0 )); then
   die "--require-shelley-display-hints requires --expect-shelley-display-data"
@@ -533,6 +540,9 @@ if (( SHELLEY_REFRESH_ONLY )); then
   fi
   if (( SHELLEY_STRICT_RAW_MEDIA_PROFILE )); then
     refresh_args+=(--smoke-strict-raw-media-profile)
+  fi
+  if (( SHELLEY_SYNC_UPSTREAM_FF_ONLY )); then
+    refresh_args+=(--sync-upstream-ff-only)
   fi
   exec "$ROOT_DIR/refresh-shelley-managed-s1.sh" "${refresh_args[@]}"
 fi

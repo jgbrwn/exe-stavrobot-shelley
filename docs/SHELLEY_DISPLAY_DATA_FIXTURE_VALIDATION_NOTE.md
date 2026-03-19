@@ -353,6 +353,7 @@ Installer-managed form:
 ```bash
 ./install-stavrobot.sh \
   --refresh-shelley-mode \
+  --sync-shelley-upstream-ff-only \
   --strict-shelley-raw-media-profile
 ```
 
@@ -397,6 +398,12 @@ Managed strict profile was executed successfully via refresh helper after introd
   --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
   --smoke-port 8892 \
   --smoke-strict-raw-media-profile
+```
+
+When the latest upstream Shelley is required as part of refresh, add:
+
+```bash
+--sync-upstream-ff-only
 ```
 
 Observed pass bundle DB paths:

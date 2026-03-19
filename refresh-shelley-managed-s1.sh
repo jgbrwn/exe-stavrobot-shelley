@@ -20,6 +20,7 @@ SMOKE_EXPECT_RAW_MEDIA_REJECTION=0
 SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS=0
 SMOKE_BRIDGE_FIXTURE=""
 SMOKE_STRICT_RAW_MEDIA_PROFILE=0
+SYNC_UPSTREAM_FF_ONLY=0
 PRINT_CLEAN_RESET_INSTRUCTIONS=0
 CLEAN_RESET_SHELLEY_CHECKOUT=0
 CLEAN_RESET_ONLY=0
@@ -63,6 +64,7 @@ Flags:
   --smoke-require-raw-media-rejection-hints  With --smoke-expect-raw-media-rejection, fail if no invalid raw-inline hints are observed
   --smoke-bridge-fixture NAME    Optional bridge fixture mode passed to smoke server (e.g. tool_summary, runtime_raw_media_only, runtime_invalid_raw_media)
   --smoke-strict-raw-media-profile  Apply authoritative strict runtime proof profile (runs fixture matrix with strict assertions)
+  --sync-upstream-ff-only       Fetch + pull --ff-only on managed Shelley checkout before patch/rebuild
   --print-clean-reset-instructions  Print safe /opt/shelley cleanup instructions and exit
   --clean-reset-shelley-checkout   Hard reset and clean the managed Shelley checkout before refresh
   --clean-reset-only               Perform cleanup reset and exit without patch/rebuild/smoke
@@ -254,6 +256,10 @@ while [[ $# -gt 0 ]]; do
       SMOKE_STRICT_RAW_MEDIA_PROFILE=1
       shift
       ;;
+    --sync-upstream-ff-only)
+      SYNC_UPSTREAM_FF_ONLY=1
+      shift
+      ;;
     --print-clean-reset-instructions)
       PRINT_CLEAN_RESET_INSTRUCTIONS=1
       shift
@@ -329,6 +335,17 @@ if (( ALLOW_DIRTY == 0 )) && [[ -n "$(git -C "$SHELLEY_DIR" status --porcelain)"
   warn "Shelley checkout is not clean: $SHELLEY_DIR"
   print_clean_reset_instructions
   die "Refusing dirty checkout without --allow-dirty (or run --clean-reset-shelley-checkout --i-understand-reset)"
+fi
+
+if (( SYNC_UPSTREAM_FF_ONLY == 1 )); then
+  current_branch=$(git -C "$SHELLEY_DIR" symbolic-ref --short HEAD 2>/dev/null || true)
+  [[ -n "$current_branch" ]] || die "--sync-upstream-ff-only requires a branch checkout (not detached HEAD)"
+  upstream_ref=$(git -C "$SHELLEY_DIR" rev-parse --abbrev-ref --symbolic-full-name "${current_branch}@{upstream}" 2>/dev/null || true)
+  [[ -n "$upstream_ref" ]] || die "--sync-upstream-ff-only requires branch '$current_branch' to have an upstream tracking ref"
+  info "Fetching managed Shelley upstream"
+  git -C "$SHELLEY_DIR" fetch --prune origin
+  info "Fast-forwarding $current_branch from $upstream_ref"
+  git -C "$SHELLEY_DIR" pull --ff-only
 fi
 
 for patch in "${PATCHES[@]}"; do

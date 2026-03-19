@@ -19,7 +19,7 @@ assert_contains "$out" '--json currently requires --print-shelley-mode-status'
 out=$("$ROOT_DIR/install-stavrobot.sh" --refresh-shelley-mode --json 2>&1 || true)
 assert_contains "$out" '--json cannot be combined with --refresh-shelley-mode'
 
-refresh_only_err='--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, --expect-shelley-media-refs, --require-shelley-media-refs, --expect-shelley-native-raw-media-gating, --require-shelley-native-raw-media-hints, --expect-shelley-raw-media-rejection, --require-shelley-raw-media-rejection-hints, --strict-shelley-raw-media-profile, and --shelley-bridge-fixture require --refresh-shelley-mode'
+refresh_only_err='--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, --expect-shelley-media-refs, --require-shelley-media-refs, --expect-shelley-native-raw-media-gating, --require-shelley-native-raw-media-hints, --expect-shelley-raw-media-rejection, --require-shelley-raw-media-rejection-hints, --strict-shelley-raw-media-profile, --sync-shelley-upstream-ff-only, and --shelley-bridge-fixture require --refresh-shelley-mode'
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --allow-dirty-shelley 2>&1 || true)
 assert_contains "$out" "$refresh_only_err"
@@ -52,6 +52,9 @@ out=$("$ROOT_DIR/install-stavrobot.sh" --shelley-bridge-fixture tool_summary 2>&
 assert_contains "$out" "$refresh_only_err"
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --strict-shelley-raw-media-profile 2>&1 || true)
+assert_contains "$out" "$refresh_only_err"
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --sync-shelley-upstream-ff-only 2>&1 || true)
 assert_contains "$out" "$refresh_only_err"
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --refresh-shelley-mode --require-shelley-display-hints 2>&1 || true)
