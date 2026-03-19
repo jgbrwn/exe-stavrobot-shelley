@@ -797,6 +797,10 @@ Strategic follow-up artifact:
 
 ## Compact Shelley handoff summary
 
+For the current session-ready handoff snapshot and next-action queue, see also:
+
+- `docs/SHELLEY_NEXT_STEPS_HANDOFF.md`
+
 Shortest execution-oriented summary:
 
 - keep Shelley Stavrobot integration optional

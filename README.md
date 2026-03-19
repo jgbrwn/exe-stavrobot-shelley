@@ -62,6 +62,7 @@ Still manual in this track:
 - `docs/SHELLEY_DISPLAY_DATA_FIXTURE_VALIDATION_NOTE.md` now captures the deterministic fixture-backed validation path for proving Stavrobot `display_data` persistence in managed Shelley smoke runs
 - the roadmap now also has explicit validation checklists so future Shelley-side work can be judged phase by phase rather than by architecture discussion alone
 - the docs now also include a compact handoff summary so a future session can restart from the current recommendation stack quickly
+- `docs/SHELLEY_NEXT_STEPS_HANDOFF.md` now provides a current immediate-vs-outward next-step plan plus fast-resume commands for session handoff
 - a disposable official-Shelley S1 spike has now also validated the core seam: per-conversation Stavrobot mode works above the normal model/provider layer using `conversation_options` plus existing Shelley message/working-state plumbing
 - `docs/SHELLEY_S1_SPIKE_EXTRACTION.md` now captures the exact disposable patch shape, the real design signal, and what must change before that shape becomes a managed rebuild target
 - `docs/SHELLEY_MANAGED_REBUILD_CONTRACT.md` now captures the installer-owned rebuild state, bridge profile state, refresh logic, and future Shelley-mode flag behavior needed to make that path repeatable
