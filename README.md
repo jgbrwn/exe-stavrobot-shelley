@@ -92,6 +92,27 @@ Still manual in this track:
 /opt/stavrobot-installer/       # this repo
 ```
 
+## Quickstart (most users)
+
+```bash
+# First install / setup
+./install-stavrobot.sh --stavrobot-dir /opt/stavrobot
+
+# Later: refresh Stavrobot upstream + rebuild only when needed
+./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --refresh
+
+# Optional: refresh Shelley from upstream + reapply managed patch + run strict proof
+./install-stavrobot.sh \
+  --refresh-shelley-mode \
+  --sync-shelley-upstream-ff-only \
+  --strict-shelley-raw-media-profile
+
+# Optional: inspect managed Shelley status
+./install-stavrobot.sh --print-shelley-mode-status
+```
+
+For this same short guide from the CLI: `./install-stavrobot.sh --help-basic`
+
 ## Planned usage
 
 ```bash
@@ -115,7 +136,7 @@ Current core installer flag semantics:
 - `--skip-plugins`
   - skip plugin prompting/install/configure steps for this run
 
-## Managed Shelley mode commands
+## Managed Shelley mode commands (advanced)
 
 Current installer-facing Shelley mode commands:
 

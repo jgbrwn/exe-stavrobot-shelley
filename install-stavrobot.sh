@@ -50,6 +50,30 @@ PLUGINS_SELECTED_COUNT=0
 PLUGINS_HANDLED=0
 PLUGIN_REPORT_FILE=""
 
+usage_basic() {
+  cat <<'EOF'
+Usage (most users):
+
+  # 1) First install / setup
+  ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot
+
+  # 2) Later: refresh Stavrobot to latest upstream and rebuild if needed
+  ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --refresh
+
+  # 3) Optional: refresh managed Shelley mode from upstream + reapply patch + strict proof
+  ./install-stavrobot.sh \
+    --refresh-shelley-mode \
+    --sync-shelley-upstream-ff-only \
+    --strict-shelley-raw-media-profile
+
+  # 4) Optional: status checks
+  ./install-stavrobot.sh --print-shelley-mode-status
+  ./install-stavrobot.sh --print-shelley-mode-status --json
+
+Use --help for full expert/advanced flags.
+EOF
+}
+
 usage() {
   cat <<'EOF'
 Usage: ./install-stavrobot.sh --stavrobot-dir PATH [flags]
@@ -78,6 +102,7 @@ Flags:
   --shelley-bridge-fixture NAME  Optional test fixture mode for Shelley smoke bridge payloads
   --strict-shelley-raw-media-profile  Run authoritative strict managed raw-media proof profile during Shelley refresh
   --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
+  --help-basic                 Print basic user quickstart and common commands
   --help
 
 Environment:
@@ -442,6 +467,10 @@ while [[ $# -gt 0 ]]; do
     --sync-shelley-upstream-ff-only)
       SHELLEY_SYNC_UPSTREAM_FF_ONLY=1
       shift
+      ;;
+    --help-basic)
+      usage_basic
+      exit 0
       ;;
     --help)
       usage
