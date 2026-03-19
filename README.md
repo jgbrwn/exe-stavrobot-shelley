@@ -260,6 +260,15 @@ Lightweight helper/status validation:
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
 ```
 
+### Managed runtime smoke contract lane policy (checklist)
+
+- **Normal dev lane (portable/default):**
+  - run `./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh`
+  - skip-safe behavior is expected when managed runtime prerequisites are absent
+- **Release / patched-runtime lane (required):**
+  - run `REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh`
+  - any missing/unpatched managed runtime prerequisite is a failure (not skip)
+
 ## Operator helper: Stavrobot backend model control
 
 For current operator/admin use, this repo now includes a separate helper for shared Stavrobot backend model inspection and OpenRouter model changes:

@@ -419,3 +419,17 @@ Required-runtime lane check also passed:
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 \
   ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
 ```
+
+## Minimal release-checklist snippet
+
+Use this exact two-lane wording to avoid drift across future sessions:
+
+1. **Dev lane (default portable lane):** run managed runtime contract smoke in skip-safe mode.
+2. **Release lane (required-runtime lane):** rerun the same test with `REQUIRE_PATCHED_MANAGED_RUNTIME=1`; treat any skip-precondition as failure.
+
+Concrete commands:
+
+```bash
+./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
+REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
+```
