@@ -433,3 +433,42 @@ Concrete commands:
 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
 ```
+
+## S2 narrow fidelity fixture proof (markdown + tool summary)
+
+A deterministic fixture mode is available for the first narrow S2 runtime-adaptation proof:
+
+- `STAVROBOT_BRIDGE_FIXTURE=s2_markdown_tool_summary`
+
+It forces markdown-first `content[]` with a deterministic heading and ensures compact `display.tool_summary` in bridge output.
+
+Managed smoke command:
+
+```bash
+./smoke-test-shelley-managed-s1.sh \
+  --shelley-dir /opt/shelley \
+  --shelley-bin /opt/shelley/bin/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8896 \
+  --db-path /tmp/shelley-smoke-s2-markdown.db \
+  --tmux-session shelley-smoke-s2-markdown \
+  --bridge-fixture s2_markdown_tool_summary \
+  --expect-s2-markdown-tool-summary \
+  --require-s2-markdown-tool-summary-hints
+```
+
+Installer equivalent:
+
+```bash
+./install-stavrobot.sh \
+  --refresh-shelley-mode \
+  --expect-shelley-s2-markdown-tool-summary \
+  --require-shelley-s2-markdown-tool-summary-hints \
+  --shelley-bridge-fixture s2_markdown_tool_summary
+```
+
+Expected persistence evidence:
+
+- `user_data.stavrobot.raw_payload.content` includes markdown item with `## S2 fixture heading`
+- `llm_data.Content` includes assistant text containing `## S2 fixture heading`
+- `display_data.tool_summary` is present and non-empty

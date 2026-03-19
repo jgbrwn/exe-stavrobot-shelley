@@ -67,6 +67,7 @@ Notes:
   - when STAVROBOT_BRIDGE_FIXTURE=raw_media_image is set, chat output injects a deterministic inline raw image artifact only if no real image artifact is present (test/validation aid)
   - when STAVROBOT_BRIDGE_FIXTURE=runtime_raw_media_only is set, chat output forces content[] empty and injects a valid raw-inline image artifact (runtime native-mapping gate validation aid)
   - when STAVROBOT_BRIDGE_FIXTURE=runtime_invalid_raw_media is set, chat output forces content[] empty and injects an intentionally invalid raw-inline image artifact (runtime rejection-path validation aid)
+  - when STAVROBOT_BRIDGE_FIXTURE=s2_markdown_tool_summary is set, chat output rewrites content[] to markdown-first with deterministic heading and ensures compact display.tool_summary (S2 runtime adaptation validation aid)
   --pretty                Pretty-print JSON output
   --connect-timeout SEC   Curl connect timeout in seconds
   --request-timeout SEC   Total request timeout in seconds
@@ -77,7 +78,7 @@ Notes:
 Environment:
   STAVROBOT_SESSION_BIN   Override session helper used by the bridge
   STAVROBOT_CLIENT_BIN    Override client helper used by the bridge
-  STAVROBOT_BRIDGE_FIXTURE  Optional test fixture payload mode (e.g. tool_summary, raw_media_image, runtime_raw_media_only, runtime_invalid_raw_media)
+  STAVROBOT_BRIDGE_FIXTURE  Optional test fixture payload mode (e.g. tool_summary, raw_media_image, runtime_raw_media_only, runtime_invalid_raw_media, s2_markdown_tool_summary)
   STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED  Enable/disable narrow raw-media extraction (1/0, default: 1)
   STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES  Max decoded bytes per raw media item (default: 262144)
 EOF
@@ -558,6 +559,25 @@ if fixture == 'runtime_oversize_raw_media':
         'data_base64': base64.b64encode(oversize).decode('ascii'),
         'title': 'fixture runtime oversize raw-media artifact',
     })
+
+if fixture == 's2_markdown_tool_summary':
+    out['content'] = [
+        {
+            'kind': 'markdown',
+            'text': '## S2 fixture heading\n\nS2 markdown + tool-summary fixture body.',
+        }
+    ]
+    out['response'] = '## S2 fixture heading\n\nS2 markdown + tool-summary fixture body.'
+    display = out.setdefault('display', {})
+    tool_summary = display.get('tool_summary')
+    if not isinstance(tool_summary, list) or not tool_summary:
+        display['tool_summary'] = [
+            {
+                'tool': 'fixture.s2_tool',
+                'status': 'ok',
+                'title': 'fixture S2 markdown/tool-summary validation',
+            }
+        ]
 
 if media_notes:
     out.setdefault('display', {})['media_notes'] = media_notes[:8]

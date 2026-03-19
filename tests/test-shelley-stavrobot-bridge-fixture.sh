@@ -81,4 +81,12 @@ assert_contains "$out_runtime_invalid" '"content": []'
 assert_contains "$out_runtime_invalid" '"data_base64": "%%%not-base64%%%"'
 assert_contains "$out_runtime_invalid" '"title": "fixture runtime invalid raw-media artifact"'
 
+out_s2_fixture=$(STAVROBOT_SESSION_BIN="$SESSION_STUB" STAVROBOT_BRIDGE_FIXTURE=s2_markdown_tool_summary "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
+assert_contains "$out_s2_fixture" '"content": ['
+assert_contains "$out_s2_fixture" '"kind": "markdown"'
+assert_contains "$out_s2_fixture" '"text": "## S2 fixture heading' 
+assert_contains "$out_s2_fixture" 'S2 markdown + tool-summary fixture body."'
+assert_contains "$out_s2_fixture" '"display": {'
+assert_contains "$out_s2_fixture" '"tool_summary": ['
+
 printf 'shelley-stavrobot-bridge fixture tests passed\n'

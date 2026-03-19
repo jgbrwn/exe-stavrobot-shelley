@@ -149,6 +149,7 @@ Current installer-facing Shelley mode commands:
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-media-refs
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-media-refs --require-shelley-media-refs
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-display-data --require-shelley-display-hints --shelley-bridge-fixture tool_summary
+./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-s2-markdown-tool-summary --require-shelley-s2-markdown-tool-summary-hints --shelley-bridge-fixture s2_markdown_tool_summary
 ./install-stavrobot.sh --refresh-shelley-mode --strict-shelley-raw-media-profile
 ./install-stavrobot.sh --refresh-shelley-mode --sync-shelley-upstream-ff-only
 ./install-stavrobot.sh --refresh-shelley-mode-basic
@@ -193,6 +194,10 @@ What they do:
   - assert runtime rejects invalid raw-inline artifacts non-fatally (no persisted invalid raw media refs + unsupported-kind reason evidence)
 - `--require-shelley-raw-media-rejection-hints`
   - with `--expect-shelley-raw-media-rejection`, fail when no invalid raw-inline hints are observed
+- `--expect-shelley-s2-markdown-tool-summary`
+  - assert markdown-first content + compact `display.tool_summary` persistence behavior from bridge payload to managed Shelley message rows
+- `--require-shelley-s2-markdown-tool-summary-hints`
+  - with `--expect-shelley-s2-markdown-tool-summary`, fail when no markdown/tool_summary hints are observed
 - cleanup ergonomics: `./refresh-shelley-managed-s1.sh --print-clean-reset-instructions` (or `--clean-reset-only --i-understand-reset`) helps keep `/opt/shelley` deterministic between refresh runs
 
 ### Operator quick recipes
@@ -212,6 +217,16 @@ Direct helper equivalent:
 ```
 
 Legacy single-fixture strict checks are still available when needed for focused debugging.
+
+Focused S2 markdown/tool-summary adaptation proof (deterministic fixture):
+
+```bash
+./install-stavrobot.sh \
+  --refresh-shelley-mode \
+  --expect-shelley-s2-markdown-tool-summary \
+  --require-shelley-s2-markdown-tool-summary-hints \
+  --shelley-bridge-fixture s2_markdown_tool_summary
+```
 
 Cleanup-only reset for `/opt/shelley` (discard local checkout edits/untracked files, no rebuild):
 
