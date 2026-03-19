@@ -386,3 +386,29 @@ Example required-runtime invocation:
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 \
   ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
 ```
+
+## Latest strict-profile execution checkpoint (post-profile wiring)
+
+Managed strict profile was executed successfully via refresh helper after introducing the authoritative profile flag:
+
+```bash
+./refresh-shelley-managed-s1.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --smoke-port 8892 \
+  --smoke-strict-raw-media-profile
+```
+
+Observed pass bundle DB paths:
+
+- `/tmp/shelley-stavrobot-managed-test-1773933684-runtime_raw_media_only.db`
+- `/tmp/shelley-stavrobot-managed-test-1773933684-runtime_invalid_raw_media.db`
+- `/tmp/shelley-stavrobot-managed-test-1773933684-runtime_unsupported_raw_mime.db`
+- `/tmp/shelley-stavrobot-managed-test-1773933684-runtime_oversize_raw_media.db`
+
+Required-runtime lane check also passed:
+
+```bash
+REQUIRE_PATCHED_MANAGED_RUNTIME=1 \
+  ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
+```
