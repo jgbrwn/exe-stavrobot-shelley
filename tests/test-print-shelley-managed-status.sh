@@ -119,3 +119,59 @@ assert_not_contains "$older_output" 'warnings:'
 
 printf 'print-shelley-managed-status tests passed\n'
 
+
+# upstream-ahead/behind shape + basic mode output
+LOCAL_GIT="$TMP_DIR/local-checkout"
+REMOTE_GIT="$TMP_DIR/remote.git"
+mkdir -p "$LOCAL_GIT"
+git init --initial-branch=main "$LOCAL_GIT" >/dev/null
+(
+  cd "$LOCAL_GIT"
+  git config user.email test@example.com
+  git config user.name test
+  echo first > file.txt
+  git add file.txt
+  git commit -m first >/dev/null
+)
+git init --bare "$REMOTE_GIT" >/dev/null
+(
+  cd "$LOCAL_GIT"
+  git remote add origin "$REMOTE_GIT"
+  git push -u origin main >/dev/null
+)
+
+mkdir -p "$TMP_DIR/bin"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP_DIR/bin/shelley"
+chmod +x "$TMP_DIR/bin/shelley"
+
+cat > "$TMP_DIR/state-local.json" <<EOF
+{
+  "enabled": true,
+  "mode": "stavrobot",
+  "local_contract": {
+    "bridge_contract_version": 1
+  },
+  "profiles": {
+    "available": ["local-default"],
+    "default": "local-default"
+  },
+  "build": {
+    "checkout_path": "$LOCAL_GIT",
+    "binary_path": "$TMP_DIR/bin/shelley",
+    "checkout_dirty_at_rebuild": false
+  },
+  "upstream": {
+    "commit": ""
+  }
+}
+EOF
+
+sync_output=$("$ROOT_DIR/print-shelley-managed-status.sh" --state-file "$TMP_DIR/state-local.json" --profile-state-file "$TMP_DIR/profiles.json")
+assert_contains "$sync_output" 'upstream_sync_status: in-sync'
+assert_contains "$sync_output" 'upstream_tracking_ref: origin/main'
+assert_contains "$sync_output" 'upstream_ahead: 0'
+assert_contains "$sync_output" 'upstream_behind: 0'
+
+basic_output=$("$ROOT_DIR/print-shelley-managed-status.sh" --state-file "$TMP_DIR/state-local.json" --profile-state-file "$TMP_DIR/profiles.json" --basic)
+assert_contains "$basic_output" 'status: '
+assert_contains "$basic_output" 'upstream_sync: in-sync (ahead=0 behind=0)'

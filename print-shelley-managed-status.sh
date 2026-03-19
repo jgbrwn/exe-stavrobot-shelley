@@ -8,6 +8,7 @@ STATE_FILE="${STATE_FILE:-$ROOT_DIR/state/shelley-mode-build.json}"
 PROFILE_STATE_FILE="${PROFILE_STATE_FILE:-$ROOT_DIR/state/shelley-bridge-profiles.json}"
 SHELLEY_DIR_OVERRIDE=""
 JSON=0
+BASIC=0
 
 usage() {
   cat <<'EOF'
@@ -18,6 +19,7 @@ Flags:
   --profile-state-file PATH   Bridge profile state file
   --shelley-dir PATH          Override Shelley checkout path instead of using state file value
   --json                      Print computed status JSON
+  --basic                     Print compact non-expert summary
   --help
 EOF
 }
@@ -40,6 +42,10 @@ while [[ $# -gt 0 ]]; do
       JSON=1
       shift
       ;;
+    --basic)
+      BASIC=1
+      shift
+      ;;
     --help)
       usage
       exit 0
@@ -50,18 +56,27 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if (( JSON == 1 && BASIC == 1 )); then
+  die "--basic cannot be combined with --json"
+fi
+
 require_cmd python3
 require_cmd git
 
-python3 - "$STATE_FILE" "$PROFILE_STATE_FILE" "$SHELLEY_DIR_OVERRIDE" "$JSON" <<'PY'
+python3 - "$STATE_FILE" "$PROFILE_STATE_FILE" "$SHELLEY_DIR_OVERRIDE" "$JSON" "$BASIC" <<'PY'
 import json, os, subprocess, sys
 from pathlib import Path
 
-state_file, profile_file, shelley_dir_override, json_mode = sys.argv[1:5]
+state_file, profile_file, shelley_dir_override, json_mode, basic_mode = sys.argv[1:6]
 json_mode = json_mode == '1'
+basic_mode = basic_mode == '1'
 
 result = {
     'configured': False,
+    'upstream_tracking_ref': '',
+    'upstream_sync_status': 'unknown',
+    'upstream_ahead_count': -1,
+    'upstream_behind_count': -1,
     'state_file': state_file,
     'profile_state_file': profile_file,
     'enabled': False,
@@ -124,8 +139,40 @@ if result['checkout_path']:
                 text=True,
             )
             result['checkout_dirty'] = bool(dirty.strip())
-        except Exception as e:
-            result['notes'].append(f'failed to read checkout commit/status: {e}')
+
+            branch = subprocess.check_output(
+                ['git', '-C', result['checkout_path'], 'symbolic-ref', '--short', 'HEAD'],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+            upstream_ref = subprocess.check_output(
+                ['git', '-C', result['checkout_path'], 'rev-parse', '--abbrev-ref', '--symbolic-full-name', f'{branch}@{{upstream}}'],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+            result['upstream_tracking_ref'] = upstream_ref
+            ahead_behind = subprocess.check_output(
+                ['git', '-C', result['checkout_path'], 'rev-list', '--left-right', '--count', f'{branch}...{upstream_ref}'],
+                text=True,
+            ).strip()
+            ahead_s, behind_s = ahead_behind.split()
+            ahead = int(ahead_s)
+            behind = int(behind_s)
+            result['upstream_ahead_count'] = ahead
+            result['upstream_behind_count'] = behind
+            if ahead == 0 and behind == 0:
+                result['upstream_sync_status'] = 'in-sync'
+            elif ahead > 0 and behind == 0:
+                result['upstream_sync_status'] = 'ahead'
+            elif ahead == 0 and behind > 0:
+                result['upstream_sync_status'] = 'behind'
+            else:
+                result['upstream_sync_status'] = 'diverged'
+        except Exception:
+            result['upstream_sync_status'] = 'unknown'
+            # keep notes concise for non-git-tracking checkouts; only emit note when checkout exists but
+            # upstream tracking cannot be resolved and we're not detached from a branch intentionally
+            result['notes'].append('could not determine upstream ahead/behind status (missing tracking branch or detached HEAD)')
 
 if result['binary_path']:
     result['binary_exists'] = Path(result['binary_path']).exists()
@@ -176,6 +223,42 @@ if json_mode:
     print(json.dumps(result, indent=2, sort_keys=True))
     raise SystemExit(0)
 
+if basic_mode:
+    if not result['configured'] or not result['enabled']:
+        print('status: setup-required')
+        print('summary: managed Shelley mode is not fully configured yet')
+        print('next: run ./install-stavrobot.sh --refresh-shelley-mode-basic')
+        raise SystemExit(0)
+
+    parts = []
+    if result['rebuild_required']:
+        status = 'attention'
+    else:
+        status = 'ok'
+    parts.append(f'status: {status}')
+
+    if result['upstream_sync_status'] in ('behind', 'diverged'):
+        parts.append(f"upstream_sync: {result['upstream_sync_status']} (ahead={result['upstream_ahead_count']} behind={result['upstream_behind_count']})")
+        parts.append('next: run ./install-stavrobot.sh --refresh-shelley-mode --sync-shelley-upstream-ff-only')
+    elif result['upstream_sync_status'] in ('in-sync', 'ahead'):
+        parts.append(f"upstream_sync: {result['upstream_sync_status']} (ahead={result['upstream_ahead_count']} behind={result['upstream_behind_count']})")
+    else:
+        parts.append('upstream_sync: unknown')
+
+    if result['checkout_dirty']:
+        parts.append('checkout: dirty')
+        parts.append('next: clean checkout or rerun with explicit --allow-dirty-shelley only if intentional')
+    else:
+        parts.append('checkout: clean')
+
+    parts.append(f"rebuild_required: {'yes' if result['rebuild_required'] else 'no'}")
+    if result['warnings']:
+        parts.append('warnings: ' + '; '.join(result['warnings']))
+
+    for line in parts:
+        print(line)
+    raise SystemExit(0)
+
 print(f"configured: {'yes' if result['configured'] else 'no'}")
 print(f"enabled: {'yes' if result['enabled'] else 'no'}")
 if result['mode']:
@@ -199,6 +282,12 @@ if result['warnings']:
 if result['checkout_exists']:
     print(f"checkout_dirty: {'yes' if result['checkout_dirty'] else 'no'}")
 print(f"upstream_status: {result['upstream_current']}")
+print(f"upstream_sync_status: {result['upstream_sync_status']}")
+if result['upstream_tracking_ref']:
+    print(f"upstream_tracking_ref: {result['upstream_tracking_ref']}")
+if result['upstream_ahead_count'] >= 0 and result['upstream_behind_count'] >= 0:
+    print(f"upstream_ahead: {result['upstream_ahead_count']}")
+    print(f"upstream_behind: {result['upstream_behind_count']}")
 print(f"profiles_status: {result['profiles_current']}")
 if result['profiles_missing']:
     print(f"profiles_missing: {', '.join(sorted(set(result['profiles_missing'])))}")

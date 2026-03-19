@@ -18,6 +18,7 @@ SKIP_PLUGINS=0
 SHOW_SECRETS=0
 SHELLEY_STATUS_ONLY=0
 SHELLEY_STATUS_JSON=0
+SHELLEY_STATUS_BASIC=0
 SHELLEY_REFRESH_ONLY=0
 SHELLEY_ALLOW_DIRTY=0
 SHELLEY_SKIP_SMOKE=0
@@ -65,6 +66,7 @@ Usage (most users):
   ./install-stavrobot.sh --refresh-shelley-mode-basic
 
   # 4) Optional: status checks
+  ./install-stavrobot.sh --print-shelley-mode-status --basic
   ./install-stavrobot.sh --print-shelley-mode-status
   ./install-stavrobot.sh --print-shelley-mode-status --json
 
@@ -86,6 +88,7 @@ Flags:
   --show-secrets
   --print-shelley-mode-status
   --json
+  --basic
   --refresh-shelley-mode
   --allow-dirty-shelley
   --skip-shelley-smoke
@@ -110,6 +113,7 @@ Environment:
 Shelley mode helpers:
   --print-shelley-mode-status   Read-only managed Shelley mode status
   --json                        With --print-shelley-mode-status, emit machine-readable JSON
+  --basic                       With --print-shelley-mode-status, emit compact basic summary
   --refresh-shelley-mode        Apply/rebuild/smoke managed Shelley mode in /opt/shelley
   --allow-dirty-shelley         Allow managed Shelley refresh against a dirty checkout
   --skip-shelley-smoke          Skip isolated Shelley smoke validation during refresh
@@ -412,6 +416,10 @@ while [[ $# -gt 0 ]]; do
       SHELLEY_STATUS_JSON=1
       shift
       ;;
+    --basic)
+      SHELLEY_STATUS_BASIC=1
+      shift
+      ;;
     --refresh-shelley-mode)
       SHELLEY_REFRESH_ONLY=1
       shift
@@ -495,6 +503,12 @@ fi
 if (( SHELLEY_REFRESH_ONLY )) && (( SHELLEY_STATUS_JSON )); then
   die "--json cannot be combined with --refresh-shelley-mode"
 fi
+if (( SHELLEY_REFRESH_ONLY )) && (( SHELLEY_STATUS_BASIC )); then
+  die "--basic cannot be combined with --refresh-shelley-mode"
+fi
+if (( SHELLEY_STATUS_JSON )) && (( SHELLEY_STATUS_BASIC )); then
+  die "--json cannot be combined with --basic"
+fi
 
 if (( SHELLEY_STATUS_ONLY )); then
   (( SHELLEY_REFRESH_ONLY == 0 )) || die "--print-shelley-mode-status cannot be combined with --refresh-shelley-mode"
@@ -505,6 +519,7 @@ if (( SHELLEY_STATUS_ONLY )); then
     die "--print-shelley-mode-status cannot be combined with Shelley refresh-only flags"
 else
   (( SHELLEY_STATUS_JSON == 0 )) || die "--json currently requires --print-shelley-mode-status"
+  (( SHELLEY_STATUS_BASIC == 0 )) || die "--basic currently requires --print-shelley-mode-status"
 fi
 
 if (( SHELLEY_REFRESH_ONLY )); then
@@ -538,6 +553,9 @@ if (( SHELLEY_STATUS_ONLY )); then
   status_args=()
   if (( SHELLEY_STATUS_JSON )); then
     status_args+=(--json)
+  fi
+  if (( SHELLEY_STATUS_BASIC )); then
+    status_args+=(--basic)
   fi
   exec "$ROOT_DIR/print-shelley-managed-status.sh" "${status_args[@]}"
 fi

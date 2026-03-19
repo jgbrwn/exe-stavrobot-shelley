@@ -16,6 +16,12 @@ assert_contains() {
 out=$("$ROOT_DIR/install-stavrobot.sh" --json 2>&1 || true)
 assert_contains "$out" '--json currently requires --print-shelley-mode-status'
 
+out=$("$ROOT_DIR/install-stavrobot.sh" --basic 2>&1 || true)
+assert_contains "$out" '--basic currently requires --print-shelley-mode-status'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --print-shelley-mode-status --json --basic 2>&1 || true)
+assert_contains "$out" '--json cannot be combined with --basic'
+
 out=$("$ROOT_DIR/install-stavrobot.sh" --refresh-shelley-mode --json 2>&1 || true)
 assert_contains "$out" '--json cannot be combined with --refresh-shelley-mode'
 

@@ -58,3 +58,10 @@ assert payload['recorded_checkout_dirty_at_rebuild'] is False, payload
 assert payload['recorded_checkout_dirty_at_rebuild_known'] is True, payload
 print('install-stavrobot status-json tests passed')
 PY
+
+out_basic=$(STATE_FILE="$STATE" PROFILE_STATE_FILE="$PROFILES" "$ROOT_DIR/install-stavrobot.sh" --print-shelley-mode-status --basic)
+if ! grep -Fq 'status:' <<<"$out_basic"; then
+  printf 'expected basic status output to contain status line\n' >&2
+  printf -- '--- output ---\n%s\n------------\n' "$out_basic" >&2
+  exit 1
+fi

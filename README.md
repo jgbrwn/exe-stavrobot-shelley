@@ -105,7 +105,7 @@ Still manual in this track:
 ./install-stavrobot.sh --refresh-shelley-mode-basic
 
 # Optional: inspect managed Shelley status
-./install-stavrobot.sh --print-shelley-mode-status
+./install-stavrobot.sh --print-shelley-mode-status --basic
 ```
 
 For this same short guide from the CLI: `./install-stavrobot.sh --help-basic`
@@ -138,6 +138,7 @@ Current core installer flag semantics:
 Current installer-facing Shelley mode commands:
 
 ```bash
+./install-stavrobot.sh --print-shelley-mode-status --basic
 ./install-stavrobot.sh --print-shelley-mode-status
 ./install-stavrobot.sh --print-shelley-mode-status --json
 ./install-stavrobot.sh --refresh-shelley-mode
