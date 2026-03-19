@@ -165,6 +165,37 @@ What they do:
   - with `--expect-shelley-raw-media-rejection`, fail when no invalid raw-inline hints are observed
 - cleanup ergonomics: `./refresh-shelley-managed-s1.sh --print-clean-reset-instructions` (or `--clean-reset-only --i-understand-reset`) helps keep `/opt/shelley` deterministic between refresh runs
 
+### Operator quick recipes
+
+Strict runtime native raw-media gate proof (managed refresh path):
+
+```bash
+./install-stavrobot.sh \
+  --refresh-shelley-mode \
+  --expect-shelley-native-raw-media-gating \
+  --require-shelley-native-raw-media-hints \
+  --expect-shelley-media-refs \
+  --require-shelley-media-refs \
+  --shelley-bridge-fixture runtime_raw_media_only
+```
+
+Strict runtime invalid raw-media rejection proof (managed refresh path):
+
+```bash
+./install-stavrobot.sh \
+  --refresh-shelley-mode \
+  --expect-shelley-raw-media-rejection \
+  --require-shelley-raw-media-rejection-hints \
+  --shelley-bridge-fixture runtime_invalid_raw_media
+```
+
+Cleanup-only reset for `/opt/shelley` (discard local checkout edits/untracked files, no rebuild):
+
+```bash
+./refresh-shelley-managed-s1.sh --print-clean-reset-instructions
+./refresh-shelley-managed-s1.sh --clean-reset-only --i-understand-reset
+```
+
 Common status interpretation:
 
 - `upstream_status: current`
