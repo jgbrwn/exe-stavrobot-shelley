@@ -19,6 +19,7 @@ SMOKE_REQUIRE_NATIVE_RAW_MEDIA_HINTS=0
 SMOKE_EXPECT_RAW_MEDIA_REJECTION=0
 SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS=0
 SMOKE_BRIDGE_FIXTURE=""
+SMOKE_STRICT_RAW_MEDIA_PROFILE=0
 PRINT_CLEAN_RESET_INSTRUCTIONS=0
 CLEAN_RESET_SHELLEY_CHECKOUT=0
 CLEAN_RESET_ONLY=0
@@ -61,6 +62,7 @@ Flags:
   --smoke-expect-raw-media-rejection  Assert runtime rejection of invalid raw-inline artifacts
   --smoke-require-raw-media-rejection-hints  With --smoke-expect-raw-media-rejection, fail if no invalid raw-inline hints are observed
   --smoke-bridge-fixture NAME    Optional bridge fixture mode passed to smoke server (e.g. tool_summary, runtime_raw_media_only, runtime_invalid_raw_media)
+  --smoke-strict-raw-media-profile  Apply authoritative strict runtime proof profile (runs fixture matrix with strict assertions)
   --print-clean-reset-instructions  Print safe /opt/shelley cleanup instructions and exit
   --clean-reset-shelley-checkout   Hard reset and clean the managed Shelley checkout before refresh
   --clean-reset-only               Perform cleanup reset and exit without patch/rebuild/smoke
@@ -248,6 +250,10 @@ while [[ $# -gt 0 ]]; do
       SMOKE_BRIDGE_FIXTURE="$2"
       shift 2
       ;;
+    --smoke-strict-raw-media-profile)
+      SMOKE_STRICT_RAW_MEDIA_PROFILE=1
+      shift
+      ;;
     --print-clean-reset-instructions)
       PRINT_CLEAN_RESET_INSTRUCTIONS=1
       shift
@@ -310,6 +316,14 @@ fi
 if (( SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 && SMOKE_EXPECT_RAW_MEDIA_REJECTION == 0 )); then
   die "--smoke-require-raw-media-rejection-hints requires --smoke-expect-raw-media-rejection"
 fi
+if (( SMOKE_STRICT_RAW_MEDIA_PROFILE == 1 )); then
+  if (( SMOKE_EXPECT_DISPLAY_DATA == 1 || SMOKE_REQUIRE_DISPLAY_HINTS == 1 || SMOKE_EXPECT_MEDIA_REFS == 1 || SMOKE_REQUIRE_MEDIA_REFS == 1 || SMOKE_EXPECT_NATIVE_RAW_MEDIA_GATING == 1 || SMOKE_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 || SMOKE_EXPECT_RAW_MEDIA_REJECTION == 1 || SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 )) || [[ -n "$SMOKE_BRIDGE_FIXTURE" ]]; then
+    die "--smoke-strict-raw-media-profile cannot be combined with explicit smoke expectation flags or --smoke-bridge-fixture"
+  fi
+  if (( SMOKE_DB_PATH_DEFAULT == 0 || SMOKE_TMUX_SESSION_DEFAULT == 0 )); then
+    die "--smoke-strict-raw-media-profile currently does not support --smoke-db-path or --smoke-tmux-session overrides"
+  fi
+fi
 
 if (( ALLOW_DIRTY == 0 )) && [[ -n "$(git -C "$SHELLEY_DIR" status --porcelain)" ]]; then
   warn "Shelley checkout is not clean: $SHELLEY_DIR"
@@ -347,61 +361,75 @@ info "Building Shelley binary"
 (cd "$SHELLEY_DIR" && go build -o bin/shelley ./cmd/shelley)
 
 if (( RUN_SMOKE == 1 )); then
-  if command -v ss >/dev/null 2>&1; then
-    if ss -ltn "sport = :$SMOKE_PORT" | awk 'NR>1 {found=1} END {exit found?0:1}'; then
-      die "Smoke port $SMOKE_PORT is already listening before smoke start (choose --smoke-port or stop listener)"
+  if (( SMOKE_STRICT_RAW_MEDIA_PROFILE == 1 )); then
+    stamp=$(date +%s)
+    info "Running authoritative strict managed raw-media proof profile"
+    if ! "$ROOT_DIR/run-shelley-managed-strict-raw-media-proof.sh" \
+      --shelley-dir "$SHELLEY_DIR" \
+      --shelley-bin "$SHELLEY_DIR/bin/shelley" \
+      --profile-state-path "$PROFILE_STATE_PATH" \
+      --base-port "$SMOKE_PORT" \
+      --db-prefix "/tmp/shelley-stavrobot-managed-test-${stamp}" \
+      --session-prefix "shelley-managed-s1-smoke-${stamp}"; then
+      die "Managed strict raw-media proof profile failed"
     fi
-  fi
+  else
+    if command -v ss >/dev/null 2>&1; then
+      if ss -ltn "sport = :$SMOKE_PORT" | awk 'NR>1 {found=1} END {exit found?0:1}'; then
+        die "Smoke port $SMOKE_PORT is already listening before smoke start (choose --smoke-port or stop listener)"
+      fi
+    fi
 
-  stamp=$(date +%s)
-  if (( SMOKE_DB_PATH_DEFAULT == 1 )); then
-    SMOKE_DB_PATH="/tmp/shelley-stavrobot-managed-test-${SMOKE_PORT}-${stamp}.db"
-  fi
-  if (( SMOKE_TMUX_SESSION_DEFAULT == 1 )); then
-    SMOKE_TMUX_SESSION="shelley-managed-s1-smoke-${SMOKE_PORT}-${stamp}"
-  fi
+    stamp=$(date +%s)
+    if (( SMOKE_DB_PATH_DEFAULT == 1 )); then
+      SMOKE_DB_PATH="/tmp/shelley-stavrobot-managed-test-${SMOKE_PORT}-${stamp}.db"
+    fi
+    if (( SMOKE_TMUX_SESSION_DEFAULT == 1 )); then
+      SMOKE_TMUX_SESSION="shelley-managed-s1-smoke-${SMOKE_PORT}-${stamp}"
+    fi
 
-  info "Running isolated managed Shelley smoke test"
-  info "Smoke session: $SMOKE_TMUX_SESSION"
-  info "Smoke db path: $SMOKE_DB_PATH"
-  smoke_args=(
-    --shelley-dir "$SHELLEY_DIR"
-    --shelley-bin "$SHELLEY_DIR/bin/shelley"
-    --profile-state-path "$PROFILE_STATE_PATH"
-    --port "$SMOKE_PORT"
-    --db-path "$SMOKE_DB_PATH"
-    --tmux-session "$SMOKE_TMUX_SESSION"
-  )
-  if (( SMOKE_EXPECT_DISPLAY_DATA == 1 )); then
-    smoke_args+=(--expect-display-data)
-  fi
-  if (( SMOKE_REQUIRE_DISPLAY_HINTS == 1 )); then
-    smoke_args+=(--require-display-hints)
-  fi
-  if (( SMOKE_EXPECT_MEDIA_REFS == 1 )); then
-    smoke_args+=(--expect-media-refs)
-  fi
-  if (( SMOKE_REQUIRE_MEDIA_REFS == 1 )); then
-    smoke_args+=(--require-media-refs)
-  fi
-  if (( SMOKE_EXPECT_NATIVE_RAW_MEDIA_GATING == 1 )); then
-    smoke_args+=(--expect-native-raw-media-gating)
-  fi
-  if (( SMOKE_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 )); then
-    smoke_args+=(--require-native-raw-media-hints)
-  fi
-  if (( SMOKE_EXPECT_RAW_MEDIA_REJECTION == 1 )); then
-    smoke_args+=(--expect-raw-media-rejection)
-  fi
-  if (( SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 )); then
-    smoke_args+=(--require-raw-media-rejection-hints)
-  fi
-  if [[ -n "$SMOKE_BRIDGE_FIXTURE" ]]; then
-    smoke_args+=(--bridge-fixture "$SMOKE_BRIDGE_FIXTURE")
-  fi
-  if ! "$ROOT_DIR/smoke-test-shelley-managed-s1.sh" "${smoke_args[@]}"; then
-    warn "Managed smoke failed (session=$SMOKE_TMUX_SESSION db=$SMOKE_DB_PATH port=$SMOKE_PORT)"
-    die "Managed refresh smoke validation failed"
+    info "Running isolated managed Shelley smoke test"
+    info "Smoke session: $SMOKE_TMUX_SESSION"
+    info "Smoke db path: $SMOKE_DB_PATH"
+    smoke_args=(
+      --shelley-dir "$SHELLEY_DIR"
+      --shelley-bin "$SHELLEY_DIR/bin/shelley"
+      --profile-state-path "$PROFILE_STATE_PATH"
+      --port "$SMOKE_PORT"
+      --db-path "$SMOKE_DB_PATH"
+      --tmux-session "$SMOKE_TMUX_SESSION"
+    )
+    if (( SMOKE_EXPECT_DISPLAY_DATA == 1 )); then
+      smoke_args+=(--expect-display-data)
+    fi
+    if (( SMOKE_REQUIRE_DISPLAY_HINTS == 1 )); then
+      smoke_args+=(--require-display-hints)
+    fi
+    if (( SMOKE_EXPECT_MEDIA_REFS == 1 )); then
+      smoke_args+=(--expect-media-refs)
+    fi
+    if (( SMOKE_REQUIRE_MEDIA_REFS == 1 )); then
+      smoke_args+=(--require-media-refs)
+    fi
+    if (( SMOKE_EXPECT_NATIVE_RAW_MEDIA_GATING == 1 )); then
+      smoke_args+=(--expect-native-raw-media-gating)
+    fi
+    if (( SMOKE_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 )); then
+      smoke_args+=(--require-native-raw-media-hints)
+    fi
+    if (( SMOKE_EXPECT_RAW_MEDIA_REJECTION == 1 )); then
+      smoke_args+=(--expect-raw-media-rejection)
+    fi
+    if (( SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 )); then
+      smoke_args+=(--require-raw-media-rejection-hints)
+    fi
+    if [[ -n "$SMOKE_BRIDGE_FIXTURE" ]]; then
+      smoke_args+=(--bridge-fixture "$SMOKE_BRIDGE_FIXTURE")
+    fi
+    if ! "$ROOT_DIR/smoke-test-shelley-managed-s1.sh" "${smoke_args[@]}"; then
+      warn "Managed smoke failed (session=$SMOKE_TMUX_SESSION db=$SMOKE_DB_PATH port=$SMOKE_PORT)"
+      die "Managed refresh smoke validation failed"
+    fi
   fi
 fi
 

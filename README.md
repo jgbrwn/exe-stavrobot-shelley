@@ -61,8 +61,7 @@ Still manual in this track:
 - `docs/SHELLEY_RUNTIME_ADAPTATION_CONTRACT.md` now defines the preferred runtime-side result/adaptation boundary for managed Shelley patch `0004`, keeping `ResponseText` fallback while preserving room for bridge `content`/`display`/`artifacts`/`raw` widening
 - `docs/SHELLEY_DISPLAY_DATA_FIXTURE_VALIDATION_NOTE.md` now captures the deterministic fixture-backed validation path for proving Stavrobot `display_data` persistence in managed Shelley smoke runs
 - the roadmap now also has explicit validation checklists so future Shelley-side work can be judged phase by phase rather than by architecture discussion alone
-- the docs now also include a compact handoff summary so a future session can restart from the current recommendation stack quickly
-- `docs/SHELLEY_NEXT_STEPS_HANDOFF.md` now provides a current immediate-vs-outward next-step plan plus fast-resume commands for session handoff
+- the docs now also include concrete strict-proof and validation recipes so a future session can restart from the current recommendation stack quickly without a separate handoff-only doc
 - a disposable official-Shelley S1 spike has now also validated the core seam: per-conversation Stavrobot mode works above the normal model/provider layer using `conversation_options` plus existing Shelley message/working-state plumbing
 - `docs/SHELLEY_S1_SPIKE_EXTRACTION.md` now captures the exact disposable patch shape, the real design signal, and what must change before that shape becomes a managed rebuild target
 - `docs/SHELLEY_MANAGED_REBUILD_CONTRACT.md` now captures the installer-owned rebuild state, bridge profile state, refresh logic, and future Shelley-mode flag behavior needed to make that path repeatable
@@ -131,6 +130,7 @@ Current installer-facing Shelley mode commands:
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-media-refs
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-media-refs --require-shelley-media-refs
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-display-data --require-shelley-display-hints --shelley-bridge-fixture tool_summary
+./install-stavrobot.sh --refresh-shelley-mode --strict-shelley-raw-media-profile
 ```
 
 What they do:
@@ -156,6 +156,9 @@ What they do:
   - with `--expect-shelley-media-refs`, fail refresh/smoke if sampled turns contain no image/media hints
 - `--shelley-bridge-fixture`
   - optional test fixture mode for smoke validation bridge payloads (for example `tool_summary`, `runtime_raw_media_only`, `runtime_invalid_raw_media`)
+- `--strict-shelley-raw-media-profile`
+  - authoritative strict runtime proof profile: runs the deterministic fixture matrix (`runtime_raw_media_only`, `runtime_invalid_raw_media`, `runtime_unsupported_raw_mime`, `runtime_oversize_raw_media`) with strict assertions via `run-shelley-managed-strict-raw-media-proof.sh`
+  - this should be the default operator proof mode for managed raw-media runtime validation
 - `--expect-shelley-native-raw-media-gating`
   - assert phase-2 runtime gate: native raw-media mapping is allowed only when no assistant text content exists
 - `--require-shelley-native-raw-media-hints`
@@ -168,29 +171,23 @@ What they do:
 
 ### Operator quick recipes
 
-Strict runtime native raw-media gate proof (managed refresh path):
+Authoritative strict managed raw-media runtime proof (recommended default):
 
 ```bash
 ./install-stavrobot.sh \
   --refresh-shelley-mode \
-  --expect-shelley-native-raw-media-gating \
-  --require-shelley-native-raw-media-hints \
-  --expect-shelley-media-refs \
-  --require-shelley-media-refs \
-  --shelley-bridge-fixture runtime_raw_media_only
+  --strict-shelley-raw-media-profile
 ```
 
-Strict runtime invalid raw-media rejection proof (managed refresh path):
+Direct helper equivalent:
 
 ```bash
-./install-stavrobot.sh \
-  --refresh-shelley-mode \
-  --expect-shelley-raw-media-rejection \
-  --require-shelley-raw-media-rejection-hints \
-  --shelley-bridge-fixture runtime_invalid_raw_media
+./run-shelley-managed-strict-raw-media-proof.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json
 ```
 
-You can swap `runtime_invalid_raw_media` for `runtime_unsupported_raw_mime` and `runtime_oversize_raw_media` to prove those rejection paths too.
+Legacy single-fixture strict checks are still available when needed for focused debugging.
 
 Cleanup-only reset for `/opt/shelley` (discard local checkout edits/untracked files, no rebuild):
 
@@ -234,6 +231,9 @@ Lightweight helper/status validation:
 ./tests/run.sh test-shelley-stavrobot-bridge-raw-media-negative.sh
 ./tests/run.sh test-shelley-runtime-raw-media-patch-contract.sh
 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
+
+# Optional required-runtime lane (fails instead of skipping when /opt/shelley is missing/unpatched)
+REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
 ```
 
 ## Operator helper: Stavrobot backend model control

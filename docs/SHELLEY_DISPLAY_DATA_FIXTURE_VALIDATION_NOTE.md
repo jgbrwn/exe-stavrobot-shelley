@@ -343,3 +343,46 @@ Observed DB evidence (`/tmp/shelley-proof-reject-oversize.db`):
 - `unsupported_kinds` included `artifact:image:raw media payload exceeds max bytes`
 - `display_data.media_refs` had no raw inline entry
 - assistant rows remained recorded (non-fatal degradation)
+
+## Authoritative strict raw-media profile (current default recommendation)
+
+To avoid drift between sessions/operators, use the managed strict profile as the default runtime proof entrypoint.
+
+Installer-managed form:
+
+```bash
+./install-stavrobot.sh \
+  --refresh-shelley-mode \
+  --strict-shelley-raw-media-profile
+```
+
+Direct helper form:
+
+```bash
+./run-shelley-managed-strict-raw-media-proof.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json
+```
+
+This runs the deterministic fixture matrix in sequence:
+
+- `runtime_raw_media_only`
+- `runtime_invalid_raw_media`
+- `runtime_unsupported_raw_mime`
+- `runtime_oversize_raw_media`
+
+with strict assertions pre-wired for each case.
+
+## Managed runtime smoke contract CI policy
+
+Current test behavior (`tests/test-shelley-managed-smoke-raw-media-runtime-contract.sh`):
+
+- default mode remains skip-safe when `/opt/shelley` runtime prerequisites are missing/unpatched
+- set `REQUIRE_PATCHED_MANAGED_RUNTIME=1` to enforce a required-runtime lane (test fails instead of skip)
+
+Example required-runtime invocation:
+
+```bash
+REQUIRE_PATCHED_MANAGED_RUNTIME=1 \
+  ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
+```

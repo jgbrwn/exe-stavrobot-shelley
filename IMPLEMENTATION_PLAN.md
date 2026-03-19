@@ -795,11 +795,7 @@ Strategic follow-up artifact:
 - `docs/SHELLEY_RUNTIME_ADAPTATION_CONTRACT.md` now defines the preferred widening path for the managed Shelley runtime unit so patch `0004` can preserve `ResponseText` fallback while accepting richer normalized content/display/artifact/raw bridge data later
 
 
-## Compact Shelley handoff summary
-
-For the current session-ready handoff snapshot and next-action queue, see also:
-
-- `docs/SHELLEY_NEXT_STEPS_HANDOFF.md`
+## Compact Shelley execution summary
 
 Shortest execution-oriented summary:
 
