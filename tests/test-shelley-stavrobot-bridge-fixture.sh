@@ -89,6 +89,13 @@ assert_contains "$out_s2_fixture" 'S2 markdown + tool-summary fixture body."'
 assert_contains "$out_s2_fixture" '"display": {'
 assert_contains "$out_s2_fixture" '"tool_summary": ['
 
+out_s2_media_refs=$(STAVROBOT_SESSION_BIN="$SESSION_STUB" STAVROBOT_BRIDGE_FIXTURE=s2_markdown_media_refs "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
+assert_contains "$out_s2_media_refs" 'S2 markdown + media-ref fixture body.'
+assert_contains "$out_s2_media_refs" '"kind": "image_ref"'
+assert_contains "$out_s2_media_refs" '"url": "https://example.test/s2-content-image.png"'
+assert_contains "$out_s2_media_refs" '"kind": "image"'
+assert_contains "$out_s2_media_refs" '"url": "https://example.test/s2-artifact-image.png"'
+
 out_s2_raw_fallback=$(STAVROBOT_SESSION_BIN="$SESSION_STUB" STAVROBOT_BRIDGE_FIXTURE=s2_markdown_raw_tool_events "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
 assert_contains "$out_s2_raw_fallback" '"content": ['
 assert_contains "$out_s2_raw_fallback" 'S2 markdown + raw-event fallback fixture body.'

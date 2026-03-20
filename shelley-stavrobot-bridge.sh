@@ -68,6 +68,7 @@ Notes:
   - when STAVROBOT_BRIDGE_FIXTURE=runtime_raw_media_only is set, chat output forces content[] empty and injects a valid raw-inline image artifact (runtime native-mapping gate validation aid)
   - when STAVROBOT_BRIDGE_FIXTURE=runtime_invalid_raw_media is set, chat output forces content[] empty and injects an intentionally invalid raw-inline image artifact (runtime rejection-path validation aid)
   - when STAVROBOT_BRIDGE_FIXTURE=s2_markdown_tool_summary is set, chat output rewrites content[] to markdown-first with deterministic heading and ensures compact display.tool_summary (S2 runtime adaptation validation aid)
+  - when STAVROBOT_BRIDGE_FIXTURE=s2_markdown_media_refs is set, chat output rewrites content[] to markdown-first with deterministic image refs and injects image artifacts (S2 media-ref persistence validation aid)
   - when STAVROBOT_BRIDGE_FIXTURE=s2_markdown_raw_tool_events is set, chat output rewrites content[] to markdown-first and injects raw.events without display.tool_summary (runtime raw->display fallback validation aid)
   --pretty                Pretty-print JSON output
   --connect-timeout SEC   Curl connect timeout in seconds
@@ -79,7 +80,7 @@ Notes:
 Environment:
   STAVROBOT_SESSION_BIN   Override session helper used by the bridge
   STAVROBOT_CLIENT_BIN    Override client helper used by the bridge
-  STAVROBOT_BRIDGE_FIXTURE  Optional test fixture payload mode (e.g. tool_summary, raw_media_image, runtime_raw_media_only, runtime_invalid_raw_media, s2_markdown_tool_summary, s2_markdown_raw_tool_events)
+  STAVROBOT_BRIDGE_FIXTURE  Optional test fixture payload mode (e.g. tool_summary, raw_media_image, runtime_raw_media_only, runtime_invalid_raw_media, s2_markdown_tool_summary, s2_markdown_media_refs, s2_markdown_raw_tool_events)
   STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED  Enable/disable narrow raw-media extraction (1/0, default: 1)
   STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES  Max decoded bytes per raw media item (default: 262144)
 EOF
@@ -579,6 +580,34 @@ if fixture == 's2_markdown_tool_summary':
                 'title': 'fixture S2 markdown/tool-summary validation',
             }
         ]
+
+if fixture == 's2_markdown_media_refs':
+    out['content'] = [
+        {
+            'kind': 'markdown',
+            'text': '## S2 fixture heading\n\nS2 markdown + media-ref fixture body.\n\n![fixture image](https://example.test/s2-fixture-image.png)',
+        },
+        {
+            'kind': 'image_ref',
+            'url': 'https://example.test/s2-content-image.png',
+            'title': 'fixture S2 content image reference',
+        },
+    ]
+    out['response'] = '## S2 fixture heading\n\nS2 markdown + media-ref fixture body.\n\n![fixture image](https://example.test/s2-fixture-image.png)'
+    artifacts = [
+        item for item in artifacts
+        if not (
+            isinstance(item, dict)
+            and item.get('kind') == 'image'
+            and isinstance(item.get('url'), str)
+            and item.get('url', '').startswith('https://example.test/s2-')
+        )
+    ]
+    artifacts.append({
+        'kind': 'image',
+        'url': 'https://example.test/s2-artifact-image.png',
+        'title': 'fixture S2 artifact image reference',
+    })
 
 if fixture == 's2_markdown_raw_tool_events':
     out['content'] = [

@@ -509,3 +509,49 @@ Expected persistence evidence:
 - `user_data.stavrobot.raw_payload.raw.events` exists and is non-empty
 - `user_data.stavrobot.raw_payload.display.tool_summary` is absent/empty
 - persisted `display_data.tool_summary` is present and non-empty (derived fallback)
+
+## S2 markdown + media-ref persistence fixture proof
+
+A third deterministic S2 fixture mode now validates markdown-first media-reference persistence behavior:
+
+- `STAVROBOT_BRIDGE_FIXTURE=s2_markdown_media_refs`
+
+It emits:
+
+- markdown `content[]` with `## S2 fixture heading`
+- deterministic `content.kind=image_ref` URL
+- deterministic `artifacts.kind=image` URL
+
+Managed smoke command:
+
+```bash
+./smoke-test-shelley-managed-s1.sh \
+  --shelley-dir /opt/shelley \
+  --shelley-bin /opt/shelley/bin/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8898 \
+  --db-path /tmp/shelley-smoke-s2-media-refs.db \
+  --tmux-session shelley-smoke-s2-media-refs \
+  --bridge-fixture s2_markdown_media_refs \
+  --expect-s2-markdown-media-refs \
+  --require-s2-markdown-media-refs-hints
+```
+
+Installer equivalent:
+
+```bash
+./install-stavrobot.sh \
+  --refresh-shelley-mode \
+  --expect-shelley-s2-markdown-media-refs \
+  --require-shelley-s2-markdown-media-refs-hints \
+  --shelley-bridge-fixture s2_markdown_media_refs
+```
+
+Expected persistence evidence:
+
+- `user_data.stavrobot.raw_payload.content` contains markdown + `image_ref` item
+- `user_data.stavrobot.raw_payload.artifacts` contains URL image artifact
+- persisted `display_data.media_refs` contains both:
+  - `kind=image_ref` for content reference URL
+  - `kind=artifact:image` for artifact URL
+- `llm_data.Content` still contains assistant text fallback with `## S2 fixture heading`

@@ -28,6 +28,8 @@ EXPECT_RAW_MEDIA_REJECTION=0
 REQUIRE_RAW_MEDIA_REJECTION_HINTS=0
 EXPECT_S2_MARKDOWN_TOOL_SUMMARY=0
 REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS=0
+EXPECT_S2_MARKDOWN_MEDIA_REFS=0
+REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS=0
 EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK=0
 REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS=0
 BRIDGE_FIXTURE=""
@@ -70,9 +72,11 @@ Flags:
   --require-raw-media-rejection-hints  With --expect-raw-media-rejection, fail if no invalid raw-inline hints are observed
   --expect-s2-markdown-tool-summary  Assert markdown-first content + display.tool_summary persistence behavior
   --require-s2-markdown-tool-summary-hints  With --expect-s2-markdown-tool-summary, fail if no markdown/tool_summary hints are observed
+  --expect-s2-markdown-media-refs  Assert markdown-first content + media-ref persistence behavior
+  --require-s2-markdown-media-refs-hints  With --expect-s2-markdown-media-refs, fail if no markdown/media-ref hints are observed
   --expect-s2-tool-summary-raw-fallback  Assert runtime derives display.tool_summary from raw.events when display.tool_summary is absent
   --require-s2-tool-summary-raw-fallback-hints  With --expect-s2-tool-summary-raw-fallback, fail if no raw.events hints are observed
-  --bridge-fixture NAME          Optional bridge fixture mode for smoke server (e.g. tool_summary, runtime_raw_media_only, runtime_invalid_raw_media, s2_markdown_tool_summary, s2_markdown_raw_tool_events)
+  --bridge-fixture NAME          Optional bridge fixture mode for smoke server (e.g. tool_summary, runtime_raw_media_only, runtime_invalid_raw_media, s2_markdown_tool_summary, s2_markdown_media_refs, s2_markdown_raw_tool_events)
   --help
 
 Notes:
@@ -248,6 +252,14 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS=1
       shift
       ;;
+    --expect-s2-markdown-media-refs)
+      EXPECT_S2_MARKDOWN_MEDIA_REFS=1
+      shift
+      ;;
+    --require-s2-markdown-media-refs-hints)
+      REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS=1
+      shift
+      ;;
     --expect-s2-tool-summary-raw-fallback)
       EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK=1
       shift
@@ -294,6 +306,9 @@ if (( REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 && EXPECT_RAW_MEDIA_REJECTION == 0 
 fi
 if (( REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 1 && EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 0 )); then
   die "--require-s2-markdown-tool-summary-hints requires --expect-s2-markdown-tool-summary"
+fi
+if (( REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS == 1 && EXPECT_S2_MARKDOWN_MEDIA_REFS == 0 )); then
+  die "--require-s2-markdown-media-refs-hints requires --expect-s2-markdown-media-refs"
 fi
 if (( REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 1 && EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 0 )); then
   die "--require-s2-tool-summary-raw-fallback-hints requires --expect-s2-tool-summary-raw-fallback"
@@ -823,6 +838,133 @@ PY
       die "Expected S2 markdown/tool_summary hints but none were observed"
     fi
     info "No S2 markdown/tool_summary hints observed; assertion not required for this run"
+  fi
+fi
+
+if (( EXPECT_S2_MARKDOWN_MEDIA_REFS == 1 )); then
+  info "Checking S2 markdown/media-ref persistence behavior"
+  sqlite_s2_media_tmp=$(mktemp)
+  sqlite3 -json "$DB_PATH" "SELECT sequence_id, llm_data, user_data, display_data FROM messages WHERE conversation_id='$stavrobot_conversation_id' AND type='agent' ORDER BY sequence_id;" >"$sqlite_s2_media_tmp"
+  s2_media_result=$(python3 - "$sqlite_s2_media_tmp" <<'PY'
+import json, sys
+rows = json.load(open(sys.argv[1]))
+hint_rows = 0
+violations = []
+needle = "## S2 fixture heading"
+content_ref_url = "https://example.test/s2-content-image.png"
+artifact_ref_url = "https://example.test/s2-artifact-image.png"
+for row in rows:
+    ud = row.get("user_data")
+    if not ud:
+        continue
+    try:
+        parsed = json.loads(ud)
+    except Exception:
+        continue
+    st = (parsed.get("stavrobot") or {}) if isinstance(parsed, dict) else {}
+    raw = st.get("raw_payload") if isinstance(st, dict) else None
+    if not isinstance(raw, dict):
+        continue
+
+    content_items = raw.get("content") or []
+    if not isinstance(content_items, list):
+        content_items = []
+
+    has_markdown_hint = any(
+        isinstance(item, dict)
+        and item.get("kind") == "markdown"
+        and isinstance(item.get("text"), str)
+        and needle in item.get("text")
+        for item in content_items
+    )
+    has_image_ref_hint = any(
+        isinstance(item, dict)
+        and item.get("kind") == "image_ref"
+        and item.get("url") == content_ref_url
+        for item in content_items
+    )
+
+    artifacts = raw.get("artifacts") or []
+    if not isinstance(artifacts, list):
+        artifacts = []
+    has_artifact_hint = any(
+        isinstance(item, dict)
+        and item.get("kind") == "image"
+        and item.get("url") == artifact_ref_url
+        for item in artifacts
+    )
+
+    if not (has_markdown_hint and has_image_ref_hint and has_artifact_hint):
+        continue
+
+    hint_rows += 1
+
+    llm_raw = row.get("llm_data")
+    llm = {}
+    if isinstance(llm_raw, str) and llm_raw:
+        try:
+            llm = json.loads(llm_raw)
+        except Exception:
+            llm = {}
+    llm_content = llm.get("Content") if isinstance(llm, dict) else []
+    if not isinstance(llm_content, list):
+        llm_content = []
+
+    has_llm_text = any(
+        isinstance(item, dict)
+        and isinstance(item.get("Text"), str)
+        and needle in item.get("Text")
+        for item in llm_content
+    )
+    if not has_llm_text:
+        violations.append(f"{row.get('sequence_id')}:llm_content_missing_s2_markdown")
+
+    display_raw = row.get("display_data")
+    if not display_raw:
+        violations.append(f"{row.get('sequence_id')}:display_data_missing")
+        continue
+    try:
+        display = json.loads(display_raw)
+    except Exception:
+        violations.append(f"{row.get('sequence_id')}:display_data_invalid_json")
+        continue
+
+    media_refs = display.get("media_refs") if isinstance(display, dict) else None
+    if not isinstance(media_refs, list) or not media_refs:
+        violations.append(f"{row.get('sequence_id')}:display_media_refs_missing")
+        continue
+
+    has_content_ref_persisted = any(
+        isinstance(ref, dict)
+        and ref.get("kind") == "image_ref"
+        and ref.get("url") == content_ref_url
+        for ref in media_refs
+    )
+    if not has_content_ref_persisted:
+        violations.append(f"{row.get('sequence_id')}:display_media_refs_missing_content_ref")
+
+    has_artifact_ref_persisted = any(
+        isinstance(ref, dict)
+        and ref.get("kind") == "artifact:image"
+        and ref.get("url") == artifact_ref_url
+        for ref in media_refs
+    )
+    if not has_artifact_ref_persisted:
+        violations.append(f"{row.get('sequence_id')}:display_media_refs_missing_artifact_ref")
+
+if hint_rows == 0:
+    print("not_required")
+elif violations:
+    raise SystemExit("s2_markdown_media_refs violations: " + ",".join(violations))
+else:
+    print("required_ok")
+PY
+)
+  if [[ "$s2_media_result" == "not_required" ]]; then
+    if (( REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS == 1 )); then
+      die "Expected S2 markdown/media-ref hints but none were observed"
+    fi
+    info "No S2 markdown/media-ref hints observed; assertion not required for this run"
   fi
 fi
 

@@ -20,6 +20,8 @@ SMOKE_EXPECT_RAW_MEDIA_REJECTION=0
 SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS=0
 SMOKE_EXPECT_S2_MARKDOWN_TOOL_SUMMARY=0
 SMOKE_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS=0
+SMOKE_EXPECT_S2_MARKDOWN_MEDIA_REFS=0
+SMOKE_REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS=0
 SMOKE_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK=0
 SMOKE_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS=0
 SMOKE_BRIDGE_FIXTURE=""
@@ -68,9 +70,11 @@ Flags:
   --smoke-require-raw-media-rejection-hints  With --smoke-expect-raw-media-rejection, fail if no invalid raw-inline hints are observed
   --smoke-expect-s2-markdown-tool-summary  Assert markdown-first content + display.tool_summary persistence behavior
   --smoke-require-s2-markdown-tool-summary-hints  With --smoke-expect-s2-markdown-tool-summary, fail if no markdown/tool_summary hints are observed
+  --smoke-expect-s2-markdown-media-refs  Assert markdown-first content + media-ref persistence behavior
+  --smoke-require-s2-markdown-media-refs-hints  With --smoke-expect-s2-markdown-media-refs, fail if no markdown/media-ref hints are observed
   --smoke-expect-s2-tool-summary-raw-fallback  Assert runtime derives display.tool_summary from raw.events when display.tool_summary is absent
   --smoke-require-s2-tool-summary-raw-fallback-hints  With --smoke-expect-s2-tool-summary-raw-fallback, fail if no raw.events hints are observed
-  --smoke-bridge-fixture NAME    Optional bridge fixture mode passed to smoke server (e.g. tool_summary, runtime_raw_media_only, runtime_invalid_raw_media, s2_markdown_tool_summary, s2_markdown_raw_tool_events)
+  --smoke-bridge-fixture NAME    Optional bridge fixture mode passed to smoke server (e.g. tool_summary, runtime_raw_media_only, runtime_invalid_raw_media, s2_markdown_tool_summary, s2_markdown_media_refs, s2_markdown_raw_tool_events)
   --smoke-strict-raw-media-profile  Apply authoritative strict runtime proof profile (runs fixture matrix with strict assertions)
   --sync-upstream-ff-only       Fetch + pull --ff-only on managed Shelley checkout before patch/rebuild
   --print-clean-reset-instructions  Print safe /opt/shelley cleanup instructions and exit
@@ -264,6 +268,14 @@ while [[ $# -gt 0 ]]; do
       SMOKE_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS=1
       shift
       ;;
+    --smoke-expect-s2-markdown-media-refs)
+      SMOKE_EXPECT_S2_MARKDOWN_MEDIA_REFS=1
+      shift
+      ;;
+    --smoke-require-s2-markdown-media-refs-hints)
+      SMOKE_REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS=1
+      shift
+      ;;
     --smoke-expect-s2-tool-summary-raw-fallback)
       SMOKE_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK=1
       shift
@@ -349,11 +361,14 @@ fi
 if (( SMOKE_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 1 && SMOKE_EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 0 )); then
   die "--smoke-require-s2-markdown-tool-summary-hints requires --smoke-expect-s2-markdown-tool-summary"
 fi
+if (( SMOKE_REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS == 1 && SMOKE_EXPECT_S2_MARKDOWN_MEDIA_REFS == 0 )); then
+  die "--smoke-require-s2-markdown-media-refs-hints requires --smoke-expect-s2-markdown-media-refs"
+fi
 if (( SMOKE_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 1 && SMOKE_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 0 )); then
   die "--smoke-require-s2-tool-summary-raw-fallback-hints requires --smoke-expect-s2-tool-summary-raw-fallback"
 fi
 if (( SMOKE_STRICT_RAW_MEDIA_PROFILE == 1 )); then
-  if (( SMOKE_EXPECT_DISPLAY_DATA == 1 || SMOKE_REQUIRE_DISPLAY_HINTS == 1 || SMOKE_EXPECT_MEDIA_REFS == 1 || SMOKE_REQUIRE_MEDIA_REFS == 1 || SMOKE_EXPECT_NATIVE_RAW_MEDIA_GATING == 1 || SMOKE_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 || SMOKE_EXPECT_RAW_MEDIA_REJECTION == 1 || SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 || SMOKE_EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 1 || SMOKE_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 1 || SMOKE_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 1 || SMOKE_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 1 )) || [[ -n "$SMOKE_BRIDGE_FIXTURE" ]]; then
+  if (( SMOKE_EXPECT_DISPLAY_DATA == 1 || SMOKE_REQUIRE_DISPLAY_HINTS == 1 || SMOKE_EXPECT_MEDIA_REFS == 1 || SMOKE_REQUIRE_MEDIA_REFS == 1 || SMOKE_EXPECT_NATIVE_RAW_MEDIA_GATING == 1 || SMOKE_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 || SMOKE_EXPECT_RAW_MEDIA_REJECTION == 1 || SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 || SMOKE_EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 1 || SMOKE_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 1 || SMOKE_EXPECT_S2_MARKDOWN_MEDIA_REFS == 1 || SMOKE_REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS == 1 || SMOKE_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 1 || SMOKE_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 1 )) || [[ -n "$SMOKE_BRIDGE_FIXTURE" ]]; then
     die "--smoke-strict-raw-media-profile cannot be combined with explicit smoke expectation flags or --smoke-bridge-fixture"
   fi
   if (( SMOKE_DB_PATH_DEFAULT == 0 || SMOKE_TMUX_SESSION_DEFAULT == 0 )); then
@@ -475,6 +490,12 @@ if (( RUN_SMOKE == 1 )); then
     fi
     if (( SMOKE_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 1 )); then
       smoke_args+=(--require-s2-markdown-tool-summary-hints)
+    fi
+    if (( SMOKE_EXPECT_S2_MARKDOWN_MEDIA_REFS == 1 )); then
+      smoke_args+=(--expect-s2-markdown-media-refs)
+    fi
+    if (( SMOKE_REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS == 1 )); then
+      smoke_args+=(--require-s2-markdown-media-refs-hints)
     fi
     if (( SMOKE_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 1 )); then
       smoke_args+=(--expect-s2-tool-summary-raw-fallback)

@@ -150,6 +150,7 @@ Current installer-facing Shelley mode commands:
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-media-refs --require-shelley-media-refs
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-display-data --require-shelley-display-hints --shelley-bridge-fixture tool_summary
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-s2-markdown-tool-summary --require-shelley-s2-markdown-tool-summary-hints --shelley-bridge-fixture s2_markdown_tool_summary
+./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-s2-markdown-media-refs --require-shelley-s2-markdown-media-refs-hints --shelley-bridge-fixture s2_markdown_media_refs
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-s2-tool-summary-raw-fallback --require-shelley-s2-tool-summary-raw-fallback-hints --shelley-bridge-fixture s2_markdown_raw_tool_events
 ./install-stavrobot.sh --refresh-shelley-mode --strict-shelley-raw-media-profile
 ./install-stavrobot.sh --refresh-shelley-mode --sync-shelley-upstream-ff-only
@@ -199,6 +200,10 @@ What they do:
   - assert markdown-first content + compact `display.tool_summary` persistence behavior from bridge payload to managed Shelley message rows
 - `--require-shelley-s2-markdown-tool-summary-hints`
   - with `--expect-shelley-s2-markdown-tool-summary`, fail when no markdown/tool_summary hints are observed
+- `--expect-shelley-s2-markdown-media-refs`
+  - assert markdown-first content + media-reference persistence behavior from bridge payload to managed Shelley message rows
+- `--require-shelley-s2-markdown-media-refs-hints`
+  - with `--expect-shelley-s2-markdown-media-refs`, fail when no markdown/media-ref hints are observed
 - `--expect-shelley-s2-tool-summary-raw-fallback`
   - assert runtime derives compact `display.tool_summary` from raw bridge `raw.events` when direct `display.tool_summary` is absent
 - `--require-shelley-s2-tool-summary-raw-fallback-hints`
@@ -231,6 +236,16 @@ Focused S2 markdown/tool-summary adaptation proof (deterministic fixture):
   --expect-shelley-s2-markdown-tool-summary \
   --require-shelley-s2-markdown-tool-summary-hints \
   --shelley-bridge-fixture s2_markdown_tool_summary
+```
+
+Focused S2 markdown/media-ref persistence proof (deterministic fixture):
+
+```bash
+./install-stavrobot.sh \
+  --refresh-shelley-mode \
+  --expect-shelley-s2-markdown-media-refs \
+  --require-shelley-s2-markdown-media-refs-hints \
+  --shelley-bridge-fixture s2_markdown_media_refs
 ```
 
 Focused S2 raw-events fallback proof (deterministic fixture):
