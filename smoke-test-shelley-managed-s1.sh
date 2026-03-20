@@ -28,6 +28,8 @@ EXPECT_RAW_MEDIA_REJECTION=0
 REQUIRE_RAW_MEDIA_REJECTION_HINTS=0
 EXPECT_S2_MARKDOWN_TOOL_SUMMARY=0
 REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS=0
+EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK=0
+REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS=0
 BRIDGE_FIXTURE=""
 SERVER_LOG="/tmp/shelley-managed-s1-smoke.log"
 
@@ -68,7 +70,9 @@ Flags:
   --require-raw-media-rejection-hints  With --expect-raw-media-rejection, fail if no invalid raw-inline hints are observed
   --expect-s2-markdown-tool-summary  Assert markdown-first content + display.tool_summary persistence behavior
   --require-s2-markdown-tool-summary-hints  With --expect-s2-markdown-tool-summary, fail if no markdown/tool_summary hints are observed
-  --bridge-fixture NAME          Optional bridge fixture mode for smoke server (e.g. tool_summary, runtime_raw_media_only, runtime_invalid_raw_media, s2_markdown_tool_summary)
+  --expect-s2-tool-summary-raw-fallback  Assert runtime derives display.tool_summary from raw.events when display.tool_summary is absent
+  --require-s2-tool-summary-raw-fallback-hints  With --expect-s2-tool-summary-raw-fallback, fail if no raw.events hints are observed
+  --bridge-fixture NAME          Optional bridge fixture mode for smoke server (e.g. tool_summary, runtime_raw_media_only, runtime_invalid_raw_media, s2_markdown_tool_summary, s2_markdown_raw_tool_events)
   --help
 
 Notes:
@@ -244,6 +248,14 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS=1
       shift
       ;;
+    --expect-s2-tool-summary-raw-fallback)
+      EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK=1
+      shift
+      ;;
+    --require-s2-tool-summary-raw-fallback-hints)
+      REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS=1
+      shift
+      ;;
     --bridge-fixture)
       BRIDGE_FIXTURE="$2"
       shift 2
@@ -282,6 +294,9 @@ if (( REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 && EXPECT_RAW_MEDIA_REJECTION == 0 
 fi
 if (( REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 1 && EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 0 )); then
   die "--require-s2-markdown-tool-summary-hints requires --expect-s2-markdown-tool-summary"
+fi
+if (( REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 1 && EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 0 )); then
+  die "--require-s2-tool-summary-raw-fallback-hints requires --expect-s2-tool-summary-raw-fallback"
 fi
 
 python3 "$ROOT_DIR/py/shelley_bridge_profiles.py" validate "$PROFILE_STATE_PATH" >/dev/null
@@ -808,6 +823,68 @@ PY
       die "Expected S2 markdown/tool_summary hints but none were observed"
     fi
     info "No S2 markdown/tool_summary hints observed; assertion not required for this run"
+  fi
+fi
+
+if (( EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 1 )); then
+  info "Checking S2 tool_summary raw-events fallback behavior"
+  sqlite_s2_fallback_tmp=$(mktemp)
+  sqlite3 -json "$DB_PATH" "SELECT sequence_id, llm_data, user_data, display_data FROM messages WHERE conversation_id='$stavrobot_conversation_id' AND type='agent' ORDER BY sequence_id;" >"$sqlite_s2_fallback_tmp"
+  s2_fallback_result=$(python3 - "$sqlite_s2_fallback_tmp" <<'PY'
+import json, sys
+rows = json.load(open(sys.argv[1]))
+hint_rows = 0
+violations = []
+for row in rows:
+    ud = row.get("user_data")
+    if not ud:
+        continue
+    try:
+        parsed = json.loads(ud)
+    except Exception:
+        continue
+    st = (parsed.get("stavrobot") or {}) if isinstance(parsed, dict) else {}
+    raw = st.get("raw_payload") if isinstance(st, dict) else None
+    if not isinstance(raw, dict):
+        continue
+
+    raw_events = raw.get("raw", {}).get("events") if isinstance(raw.get("raw"), dict) else None
+    if not isinstance(raw_events, list) or not raw_events:
+        continue
+
+    display_hint = raw.get("display") if isinstance(raw.get("display"), dict) else {}
+    has_direct_tool_summary_hint = isinstance(display_hint.get("tool_summary"), list) and len(display_hint.get("tool_summary")) > 0
+    if has_direct_tool_summary_hint:
+        continue
+
+    hint_rows += 1
+
+    display_raw = row.get("display_data")
+    if not display_raw:
+        violations.append(f"{row.get('sequence_id')}:display_data_missing")
+        continue
+    try:
+        display = json.loads(display_raw)
+    except Exception:
+        violations.append(f"{row.get('sequence_id')}:display_data_invalid_json")
+        continue
+    tool_summary = display.get("tool_summary") if isinstance(display, dict) else None
+    if not isinstance(tool_summary, list) or not tool_summary:
+        violations.append(f"{row.get('sequence_id')}:display_tool_summary_missing_from_raw_events")
+
+if hint_rows == 0:
+    print("not_required")
+elif violations:
+    raise SystemExit("s2_tool_summary_raw_fallback violations: " + ",".join(violations))
+else:
+    print("required_ok")
+PY
+)
+  if [[ "$s2_fallback_result" == "not_required" ]]; then
+    if (( REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 1 )); then
+      die "Expected S2 raw-events tool_summary fallback hints but none were observed"
+    fi
+    info "No S2 raw-events tool_summary fallback hints observed; assertion not required for this run"
   fi
 fi
 

@@ -3,7 +3,7 @@
     "binary_path": "/opt/shelley/bin/shelley",
     "checkout_dirty_at_rebuild": true,
     "checkout_path": "/opt/shelley",
-    "rebuilt_at": "2026-03-19T18:13:28Z",
+    "rebuilt_at": "2026-03-20T08:40:06Z",
     "templates_built": true,
     "ui_built": true
   },
@@ -13,7 +13,7 @@
     "patch_shape": "s1-per-conversation-stavrobot",
     "patch_version": 1
   },
-  "managed_at": "2026-03-19T18:13:28Z",
+  "managed_at": "2026-03-20T08:40:06Z",
   "mode": "stavrobot",
   "profiles": {
     "available": [
@@ -23,7 +23,7 @@
   },
   "schema_version": 1,
   "status": {
-    "last_check_at": "2026-03-19T18:13:28Z",
+    "last_check_at": "2026-03-20T08:40:06Z",
     "profiles_stale": false,
     "rebuild_required": false,
     "upstream_stale": false

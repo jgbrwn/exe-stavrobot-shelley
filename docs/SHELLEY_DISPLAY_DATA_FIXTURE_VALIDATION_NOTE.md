@@ -472,3 +472,40 @@ Expected persistence evidence:
 - `user_data.stavrobot.raw_payload.content` includes markdown item with `## S2 fixture heading`
 - `llm_data.Content` includes assistant text containing `## S2 fixture heading`
 - `display_data.tool_summary` is present and non-empty
+
+## S2 raw-events -> tool_summary fallback fixture proof
+
+A second deterministic S2 fixture mode validates runtime fallback behavior when bridge payload has raw events but no direct `display.tool_summary`:
+
+- `STAVROBOT_BRIDGE_FIXTURE=s2_markdown_raw_tool_events`
+
+Managed smoke command:
+
+```bash
+./smoke-test-shelley-managed-s1.sh \
+  --shelley-dir /opt/shelley \
+  --shelley-bin /opt/shelley/bin/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8897 \
+  --db-path /tmp/shelley-smoke-s2-raw-fallback.db \
+  --tmux-session shelley-smoke-s2-raw-fallback \
+  --bridge-fixture s2_markdown_raw_tool_events \
+  --expect-s2-tool-summary-raw-fallback \
+  --require-s2-tool-summary-raw-fallback-hints
+```
+
+Installer equivalent:
+
+```bash
+./install-stavrobot.sh \
+  --refresh-shelley-mode \
+  --expect-shelley-s2-tool-summary-raw-fallback \
+  --require-shelley-s2-tool-summary-raw-fallback-hints \
+  --shelley-bridge-fixture s2_markdown_raw_tool_events
+```
+
+Expected persistence evidence:
+
+- `user_data.stavrobot.raw_payload.raw.events` exists and is non-empty
+- `user_data.stavrobot.raw_payload.display.tool_summary` is absent/empty
+- persisted `display_data.tool_summary` is present and non-empty (derived fallback)

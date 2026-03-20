@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..f2fd349
 --- /dev/null
 +++ b/server/stavrobot.go
-@@ -0,0 +1,500 @@
+@@ -0,0 +1,535 @@
 +package server
 +
 +import (
@@ -378,6 +378,41 @@ index 0000000..f2fd349
 +		}
 +		if len(payload.Display.MediaNotes) > 0 {
 +			mediaNotes = append([]string{}, payload.Display.MediaNotes...)
++		}
++	}
++
++	if len(toolSummary) == 0 && payload.Raw != nil {
++		if rawEvents, ok := payload.Raw["events"].([]any); ok {
++			for _, ev := range rawEvents {
++				item, ok := ev.(map[string]any)
++				if !ok {
++					continue
++				}
++				typ := strings.TrimSpace(fmt.Sprint(item["type"]))
++				if typ != "" && !strings.HasPrefix(typ, "tool_") {
++					continue
++				}
++				tool := strings.TrimSpace(fmt.Sprint(item["tool"]))
++				if tool == "" {
++					tool = strings.TrimSpace(fmt.Sprint(item["name"]))
++				}
++				status := strings.TrimSpace(fmt.Sprint(item["status"]))
++				title := strings.TrimSpace(fmt.Sprint(item["summary"]))
++				if title == "" {
++					title = strings.TrimSpace(fmt.Sprint(item["title"]))
++				}
++				if tool == "" && status == "" && title == "" {
++					continue
++				}
++				toolSummary = append(toolSummary, map[string]string{
++					"tool":   tool,
++					"status": status,
++					"title":  title,
++				})
++				if len(toolSummary) >= 8 {
++					break
++				}
++			}
 +		}
 +	}
 +

@@ -89,4 +89,11 @@ assert_contains "$out_s2_fixture" 'S2 markdown + tool-summary fixture body."'
 assert_contains "$out_s2_fixture" '"display": {'
 assert_contains "$out_s2_fixture" '"tool_summary": ['
 
+out_s2_raw_fallback=$(STAVROBOT_SESSION_BIN="$SESSION_STUB" STAVROBOT_BRIDGE_FIXTURE=s2_markdown_raw_tool_events "$ROOT_DIR/shelley-stavrobot-bridge.sh" --message "hi")
+assert_contains "$out_s2_raw_fallback" '"content": ['
+assert_contains "$out_s2_raw_fallback" 'S2 markdown + raw-event fallback fixture body.'
+assert_contains "$out_s2_raw_fallback" '"raw": {'
+assert_contains "$out_s2_raw_fallback" '"events": ['
+assert_not_contains "$out_s2_raw_fallback" '"tool_summary": ['
+
 printf 'shelley-stavrobot-bridge fixture tests passed\n'

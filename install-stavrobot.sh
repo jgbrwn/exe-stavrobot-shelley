@@ -32,6 +32,8 @@ SHELLEY_EXPECT_RAW_MEDIA_REJECTION=0
 SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS=0
 SHELLEY_EXPECT_S2_MARKDOWN_TOOL_SUMMARY=0
 SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS=0
+SHELLEY_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK=0
+SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS=0
 SHELLEY_BRIDGE_FIXTURE=""
 SHELLEY_STRICT_RAW_MEDIA_PROFILE=0
 SHELLEY_SYNC_UPSTREAM_FF_ONLY=0
@@ -104,6 +106,8 @@ Flags:
   --require-shelley-raw-media-rejection-hints  With --expect-shelley-raw-media-rejection, fail if no invalid raw-inline hints are observed
   --expect-shelley-s2-markdown-tool-summary  Assert markdown-first content + display.tool_summary persistence behavior
   --require-shelley-s2-markdown-tool-summary-hints  With --expect-shelley-s2-markdown-tool-summary, fail if no markdown/tool_summary hints are observed
+  --expect-shelley-s2-tool-summary-raw-fallback  Assert runtime derives display.tool_summary from raw.events when display.tool_summary is absent
+  --require-shelley-s2-tool-summary-raw-fallback-hints  With --expect-shelley-s2-tool-summary-raw-fallback, fail if no raw.events hints are observed
   --shelley-bridge-fixture NAME  Optional test fixture mode for Shelley smoke bridge payloads
   --strict-shelley-raw-media-profile  Run authoritative strict managed raw-media proof profile during Shelley refresh
   --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
@@ -131,6 +135,8 @@ Shelley mode helpers:
   --require-shelley-raw-media-rejection-hints  With --expect-shelley-raw-media-rejection, fail if no invalid raw-inline hints are observed
   --expect-shelley-s2-markdown-tool-summary  Assert markdown-first content + display.tool_summary persistence behavior
   --require-shelley-s2-markdown-tool-summary-hints  With --expect-shelley-s2-markdown-tool-summary, fail if no markdown/tool_summary hints are observed
+  --expect-shelley-s2-tool-summary-raw-fallback  Assert runtime derives display.tool_summary from raw.events when display.tool_summary is absent
+  --require-shelley-s2-tool-summary-raw-fallback-hints  With --expect-shelley-s2-tool-summary-raw-fallback, fail if no raw.events hints are observed
   --shelley-bridge-fixture NAME  Optional test fixture mode for Shelley smoke bridge payloads
   --strict-shelley-raw-media-profile  Run authoritative strict managed raw-media proof profile during Shelley refresh
   --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
@@ -478,6 +484,14 @@ while [[ $# -gt 0 ]]; do
       SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS=1
       shift
       ;;
+    --expect-shelley-s2-tool-summary-raw-fallback)
+      SHELLEY_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK=1
+      shift
+      ;;
+    --require-shelley-s2-tool-summary-raw-fallback-hints)
+      SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS=1
+      shift
+      ;;
     --shelley-bridge-fixture)
       SHELLEY_BRIDGE_FIXTURE="$2"
       shift 2
@@ -542,8 +556,8 @@ if (( SHELLEY_REFRESH_ONLY )); then
     die "--refresh-shelley-mode cannot be combined with normal installer mutation flags"
 fi
 
-if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE || SHELLEY_EXPECT_DISPLAY_DATA || SHELLEY_REQUIRE_DISPLAY_HINTS || SHELLEY_EXPECT_MEDIA_REFS || SHELLEY_REQUIRE_MEDIA_REFS || SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING || SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS || SHELLEY_EXPECT_RAW_MEDIA_REJECTION || SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS || SHELLEY_EXPECT_S2_MARKDOWN_TOOL_SUMMARY || SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS || SHELLEY_STRICT_RAW_MEDIA_PROFILE || SHELLEY_SYNC_UPSTREAM_FF_ONLY) && SHELLEY_REFRESH_ONLY == 0 )) || ([[ -n "$SHELLEY_BRIDGE_FIXTURE" ]] && (( SHELLEY_REFRESH_ONLY == 0 ))); then
-  die "--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, --expect-shelley-media-refs, --require-shelley-media-refs, --expect-shelley-native-raw-media-gating, --require-shelley-native-raw-media-hints, --expect-shelley-raw-media-rejection, --require-shelley-raw-media-rejection-hints, --expect-shelley-s2-markdown-tool-summary, --require-shelley-s2-markdown-tool-summary-hints, --strict-shelley-raw-media-profile, --sync-shelley-upstream-ff-only, and --shelley-bridge-fixture require --refresh-shelley-mode"
+if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE || SHELLEY_EXPECT_DISPLAY_DATA || SHELLEY_REQUIRE_DISPLAY_HINTS || SHELLEY_EXPECT_MEDIA_REFS || SHELLEY_REQUIRE_MEDIA_REFS || SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING || SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS || SHELLEY_EXPECT_RAW_MEDIA_REJECTION || SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS || SHELLEY_EXPECT_S2_MARKDOWN_TOOL_SUMMARY || SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS || SHELLEY_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK || SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS || SHELLEY_STRICT_RAW_MEDIA_PROFILE || SHELLEY_SYNC_UPSTREAM_FF_ONLY) && SHELLEY_REFRESH_ONLY == 0 )) || ([[ -n "$SHELLEY_BRIDGE_FIXTURE" ]] && (( SHELLEY_REFRESH_ONLY == 0 ))); then
+  die "--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, --expect-shelley-media-refs, --require-shelley-media-refs, --expect-shelley-native-raw-media-gating, --require-shelley-native-raw-media-hints, --expect-shelley-raw-media-rejection, --require-shelley-raw-media-rejection-hints, --expect-shelley-s2-markdown-tool-summary, --require-shelley-s2-markdown-tool-summary-hints, --expect-shelley-s2-tool-summary-raw-fallback, --require-shelley-s2-tool-summary-raw-fallback-hints, --strict-shelley-raw-media-profile, --sync-shelley-upstream-ff-only, and --shelley-bridge-fixture require --refresh-shelley-mode"
 fi
 if (( SHELLEY_REQUIRE_DISPLAY_HINTS == 1 && SHELLEY_EXPECT_DISPLAY_DATA == 0 )); then
   die "--require-shelley-display-hints requires --expect-shelley-display-data"
@@ -560,8 +574,11 @@ fi
 if (( SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 1 && SHELLEY_EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 0 )); then
   die "--require-shelley-s2-markdown-tool-summary-hints requires --expect-shelley-s2-markdown-tool-summary"
 fi
+if (( SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 1 && SHELLEY_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 0 )); then
+  die "--require-shelley-s2-tool-summary-raw-fallback-hints requires --expect-shelley-s2-tool-summary-raw-fallback"
+fi
 if (( SHELLEY_STRICT_RAW_MEDIA_PROFILE == 1 )); then
-  if (( SHELLEY_EXPECT_DISPLAY_DATA == 1 || SHELLEY_REQUIRE_DISPLAY_HINTS == 1 || SHELLEY_EXPECT_MEDIA_REFS == 1 || SHELLEY_REQUIRE_MEDIA_REFS == 1 || SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING == 1 || SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 || SHELLEY_EXPECT_RAW_MEDIA_REJECTION == 1 || SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 || SHELLEY_EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 1 || SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 1 )) || [[ -n "$SHELLEY_BRIDGE_FIXTURE" ]]; then
+  if (( SHELLEY_EXPECT_DISPLAY_DATA == 1 || SHELLEY_REQUIRE_DISPLAY_HINTS == 1 || SHELLEY_EXPECT_MEDIA_REFS == 1 || SHELLEY_REQUIRE_MEDIA_REFS == 1 || SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING == 1 || SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 || SHELLEY_EXPECT_RAW_MEDIA_REJECTION == 1 || SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 || SHELLEY_EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 1 || SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 1 || SHELLEY_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 1 || SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 1 )) || [[ -n "$SHELLEY_BRIDGE_FIXTURE" ]]; then
     die "--strict-shelley-raw-media-profile cannot be combined with explicit --expect/--require Shelley smoke flags or --shelley-bridge-fixture"
   fi
 fi
@@ -614,6 +631,12 @@ if (( SHELLEY_REFRESH_ONLY )); then
   fi
   if (( SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS )); then
     refresh_args+=(--smoke-require-s2-markdown-tool-summary-hints)
+  fi
+  if (( SHELLEY_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK )); then
+    refresh_args+=(--smoke-expect-s2-tool-summary-raw-fallback)
+  fi
+  if (( SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS )); then
+    refresh_args+=(--smoke-require-s2-tool-summary-raw-fallback-hints)
   fi
   if [[ -n "$SHELLEY_BRIDGE_FIXTURE" ]]; then
     refresh_args+=(--smoke-bridge-fixture "$SHELLEY_BRIDGE_FIXTURE")
