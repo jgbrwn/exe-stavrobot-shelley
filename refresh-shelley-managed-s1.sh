@@ -26,6 +26,7 @@ SMOKE_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK=0
 SMOKE_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS=0
 SMOKE_BRIDGE_FIXTURE=""
 SMOKE_STRICT_RAW_MEDIA_PROFILE=0
+SMOKE_S2_NARROW_FIDELITY_PROFILE=0
 SYNC_UPSTREAM_FF_ONLY=0
 PRINT_CLEAN_RESET_INSTRUCTIONS=0
 CLEAN_RESET_SHELLEY_CHECKOUT=0
@@ -76,6 +77,7 @@ Flags:
   --smoke-require-s2-tool-summary-raw-fallback-hints  With --smoke-expect-s2-tool-summary-raw-fallback, fail if no raw.events hints are observed
   --smoke-bridge-fixture NAME    Optional bridge fixture mode passed to smoke server (e.g. tool_summary, runtime_raw_media_only, runtime_invalid_raw_media, s2_markdown_tool_summary, s2_markdown_media_refs, s2_markdown_raw_tool_events)
   --smoke-strict-raw-media-profile  Apply authoritative strict runtime proof profile (runs fixture matrix with strict assertions)
+  --smoke-s2-narrow-fidelity-profile  Apply deterministic S2 narrow-fidelity fixture proof matrix (markdown/tool_summary, markdown/media_refs, raw.events fallback)
   --sync-upstream-ff-only       Fetch + pull --ff-only on managed Shelley checkout before patch/rebuild
   --print-clean-reset-instructions  Print safe /opt/shelley cleanup instructions and exit
   --clean-reset-shelley-checkout   Hard reset and clean the managed Shelley checkout before refresh
@@ -292,6 +294,10 @@ while [[ $# -gt 0 ]]; do
       SMOKE_STRICT_RAW_MEDIA_PROFILE=1
       shift
       ;;
+    --smoke-s2-narrow-fidelity-profile)
+      SMOKE_S2_NARROW_FIDELITY_PROFILE=1
+      shift
+      ;;
     --sync-upstream-ff-only)
       SYNC_UPSTREAM_FF_ONLY=1
       shift
@@ -375,6 +381,17 @@ if (( SMOKE_STRICT_RAW_MEDIA_PROFILE == 1 )); then
     die "--smoke-strict-raw-media-profile currently does not support --smoke-db-path or --smoke-tmux-session overrides"
   fi
 fi
+if (( SMOKE_S2_NARROW_FIDELITY_PROFILE == 1 )); then
+  if (( SMOKE_EXPECT_DISPLAY_DATA == 1 || SMOKE_REQUIRE_DISPLAY_HINTS == 1 || SMOKE_EXPECT_MEDIA_REFS == 1 || SMOKE_REQUIRE_MEDIA_REFS == 1 || SMOKE_EXPECT_NATIVE_RAW_MEDIA_GATING == 1 || SMOKE_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 || SMOKE_EXPECT_RAW_MEDIA_REJECTION == 1 || SMOKE_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 || SMOKE_EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 1 || SMOKE_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 1 || SMOKE_EXPECT_S2_MARKDOWN_MEDIA_REFS == 1 || SMOKE_REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS == 1 || SMOKE_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 1 || SMOKE_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 1 )) || [[ -n "$SMOKE_BRIDGE_FIXTURE" ]]; then
+    die "--smoke-s2-narrow-fidelity-profile cannot be combined with explicit smoke expectation flags or --smoke-bridge-fixture"
+  fi
+  if (( SMOKE_DB_PATH_DEFAULT == 0 || SMOKE_TMUX_SESSION_DEFAULT == 0 )); then
+    die "--smoke-s2-narrow-fidelity-profile currently does not support --smoke-db-path or --smoke-tmux-session overrides"
+  fi
+fi
+if (( SMOKE_STRICT_RAW_MEDIA_PROFILE == 1 && SMOKE_S2_NARROW_FIDELITY_PROFILE == 1 )); then
+  die "--smoke-strict-raw-media-profile cannot be combined with --smoke-s2-narrow-fidelity-profile"
+fi
 
 if (( ALLOW_DIRTY == 0 )) && [[ -n "$(git -C "$SHELLEY_DIR" status --porcelain)" ]]; then
   warn "Shelley checkout is not clean: $SHELLEY_DIR"
@@ -434,6 +451,18 @@ if (( RUN_SMOKE == 1 )); then
       --db-prefix "/tmp/shelley-stavrobot-managed-test-${stamp}" \
       --session-prefix "shelley-managed-s1-smoke-${stamp}"; then
       die "Managed strict raw-media proof profile failed"
+    fi
+  elif (( SMOKE_S2_NARROW_FIDELITY_PROFILE == 1 )); then
+    stamp=$(date +%s)
+    info "Running deterministic managed S2 narrow-fidelity proof profile"
+    if ! "$ROOT_DIR/run-shelley-managed-s2-narrow-fidelity-proof.sh" \
+      --shelley-dir "$SHELLEY_DIR" \
+      --shelley-bin "$SHELLEY_DIR/bin/shelley" \
+      --profile-state-path "$PROFILE_STATE_PATH" \
+      --base-port "$SMOKE_PORT" \
+      --db-prefix "/tmp/shelley-stavrobot-managed-s2-test-${stamp}" \
+      --session-prefix "shelley-managed-s2-smoke-${stamp}"; then
+      die "Managed S2 narrow-fidelity proof profile failed"
     fi
   else
     if command -v ss >/dev/null 2>&1; then

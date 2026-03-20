@@ -153,6 +153,7 @@ Current installer-facing Shelley mode commands:
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-s2-markdown-media-refs --require-shelley-s2-markdown-media-refs-hints --shelley-bridge-fixture s2_markdown_media_refs
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-s2-tool-summary-raw-fallback --require-shelley-s2-tool-summary-raw-fallback-hints --shelley-bridge-fixture s2_markdown_raw_tool_events
 ./install-stavrobot.sh --refresh-shelley-mode --strict-shelley-raw-media-profile
+./install-stavrobot.sh --refresh-shelley-mode --s2-shelley-narrow-fidelity-profile
 ./install-stavrobot.sh --refresh-shelley-mode --sync-shelley-upstream-ff-only
 ./install-stavrobot.sh --refresh-shelley-mode-basic
 ```
@@ -188,6 +189,9 @@ What they do:
   - fails if checkout is detached, lacks upstream tracking branch, or cannot be fast-forwarded
 - `--refresh-shelley-mode-basic`
   - convenience alias for common users: equivalent to `--refresh-shelley-mode --sync-shelley-upstream-ff-only --strict-shelley-raw-media-profile`
+- `--s2-shelley-narrow-fidelity-profile`
+  - deterministic S2 narrow-fidelity fixture proof profile (runs `s2_markdown_tool_summary`, `s2_markdown_media_refs`, `s2_markdown_raw_tool_events` with strict assertions)
+  - helper implementation: `run-shelley-managed-s2-narrow-fidelity-proof.sh`
 - `--expect-shelley-native-raw-media-gating`
   - assert phase-2 runtime gate: native raw-media mapping is allowed only when no assistant text content exists
 - `--require-shelley-native-raw-media-hints`
@@ -227,6 +231,20 @@ Direct helper equivalent:
 ```
 
 Legacy single-fixture strict checks are still available when needed for focused debugging.
+
+Deterministic S2 narrow-fidelity fixture proof profile (recommended for full S2 fixture matrix):
+
+```bash
+./install-stavrobot.sh --refresh-shelley-mode --s2-shelley-narrow-fidelity-profile
+```
+
+Direct helper equivalent:
+
+```bash
+./run-shelley-managed-s2-narrow-fidelity-proof.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json
+```
 
 Focused S2 markdown/tool-summary adaptation proof (deterministic fixture):
 

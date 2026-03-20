@@ -510,6 +510,34 @@ Expected persistence evidence:
 - `user_data.stavrobot.raw_payload.display.tool_summary` is absent/empty
 - persisted `display_data.tool_summary` is present and non-empty (derived fallback)
 
+## S2 narrow-fidelity fixture proof profile
+
+An aggregate deterministic S2 proof helper is available for managed Shelley smoke validation:
+
+- `./run-shelley-managed-s2-narrow-fidelity-proof.sh`
+
+Fixture matrix covered by this profile:
+
+- `s2_markdown_tool_summary`
+- `s2_markdown_media_refs`
+- `s2_markdown_raw_tool_events`
+
+Installer/refresh entrypoints:
+
+```bash
+./install-stavrobot.sh --refresh-shelley-mode --s2-shelley-narrow-fidelity-profile
+
+./refresh-shelley-managed-s1.sh \
+  --smoke-s2-narrow-fidelity-profile
+```
+
+Guardrails mirror strict raw-media profile behavior:
+
+- incompatible with explicit per-fixture smoke expect/require flags
+- incompatible with explicit `--(smoke-)bridge-fixture`
+- incompatible with strict raw-media profile mode
+- currently does not accept direct smoke db/session overrides in profile mode
+
 ## S2 markdown + media-ref persistence fixture proof
 
 A third deterministic S2 fixture mode now validates markdown-first media-reference persistence behavior:

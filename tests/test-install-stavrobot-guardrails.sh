@@ -25,7 +25,7 @@ assert_contains "$out" '--json cannot be combined with --basic'
 out=$("$ROOT_DIR/install-stavrobot.sh" --refresh-shelley-mode --json 2>&1 || true)
 assert_contains "$out" '--json cannot be combined with --refresh-shelley-mode'
 
-refresh_only_err='--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, --expect-shelley-media-refs, --require-shelley-media-refs, --expect-shelley-native-raw-media-gating, --require-shelley-native-raw-media-hints, --expect-shelley-raw-media-rejection, --require-shelley-raw-media-rejection-hints, --expect-shelley-s2-markdown-tool-summary, --require-shelley-s2-markdown-tool-summary-hints, --expect-shelley-s2-markdown-media-refs, --require-shelley-s2-markdown-media-refs-hints, --expect-shelley-s2-tool-summary-raw-fallback, --require-shelley-s2-tool-summary-raw-fallback-hints, --strict-shelley-raw-media-profile, --sync-shelley-upstream-ff-only, and --shelley-bridge-fixture require --refresh-shelley-mode'
+refresh_only_err='--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, --expect-shelley-media-refs, --require-shelley-media-refs, --expect-shelley-native-raw-media-gating, --require-shelley-native-raw-media-hints, --expect-shelley-raw-media-rejection, --require-shelley-raw-media-rejection-hints, --expect-shelley-s2-markdown-tool-summary, --require-shelley-s2-markdown-tool-summary-hints, --expect-shelley-s2-markdown-media-refs, --require-shelley-s2-markdown-media-refs-hints, --expect-shelley-s2-tool-summary-raw-fallback, --require-shelley-s2-tool-summary-raw-fallback-hints, --strict-shelley-raw-media-profile, --s2-shelley-narrow-fidelity-profile, --sync-shelley-upstream-ff-only, and --shelley-bridge-fixture require --refresh-shelley-mode'
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --allow-dirty-shelley 2>&1 || true)
 assert_contains "$out" "$refresh_only_err"
@@ -78,6 +78,9 @@ assert_contains "$out" "$refresh_only_err"
 out=$("$ROOT_DIR/install-stavrobot.sh" --strict-shelley-raw-media-profile 2>&1 || true)
 assert_contains "$out" "$refresh_only_err"
 
+out=$("$ROOT_DIR/install-stavrobot.sh" --s2-shelley-narrow-fidelity-profile 2>&1 || true)
+assert_contains "$out" "$refresh_only_err"
+
 out=$("$ROOT_DIR/install-stavrobot.sh" --sync-shelley-upstream-ff-only 2>&1 || true)
 assert_contains "$out" "$refresh_only_err"
 
@@ -107,6 +110,12 @@ assert_contains "$out" '--require-shelley-s2-tool-summary-raw-fallback-hints req
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --refresh-shelley-mode --strict-shelley-raw-media-profile --expect-shelley-raw-media-rejection 2>&1 || true)
 assert_contains "$out" '--strict-shelley-raw-media-profile cannot be combined with explicit --expect/--require Shelley smoke flags or --shelley-bridge-fixture'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --refresh-shelley-mode --s2-shelley-narrow-fidelity-profile --expect-shelley-s2-markdown-media-refs 2>&1 || true)
+assert_contains "$out" '--s2-shelley-narrow-fidelity-profile cannot be combined with explicit --expect/--require Shelley smoke flags or --shelley-bridge-fixture'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --refresh-shelley-mode --s2-shelley-narrow-fidelity-profile --strict-shelley-raw-media-profile 2>&1 || true)
+assert_contains "$out" '--strict-shelley-raw-media-profile cannot be combined with --s2-shelley-narrow-fidelity-profile'
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --print-shelley-mode-status --refresh 2>&1 || true)
 assert_contains "$out" '--print-shelley-mode-status cannot be combined with normal installer mutation flags'
