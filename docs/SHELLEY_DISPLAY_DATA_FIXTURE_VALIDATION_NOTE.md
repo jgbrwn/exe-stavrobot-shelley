@@ -538,6 +538,31 @@ Guardrails mirror strict raw-media profile behavior:
 - incompatible with strict raw-media profile mode
 - currently does not accept direct smoke db/session overrides in profile mode
 
+## Latest S2 narrow-fidelity profile execution checkpoint (commit `35ae5a9`)
+
+Managed refresh helper proof run completed successfully against `/opt/shelley` using the new aggregate S2 profile:
+
+```bash
+./refresh-shelley-managed-s1.sh \
+  --allow-dirty \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --smoke-port 8902 \
+  --smoke-s2-narrow-fidelity-profile
+```
+
+Observed pass bundle DB paths:
+
+- `/tmp/shelley-stavrobot-managed-s2-test-1774032692-s2_markdown_tool_summary.db`
+- `/tmp/shelley-stavrobot-managed-s2-test-1774032692-s2_markdown_media_refs.db`
+- `/tmp/shelley-stavrobot-managed-s2-test-1774032692-s2_markdown_raw_tool_events.db`
+
+Fixture-level assertions covered in this run:
+
+- markdown fallback + compact `display.tool_summary` persistence
+- markdown fallback + `display_data.media_refs` persistence from both content + artifact image refs
+- `raw.events` → persisted `display_data.tool_summary` fallback derivation
+
 ## S2 markdown + media-ref persistence fixture proof
 
 A third deterministic S2 fixture mode now validates markdown-first media-reference persistence behavior:
