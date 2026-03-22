@@ -641,6 +641,7 @@ Safety/operability rules:
 
 - uses isolated tmux-backed server with dedicated DB/log paths
 - rejects port `9999` (reserved operator/dev Shelley)
+- optional strict lane `--require-remote-isolation` fails if seeded Shelley conversations are not mapped to distinct remote Stavrobot conversation IDs
 
 Example:
 
@@ -681,3 +682,4 @@ Observed in this pass:
 Interpretation note:
 
 - this result is useful as baseline evidence that current profile/session behavior likely needs stricter conversation isolation controls before treating S4 outcomes as product-memory truth
+- use `--require-remote-isolation` for the stricter S4 lane once profile/session behavior is expected to preserve distinct remote conversation IDs

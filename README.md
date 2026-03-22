@@ -330,6 +330,13 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-s2-n
   --shelley-dir /opt/shelley \
   --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
   --port 8922
+
+# Optional strict S4 lane: require per-seeded-conversation remote Stavrobot isolation
+./run-shelley-managed-s4-recall-validation.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8922 \
+  --require-remote-isolation
 ```
 
 ### Managed runtime smoke contract lane policy (checklist)

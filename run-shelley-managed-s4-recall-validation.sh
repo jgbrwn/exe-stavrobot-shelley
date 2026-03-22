@@ -14,6 +14,7 @@ TMUX_SESSION=""
 OUTPUT_JSON="$ROOT_DIR/state/s4-recall-validation-last.json"
 SERVER_LOG="/tmp/shelley-s4-recall-validation.log"
 KEEP_SERVER=0
+REQUIRE_REMOTE_ISOLATION=0
 
 find_port_listener() {
   if command -v ss >/dev/null 2>&1; then
@@ -48,6 +49,7 @@ Flags:
   --db-path PATH             SQLite DB path (default: /tmp/shelley-s4-recall-PORT-TIMESTAMP.db)
   --tmux-session NAME        tmux session name (default: shelley-s4-recall-PORT-TIMESTAMP)
   --output-json PATH         Report output path (default: state/s4-recall-validation-last.json)
+  --require-remote-isolation Fail run if all seeded Shelley conversations do not map to distinct remote Stavrobot conversation IDs
   --keep-server              Leave validation server running after completion
   --help
 USAGE
@@ -86,6 +88,10 @@ while [[ $# -gt 0 ]]; do
     --output-json)
       OUTPUT_JSON="$2"
       shift 2
+      ;;
+    --require-remote-isolation)
+      REQUIRE_REMOTE_ISOLATION=1
+      shift
       ;;
     --keep-server)
       KEEP_SERVER=1
@@ -353,12 +359,13 @@ done
 sqlite_tmp=$(mktemp)
 sqlite3 -json "$DB_PATH" "SELECT conversation_id, conversation_options FROM conversations WHERE conversation_id IN ('$conv_a','$conv_b','$conv_c') ORDER BY conversation_id;" > "$sqlite_tmp"
 
-python3 - "$probe_json" "$sqlite_tmp" "$OUTPUT_JSON" "$SHELLEY_BIN" "$PROFILE_STATE_PATH" "$BRIDGE_PROFILE" "$PORT" "$DB_PATH" "$SERVER_LOG" <<'PY'
+python3 - "$probe_json" "$sqlite_tmp" "$OUTPUT_JSON" "$SHELLEY_BIN" "$PROFILE_STATE_PATH" "$BRIDGE_PROFILE" "$PORT" "$DB_PATH" "$SERVER_LOG" "$REQUIRE_REMOTE_ISOLATION" <<'PY'
 import json,sys,datetime,re
 from datetime import timezone
 probes=json.load(open(sys.argv[1]))
 rows=json.load(open(sys.argv[2]))
 out_path=sys.argv[3]
+require_remote_isolation = sys.argv[10] == '1'
 
 bridge_map={}
 for r in rows:
@@ -413,6 +420,9 @@ cross_good=sum(1 for p in cross if p.get('accuracy') in ('correct','partially_co
 outcome='S4A' if cross and cross_good/len(cross) >= 0.6 else 'S4B'
 confidence='medium' if len(probes['probes']) >= 4 else 'low'
 
+remote_ids = sorted({rid for rid in bridge_map.values() if isinstance(rid, str) and rid})
+remote_isolation_ok = len(remote_ids) >= len(probes['conversations'])
+
 report={
   'schema_version':1,
   'generated_at':datetime.datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
@@ -424,6 +434,9 @@ report={
     'db_path':sys.argv[8],
     'server_log':sys.argv[9],
     'path_used':'managed Shelley API',
+    'require_remote_isolation': require_remote_isolation,
+    'remote_isolation_ok': remote_isolation_ok,
+    'remote_stavrobot_conversation_ids': remote_ids,
   },
   'facts':probes['facts'],
   'conversations':probes['conversations'],
@@ -437,6 +450,9 @@ report={
 
 import os
 os.makedirs(os.path.dirname(out_path), exist_ok=True)
+if require_remote_isolation and not remote_isolation_ok:
+    raise SystemExit('remote isolation check failed: expected distinct remote Stavrobot conversation IDs per seeded Shelley conversation')
+
 with open(out_path,'w') as f:
     json.dump(report,f,indent=2,sort_keys=True)
     f.write('\n')
