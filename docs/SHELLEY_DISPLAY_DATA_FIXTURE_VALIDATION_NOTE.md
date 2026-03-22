@@ -449,6 +449,7 @@ Process cleanup note:
 - smoke helpers always run under isolated tmux sessions and now attempt explicit post-run listener cleanup on the smoke port
 - cleanup flow is: kill tmux session, wait briefly, then TERM/KILL lingering shelley listener PIDs bound to the smoke port if needed
 - remaining listeners still produce explicit warnings with port listener details
+- hard safety rule: smoke/test helpers reject port `9999` (reserved for operator/dev Shelley) and profile helpers reject base-port ranges that would overlap `9999`
 
 ## S2 narrow fidelity fixture proof (markdown + tool summary)
 

@@ -58,7 +58,7 @@ Flags:
   --pnpm-cmd CMD               Command used for pnpm operations
   --skip-smoke                 Skip isolated post-build smoke validation
   --allow-dirty                Allow running against a non-clean Shelley checkout
-  --smoke-port PORT            Smoke-test port (default: 8765)
+  --smoke-port PORT            Smoke-test port (default: 8765; must not be 9999, reserved for operator/dev Shelley)
   --smoke-db-path PATH         Smoke-test sqlite db path
   --smoke-tmux-session NAME    Smoke-test tmux session name
   --smoke-expect-display-data  Assert persisted display_data during smoke validation
@@ -335,6 +335,10 @@ require_cmd node
 require_cmd npx
 require_cmd python3
 [[ -d "$SHELLEY_DIR/.git" ]] || die "Shelley checkout is not a git repo: $SHELLEY_DIR"
+[[ "$SMOKE_PORT" =~ ^[0-9]+$ ]] || die "--smoke-port must be numeric"
+if (( SMOKE_PORT == 9999 )); then
+  die "--smoke-port 9999 is reserved for operator/dev Shelley; choose a dedicated smoke port"
+fi
 
 if (( PRINT_CLEAN_RESET_INSTRUCTIONS == 1 )); then
   print_clean_reset_instructions

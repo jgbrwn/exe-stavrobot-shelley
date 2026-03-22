@@ -124,3 +124,15 @@ out=$("$ROOT_DIR/install-stavrobot.sh" --refresh-shelley-mode --stavrobot-dir /t
 assert_contains "$out" '--refresh-shelley-mode cannot be combined with --stavrobot-dir'
 
 printf 'install-stavrobot guardrail tests passed\n'
+
+out=$("$ROOT_DIR/refresh-shelley-managed-s1.sh" --help 2>&1)
+assert_contains "$out" '--smoke-port PORT            Smoke-test port (default: 8765; must not be 9999, reserved for operator/dev Shelley)'
+
+out=$("$ROOT_DIR/smoke-test-shelley-managed-s1.sh" --help 2>&1)
+assert_contains "$out" '--port PORT                    Test port (default: 8765; must not be 9999, reserved for operator/dev Shelley)'
+
+out=$("$ROOT_DIR/smoke-test-shelley-managed-s1.sh" --port 9999 2>&1 || true)
+assert_contains "$out" '--port 9999 is reserved for operator/dev Shelley; choose a dedicated smoke port'
+
+out=$("$ROOT_DIR/refresh-shelley-managed-s1.sh" --skip-smoke --smoke-port 9999 2>&1 || true)
+assert_contains "$out" '--smoke-port 9999 is reserved for operator/dev Shelley; choose a dedicated smoke port'

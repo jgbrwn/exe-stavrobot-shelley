@@ -212,6 +212,7 @@ What they do:
   - assert runtime derives compact `display.tool_summary` from raw bridge `raw.events` when direct `display.tool_summary` is absent
 - `--require-shelley-s2-tool-summary-raw-fallback-hints`
   - with `--expect-shelley-s2-tool-summary-raw-fallback`, fail when no raw-events fallback hints are observed
+- smoke safety guardrail: smoke/test ports must not use `9999` (reserved for operator/dev Shelley)
 - cleanup ergonomics: `./refresh-shelley-managed-s1.sh --print-clean-reset-instructions` (or `--clean-reset-only --i-understand-reset`) helps keep `/opt/shelley` deterministic between refresh runs
 
 ### Operator quick recipes

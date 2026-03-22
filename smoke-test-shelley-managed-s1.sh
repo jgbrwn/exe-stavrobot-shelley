@@ -102,7 +102,7 @@ Usage: ./smoke-test-shelley-managed-s1.sh [flags]
 Flags:
   --shelley-dir PATH             Shelley checkout/build dir (default: /opt/shelley or SHELLEY_DIR)
   --shelley-bin PATH             Shelley binary path (default: SHELLEY_DIR/bin/shelley)
-  --port PORT                    Test port (default: 8765)
+  --port PORT                    Test port (default: 8765; must not be 9999, reserved for operator/dev Shelley)
   --db-path PATH                 Test sqlite db path
   --profile-state-path PATH      Managed bridge profile state file (default: repo state/shelley-bridge-profiles.json)
   --stavrobot-base-url URL       Stavrobot base URL override for disposable/local validation
@@ -335,6 +335,9 @@ require_cmd sqlite3
 [[ -f "$PROFILE_STATE_PATH" ]] || die "Managed bridge profile state file not found: $PROFILE_STATE_PATH"
 [[ -f "$STAVROBOT_CONFIG_PATH" ]] || die "Stavrobot config path not found: $STAVROBOT_CONFIG_PATH"
 [[ "$PORT" =~ ^[0-9]+$ ]] || die "--port must be numeric"
+if (( PORT == 9999 )); then
+  die "--port 9999 is reserved for operator/dev Shelley; choose a dedicated smoke port"
+fi
 if (( REQUIRE_DISPLAY_HINTS == 1 && EXPECT_DISPLAY_DATA == 0 )); then
   die "--require-display-hints requires --expect-display-data"
 fi

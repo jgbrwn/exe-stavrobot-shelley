@@ -66,6 +66,9 @@ done
 
 require_cmd python3
 [[ "$BASE_PORT" =~ ^[0-9]+$ ]] || die "--base-port must be numeric"
+if (( BASE_PORT <= 9999 && BASE_PORT + 2 >= 9999 )); then
+  die "--base-port range overlaps reserved operator/dev Shelley port 9999"
+fi
 [[ -n "$SHELLEY_BIN" ]] || SHELLEY_BIN="$SHELLEY_DIR/bin/shelley"
 [[ -x "$SHELLEY_BIN" ]] || die "Shelley binary not found or not executable: $SHELLEY_BIN"
 [[ -f "$PROFILE_STATE_PATH" ]] || die "Profile state file not found: $PROFILE_STATE_PATH"
