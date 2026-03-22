@@ -376,16 +376,24 @@ with strict assertions pre-wired for each case.
 
 ## Managed runtime smoke contract CI policy
 
-Current test behavior (`tests/test-shelley-managed-smoke-raw-media-runtime-contract.sh`):
+Current test behavior:
+
+- `tests/test-shelley-managed-smoke-raw-media-runtime-contract.sh`
+- `tests/test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh`
+
+Both tests:
 
 - default mode remains skip-safe when `/opt/shelley` runtime prerequisites are missing/unpatched
-- set `REQUIRE_PATCHED_MANAGED_RUNTIME=1` to enforce a required-runtime lane (test fails instead of skip)
+- support `REQUIRE_PATCHED_MANAGED_RUNTIME=1` to enforce a required-runtime lane (test fails instead of skip)
 
-Example required-runtime invocation:
+Example required-runtime invocations:
 
 ```bash
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 \
   ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
+
+REQUIRE_PATCHED_MANAGED_RUNTIME=1 \
+  ./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh
 ```
 
 ## Latest strict-profile execution checkpoint (post-profile wiring)
@@ -424,15 +432,23 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 \
 
 Use this exact two-lane wording to avoid drift across future sessions:
 
-1. **Dev lane (default portable lane):** run managed runtime contract smoke in skip-safe mode.
-2. **Release lane (required-runtime lane):** rerun the same test with `REQUIRE_PATCHED_MANAGED_RUNTIME=1`; treat any skip-precondition as failure.
+1. **Dev lane (default portable lane):** run managed runtime contract smoke in skip-safe mode (both strict raw-media and S2 narrow-fidelity contracts).
+2. **Release lane (required-runtime lane):** rerun both tests with `REQUIRE_PATCHED_MANAGED_RUNTIME=1`; treat any skip-precondition as failure.
 
 Concrete commands:
 
 ```bash
 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
+./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
+REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh
 ```
+
+Process cleanup note:
+
+- smoke helpers always run under isolated tmux sessions and now attempt explicit post-run listener cleanup on the smoke port
+- cleanup flow is: kill tmux session, wait briefly, then TERM/KILL lingering shelley listener PIDs bound to the smoke port if needed
+- remaining listeners still produce explicit warnings with port listener details
 
 ## S2 narrow fidelity fixture proof (markdown + tool summary)
 

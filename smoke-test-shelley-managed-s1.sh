@@ -47,6 +47,54 @@ find_port_listener() {
   printf ''
 }
 
+find_port_listener_pids() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltnp "sport = :$PORT" 2>/dev/null \
+      | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' \
+      | sort -u
+    return
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -t -nP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | sort -u || true
+    return
+  fi
+}
+
+terminate_port_listeners() {
+  local signal="$1"
+  local pid cmdline
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] || continue
+    cmdline=$(ps -p "$pid" -o args= 2>/dev/null || true)
+    if [[ "$cmdline" == *"shelley"* ]]; then
+      kill "-$signal" "$pid" >/dev/null 2>&1 || true
+    fi
+  done < <(find_port_listener_pids || true)
+}
+
+ensure_smoke_listener_stopped() {
+  local linger
+  for _ in $(seq 1 6); do
+    linger=$(find_port_listener)
+    [[ -z "$linger" ]] && return 0
+    sleep 0.25
+  done
+
+  terminate_port_listeners TERM
+  sleep 0.5
+  linger=$(find_port_listener)
+  if [[ -n "$linger" ]]; then
+    terminate_port_listeners KILL
+    sleep 0.5
+    linger=$(find_port_listener)
+  fi
+
+  if [[ -n "$linger" ]]; then
+    warn "Port $PORT still has a listener after smoke cleanup"
+    warn "$linger"
+  fi
+}
+
 usage() {
   cat <<'EOF'
 Usage: ./smoke-test-shelley-managed-s1.sh [flags]
@@ -160,12 +208,7 @@ PY
 cleanup() {
   if (( KEEP_SERVER == 0 )); then
     tmux kill-session -t "$TMUX_SESSION" >/dev/null 2>&1 || true
-    local linger
-    linger=$(find_port_listener)
-    if [[ -n "$linger" ]]; then
-      warn "Port $PORT still has a listener after smoke cleanup"
-      warn "$linger"
-    fi
+    ensure_smoke_listener_stopped
   fi
 }
 trap cleanup EXIT

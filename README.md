@@ -318,18 +318,22 @@ Lightweight helper/status validation:
 ./tests/run.sh test-shelley-stavrobot-bridge-raw-media-negative.sh
 ./tests/run.sh test-shelley-runtime-raw-media-patch-contract.sh
 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
+./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh
 
 # Optional required-runtime lane (fails instead of skipping when /opt/shelley is missing/unpatched)
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
+REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh
 ```
 
 ### Managed runtime smoke contract lane policy (checklist)
 
 - **Normal dev lane (portable/default):**
   - run `./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh`
+  - run `./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh`
   - skip-safe behavior is expected when managed runtime prerequisites are absent
 - **Release / patched-runtime lane (required):**
   - run `REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh`
+  - run `REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh`
   - any missing/unpatched managed runtime prerequisite is a failure (not skip)
 
 ## Operator helper: Stavrobot backend model control
