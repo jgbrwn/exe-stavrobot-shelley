@@ -642,6 +642,7 @@ Safety/operability rules:
 - uses isolated tmux-backed server with dedicated DB/log paths
 - rejects port `9999` (reserved operator/dev Shelley)
 - optional strict lane `--require-remote-isolation` fails if seeded Shelley conversations are not mapped to distinct remote Stavrobot conversation IDs
+- `--remote-isolation-profile-session` enables deterministic per-seed conversation bridge-profile/session isolation for the run (without runtime patch-unit changes)
 
 Example:
 
@@ -683,3 +684,38 @@ Interpretation note:
 
 - this result is useful as baseline evidence that current profile/session behavior likely needs stricter conversation isolation controls before treating S4 outcomes as product-memory truth
 - use `--require-remote-isolation` for the stricter S4 lane once profile/session behavior is expected to preserve distinct remote conversation IDs
+
+### Strict S4 checkpoint (deterministic remote-isolation profile/session mode)
+
+Executed:
+
+```bash
+./run-shelley-managed-s4-recall-validation.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8925 \
+  --require-remote-isolation \
+  --remote-isolation-profile-session
+```
+
+Report:
+
+- `state/s4-recall-validation-last.json`
+- DB: `/tmp/shelley-s4-recall-8925-1774223781.db`
+
+Observed in this strict lane pass:
+
+- strict remote isolation check now passes deterministically (`metadata.remote_isolation_ok = true`)
+- seeded conversations used deterministic per-seed bridge profiles:
+  - `local-default-s4-iso-a`
+  - `local-default-s4-iso-b`
+  - `local-default-s4-iso-c`
+- remote IDs are now isolated by deterministic prefixed namespace in the run profile-session wrappers:
+  - `s4iso-a:conv_1`
+  - `s4iso-b:conv_1`
+  - `s4iso-c:conv_1`
+
+Interpretation note:
+
+- this is a higher-confidence checkpoint for S4 lane integrity because it prevents false-positive “cross-conversation” conclusions caused by shared remote session identity
+- it does **not** by itself improve model recall quality; it improves evidence hygiene by enforcing deterministic per-conversation remote identity isolation in the validation harness
