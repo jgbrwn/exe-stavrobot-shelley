@@ -625,3 +625,59 @@ Expected persistence evidence:
   - `kind=image_ref` for content reference URL
   - `kind=artifact:image` for artifact URL
 - `llm_data.Content` still contains assistant text fallback with `## S2 fixture heading`
+
+## S4 recall validation runner (new)
+
+A first repeatable managed-Shelley S4 evidence runner is now available:
+
+- `./run-shelley-managed-s4-recall-validation.sh`
+
+It executes a compact four-scenario probe matrix from `docs/SHELLEY_S4_RECALL_VALIDATION_TEMPLATE.md` against isolated managed Shelley runtime state and emits a machine-readable report:
+
+- default report path: `state/s4-recall-validation-last.json`
+- report includes: metadata, seeded facts, conversation IDs, per-probe answers + rubric classifications, and provisional `S4A`/`S4B` heuristic outcome
+
+Safety/operability rules:
+
+- uses isolated tmux-backed server with dedicated DB/log paths
+- rejects port `9999` (reserved operator/dev Shelley)
+
+Example:
+
+```bash
+./run-shelley-managed-s4-recall-validation.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8922
+```
+
+Note:
+
+- this first runner is an evidence-gathering harness, not a final product-memory verdict
+- report should be reviewed manually; provisional outcome is intentionally heuristic
+
+### Latest S4 runner checkpoint (first automated pass)
+
+Executed:
+
+```bash
+./run-shelley-managed-s4-recall-validation.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8922
+```
+
+Report:
+
+- `state/s4-recall-validation-last.json`
+- DB: `/tmp/shelley-s4-recall-8922-1774217551.db`
+
+Observed in this pass:
+
+- all three seeded Shelley conversations mapped to the same remote Stavrobot conversation id (`conv_1`) under current local test profile behavior
+- probe answers repeatedly referenced prior run tokens rather than current seeded tokens
+- provisional heuristic outcome: `S4B` (low-confidence automation signal; manual review still required)
+
+Interpretation note:
+
+- this result is useful as baseline evidence that current profile/session behavior likely needs stricter conversation isolation controls before treating S4 outcomes as product-memory truth

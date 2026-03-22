@@ -324,6 +324,12 @@ Lightweight helper/status validation:
 # Optional required-runtime lane (fails instead of skipping when /opt/shelley is missing/unpatched)
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh
+
+# S4 recall evidence runner (managed isolated path)
+./run-shelley-managed-s4-recall-validation.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8922
 ```
 
 ### Managed runtime smoke contract lane policy (checklist)

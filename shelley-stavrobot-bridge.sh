@@ -249,13 +249,21 @@ done
 render_bridge_chat_json() {
   local response_json="$1"
   local events_json="${2:-}"
-  python3 - "$response_json" "$STAVROBOT_BRIDGE_FIXTURE" "$events_json" "$STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED" "$STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES" <<'PY'
+  local response_file events_file
+  response_file=$(mktemp)
+  events_file=$(mktemp)
+  printf '%s' "$response_json" >"$response_file"
+  printf '%s' "$events_json" >"$events_file"
+  local rc
+  if python3 - "$response_file" "$STAVROBOT_BRIDGE_FIXTURE" "$events_file" "$STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED" "$STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES" <<'PY'
 import base64, binascii, hashlib, json, re, sys
 from urllib.parse import urlparse
 
-payload = json.loads(sys.argv[1])
+with open(sys.argv[1]) as f:
+    payload = json.load(f)
 fixture = sys.argv[2]
-events_json = sys.argv[3]
+with open(sys.argv[3]) as f:
+    events_json = f.read()
 raw_media_enabled = sys.argv[4] == '1'
 raw_media_max_bytes = int(sys.argv[5])
 response = payload.get('response', '')
@@ -649,6 +657,13 @@ if not isinstance(out.get('display'), dict) or not out.get('display'):
     out.pop('display', None)
 print(json.dumps(out, indent=2))
 PY
+  then
+    rc=0
+  else
+    rc=$?
+  fi
+  rm -f "$response_file" "$events_file"
+  return $rc
 }
 
 fetch_chat_events_json() {

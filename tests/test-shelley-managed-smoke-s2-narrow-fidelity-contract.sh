@@ -37,6 +37,9 @@ fi
 if ! rg -q "media_refs" "$SHELLEY_DIR/server/stavrobot.go"; then
   skip_or_fail "managed runtime does not include expected media_refs persistence path"
 fi
+if ! rg -q "mktemp" "$ROOT_DIR/shelley-stavrobot-bridge.sh"; then
+  skip_or_fail "bridge does not include argv-safe payload temp-file handling"
+fi
 
 "$ROOT_DIR/run-shelley-managed-s2-narrow-fidelity-proof.sh" \
   --shelley-dir "$SHELLEY_DIR" \
