@@ -327,6 +327,7 @@ Lightweight helper/status validation:
 ./tests/run.sh test-s4-recall-validation-runtime-contract.sh
 ./tests/run.sh test-shelley-managed-memory-suitability-gate.sh
 ./tests/run.sh test-ci-memory-suitability-required-runtime.sh
+./tests/run.sh test-ci-memory-suitability-runtime-prereqs.sh
 
 # Optional required-runtime lane (fails instead of skipping when /opt/shelley is missing/unpatched)
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
@@ -368,8 +369,9 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runti
   - or run one aggregate deterministic gate command:
     - `./run-shelley-managed-memory-suitability-gate.sh --required-runtime --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
   - CI authoritative entrypoint (same gate, required-runtime):
+    - `./ci/check-memory-suitability-runtime-prereqs.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
     - `./ci/run-memory-suitability-required-runtime.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
-    - pass criteria: all three contract lanes pass; any missing/unpatched runtime prerequisite fails the lane
+    - pass criteria: preflight passes and all three contract lanes pass; any missing/unpatched runtime prerequisite fails the lane
   - any missing/unpatched managed runtime prerequisite is a failure (not skip)
 
 ## Operator helper: Stavrobot backend model control

@@ -376,11 +376,12 @@ with strict assertions pre-wired for each case.
 
 ## Managed runtime smoke contract CI policy
 
-CI authoritative required-runtime entrypoint:
+CI authoritative required-runtime entrypoints:
 
+- `./ci/check-memory-suitability-runtime-prereqs.sh`
 - `./ci/run-memory-suitability-required-runtime.sh`
 
-This is the canonical S2+S4 memory-evidence hygiene lane for required-runtime environments. It delegates to the aggregate gate helper with `--required-runtime` and should be treated as failing unless all three contract lanes pass.
+This is the canonical S2+S4 memory-evidence hygiene lane for required-runtime environments. The preflight checker hard-fails when managed runtime prerequisites are missing; the gate entrypoint delegates to the aggregate helper with `--required-runtime` and should be treated as failing unless all three contract lanes pass.
 
 Current test behavior:
 
