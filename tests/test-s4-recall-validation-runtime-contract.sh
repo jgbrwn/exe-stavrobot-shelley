@@ -46,22 +46,24 @@ out_json="/tmp/s4-runtime-contract.json"
   --remote-isolation-profile-session >/dev/null
 
 python3 - "$out_json" <<'PY'
-import json, sys
+import json, os, sys
 path = sys.argv[1]
 report = json.load(open(path))
 meta = report.get("metadata") or {}
+softfail_policy = os.environ.get("S4_SOFTFAIL_POLICY", "allow")
+raw_modes = {
+    (p.get("raw") or {}).get("bridge_softfail")
+    for p in (report.get("probes") or [])
+    if isinstance(p, dict)
+}
 if meta.get("require_remote_isolation") is not True:
     raise SystemExit("require_remote_isolation must be true")
 if meta.get("remote_isolation_profile_session") is not True:
     raise SystemExit("remote_isolation_profile_session must be true")
-if meta.get("remote_isolation_ok") is not True:
-    raw_modes = {
-        (p.get("raw") or {}).get("bridge_softfail")
-        for p in (report.get("probes") or [])
-        if isinstance(p, dict)
-    }
-    if "context_overflow" not in raw_modes:
-        raise SystemExit("remote_isolation_ok must be true unless context-overflow softfail evidence is present")
+if meta.get("remote_isolation_ok") is not True and "context_overflow" not in raw_modes:
+    raise SystemExit("remote_isolation_ok must be true unless context-overflow softfail evidence is present")
+if softfail_policy == "strict" and "context_overflow" in raw_modes:
+    raise SystemExit("strict S4 softfail policy forbids context-overflow softfail evidence")
 seed = meta.get("seed_bridge_profiles") or {}
 for key in ("A", "B", "C"):
     value = seed.get(key)

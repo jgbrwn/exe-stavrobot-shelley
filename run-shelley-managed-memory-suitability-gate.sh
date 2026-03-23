@@ -10,6 +10,7 @@ RUN_FULL_SUITE=0
 DRY_RUN=0
 SHELLEY_DIR="${SHELLEY_DIR:-}"
 PROFILE_STATE_PATH="${PROFILE_STATE_PATH:-}"
+S4_SOFTFAIL_POLICY="${S4_SOFTFAIL_POLICY:-allow}"
 
 usage() {
   cat <<'USAGE'
@@ -27,6 +28,8 @@ Flags:
   --shelley-dir PATH         Export SHELLEY_DIR for downstream test scripts
   --profile-state-path PATH  Export PROFILE_STATE_PATH for downstream test scripts
   --full-suite               After gate lane, run full helper/status suite (./tests/run.sh)
+  --s4-softfail-policy MODE  MODE=allow|strict (default: allow)
+                             strict: fail if S4 report contains context-overflow softfail evidence
   --dry-run                  Print planned commands only
   --help
 USAGE
@@ -50,6 +53,10 @@ while [[ $# -gt 0 ]]; do
       RUN_FULL_SUITE=1
       shift
       ;;
+    --s4-softfail-policy)
+      S4_SOFTFAIL_POLICY="$2"
+      shift 2
+      ;;
     --dry-run)
       DRY_RUN=1
       shift
@@ -65,6 +72,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -x "$TEST_RUNNER" ]] || die "Test runner missing or not executable: $TEST_RUNNER"
+[[ "$S4_SOFTFAIL_POLICY" == "allow" || "$S4_SOFTFAIL_POLICY" == "strict" ]] || die "--s4-softfail-policy must be allow or strict"
 
 if [[ -n "$SHELLEY_DIR" ]]; then
   export SHELLEY_DIR
@@ -73,6 +81,7 @@ if [[ -n "$PROFILE_STATE_PATH" ]]; then
   export PROFILE_STATE_PATH
 fi
 export REQUIRE_PATCHED_MANAGED_RUNTIME
+export S4_SOFTFAIL_POLICY
 
 contract_tests=(
   test-shelley-managed-smoke-raw-media-runtime-contract.sh

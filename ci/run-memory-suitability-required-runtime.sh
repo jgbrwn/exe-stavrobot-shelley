@@ -7,6 +7,7 @@ SHELLEY_DIR="${SHELLEY_DIR:-/opt/shelley}"
 PROFILE_STATE_PATH="${PROFILE_STATE_PATH:-$ROOT_DIR/state/shelley-bridge-profiles.json}"
 RUN_FULL_SUITE=0
 DRY_RUN=0
+S4_SOFTFAIL_POLICY="${S4_SOFTFAIL_POLICY:-allow}"
 
 usage() {
   cat <<'USAGE'
@@ -24,6 +25,8 @@ Flags:
   --shelley-dir PATH         Override SHELLEY_DIR (default: /opt/shelley)
   --profile-state-path PATH  Override PROFILE_STATE_PATH (default: ./state/shelley-bridge-profiles.json)
   --full-suite               Also run full helper/status suite after gate lane
+  --s4-softfail-policy MODE  MODE=allow|strict (default: allow)
+                             strict: fail if S4 report contains context-overflow softfail evidence
   --dry-run                  Print planned gate command only
   --help
 USAGE
@@ -42,6 +45,10 @@ while [[ $# -gt 0 ]]; do
     --full-suite)
       RUN_FULL_SUITE=1
       shift
+      ;;
+    --s4-softfail-policy)
+      S4_SOFTFAIL_POLICY="$2"
+      shift 2
       ;;
     --dry-run)
       DRY_RUN=1
@@ -62,12 +69,17 @@ if [[ ! -x "$GATE_RUNNER" ]]; then
   echo "[error] Missing executable gate runner: $GATE_RUNNER" >&2
   exit 1
 fi
+if [[ "$S4_SOFTFAIL_POLICY" != "allow" && "$S4_SOFTFAIL_POLICY" != "strict" ]]; then
+  echo "[error] --s4-softfail-policy must be allow or strict" >&2
+  exit 1
+fi
 
 cmd=(
   "$GATE_RUNNER"
   --required-runtime
   --shelley-dir "$SHELLEY_DIR"
   --profile-state-path "$PROFILE_STATE_PATH"
+  --s4-softfail-policy "$S4_SOFTFAIL_POLICY"
 )
 if (( RUN_FULL_SUITE == 1 )); then
   cmd+=(--full-suite)

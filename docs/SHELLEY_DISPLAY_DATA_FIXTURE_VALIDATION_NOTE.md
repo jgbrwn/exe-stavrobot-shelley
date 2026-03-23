@@ -845,3 +845,12 @@ Captured bundle includes (when present):
 - `manifest.txt`
 
 This provides direct postmortem data in CI UI without rerunning lanes interactively.
+
+### S4 softfail policy mode (new)
+
+Required-runtime gate entrypoints now support explicit S4 softfail policy control:
+
+- `--s4-softfail-policy allow` (default): tolerate S4 context-overflow softfail evidence while keeping diagnostics
+- `--s4-softfail-policy strict`: fail lane if S4 report contains context-overflow softfail evidence
+
+CI workflow is now pinned to `strict` to make context-pressure regressions explicit.

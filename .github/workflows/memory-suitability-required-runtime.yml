@@ -28,6 +28,7 @@ jobs:
     env:
       SHELLEY_DIR: /opt/shelley
       PROFILE_STATE_PATH: /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json
+      S4_SOFTFAIL_POLICY: strict
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,7 +37,7 @@ jobs:
         run: ./ci/check-memory-suitability-runtime-prereqs.sh --shelley-dir "$SHELLEY_DIR" --profile-state-path "$PROFILE_STATE_PATH"
 
       - name: Run authoritative required-runtime gate
-        run: ./ci/run-memory-suitability-required-runtime.sh --shelley-dir "$SHELLEY_DIR" --profile-state-path "$PROFILE_STATE_PATH"
+        run: ./ci/run-memory-suitability-required-runtime.sh --shelley-dir "$SHELLEY_DIR" --profile-state-path "$PROFILE_STATE_PATH" --s4-softfail-policy "$S4_SOFTFAIL_POLICY"
 
       - name: Collect memory-suitability artifacts
         if: always()

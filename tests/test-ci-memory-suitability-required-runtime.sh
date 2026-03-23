@@ -23,8 +23,13 @@ out=$("$CI_RUNNER" --dry-run 2>&1)
 assert_contains "$out" '[dry-run]'
 assert_contains "$out" 'run-shelley-managed-memory-suitability-gate.sh'
 assert_contains "$out" '--required-runtime'
+assert_contains "$out" '--s4-softfail-policy'
 
-out=$("$CI_RUNNER" --dry-run --full-suite 2>&1)
+out=$("$CI_RUNNER" --dry-run --full-suite --s4-softfail-policy strict 2>&1)
 assert_contains "$out" '--full-suite'
+assert_contains "$out" '--s4-softfail-policy strict'
+
+out=$("$CI_RUNNER" --s4-softfail-policy nope 2>&1 || true)
+assert_contains "$out" '--s4-softfail-policy must be allow or strict'
 
 echo "ci required-runtime memory suitability lane tests passed"
