@@ -154,6 +154,7 @@ Current installer-facing Shelley mode commands:
 ./install-stavrobot.sh --refresh-shelley-mode --expect-shelley-s2-tool-summary-raw-fallback --require-shelley-s2-tool-summary-raw-fallback-hints --shelley-bridge-fixture s2_markdown_raw_tool_events
 ./install-stavrobot.sh --refresh-shelley-mode --strict-shelley-raw-media-profile
 ./install-stavrobot.sh --refresh-shelley-mode --s2-shelley-narrow-fidelity-profile
+./install-stavrobot.sh --refresh-shelley-mode --memory-suitability-gate-shelley-profile
 ./install-stavrobot.sh --refresh-shelley-mode --sync-shelley-upstream-ff-only
 ./install-stavrobot.sh --refresh-shelley-mode-basic
 ```
@@ -192,6 +193,9 @@ What they do:
 - `--s2-shelley-narrow-fidelity-profile`
   - deterministic S2 narrow-fidelity fixture proof profile (runs `s2_markdown_tool_summary`, `s2_markdown_media_refs`, `s2_markdown_raw_tool_events` with strict assertions)
   - helper implementation: `run-shelley-managed-s2-narrow-fidelity-proof.sh`
+- `--memory-suitability-gate-shelley-profile`
+  - aggregate required-runtime memory suitability gate profile during refresh/smoke
+  - runs raw-media runtime contract + S2 narrow-fidelity contract + strict S4 isolation contract via `run-shelley-managed-memory-suitability-gate.sh`
 - `--expect-shelley-native-raw-media-gating`
   - assert phase-2 runtime gate: native raw-media mapping is allowed only when no assistant text content exists
 - `--require-shelley-native-raw-media-hints`

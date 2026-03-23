@@ -782,3 +782,18 @@ Result:
   - `test-shelley-managed-smoke-raw-media-runtime-contract.sh`
   - `test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh`
   - `test-s4-recall-validation-runtime-contract.sh`
+
+## Installer/refresh wiring for aggregate memory-suitability gate (new)
+
+The aggregate gate is now available directly via managed refresh wrappers:
+
+- installer flag:
+  - `--memory-suitability-gate-shelley-profile`
+- refresh helper flag:
+  - `--smoke-memory-suitability-gate-profile`
+
+Behavior:
+
+- runs `run-shelley-managed-memory-suitability-gate.sh --required-runtime` after managed rebuild
+- preserves profile exclusivity rules with existing strict raw-media and S2 narrow-fidelity proof profiles
+- rejects explicit smoke expectation/fixture flags in this profile mode to keep the lane deterministic

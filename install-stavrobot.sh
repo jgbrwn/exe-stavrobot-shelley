@@ -39,6 +39,7 @@ SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS=0
 SHELLEY_BRIDGE_FIXTURE=""
 SHELLEY_STRICT_RAW_MEDIA_PROFILE=0
 SHELLEY_S2_NARROW_FIDELITY_PROFILE=0
+SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE=0
 SHELLEY_SYNC_UPSTREAM_FF_ONLY=0
 SHELLEY_REFRESH_BASIC=0
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
@@ -116,6 +117,7 @@ Flags:
   --shelley-bridge-fixture NAME  Optional test fixture mode for Shelley smoke bridge payloads
   --strict-shelley-raw-media-profile  Run authoritative strict managed raw-media proof profile during Shelley refresh
   --s2-shelley-narrow-fidelity-profile  Run deterministic S2 narrow-fidelity fixture proof profile during Shelley refresh
+  --memory-suitability-gate-shelley-profile  Run aggregate required-runtime memory suitability gate profile during Shelley refresh
   --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
   --refresh-shelley-mode-basic      Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --strict-shelley-raw-media-profile
   --help-basic                 Print basic user quickstart and common commands
@@ -148,6 +150,7 @@ Shelley mode helpers:
   --shelley-bridge-fixture NAME  Optional test fixture mode for Shelley smoke bridge payloads
   --strict-shelley-raw-media-profile  Run authoritative strict managed raw-media proof profile during Shelley refresh
   --s2-shelley-narrow-fidelity-profile  Run deterministic S2 narrow-fidelity fixture proof profile during Shelley refresh
+  --memory-suitability-gate-shelley-profile  Run aggregate required-runtime memory suitability gate profile during Shelley refresh
   --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
   --refresh-shelley-mode-basic      Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --strict-shelley-raw-media-profile
 EOF
@@ -521,6 +524,10 @@ while [[ $# -gt 0 ]]; do
       SHELLEY_S2_NARROW_FIDELITY_PROFILE=1
       shift
       ;;
+    --memory-suitability-gate-shelley-profile)
+      SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE=1
+      shift
+      ;;
     --sync-shelley-upstream-ff-only)
       SHELLEY_SYNC_UPSTREAM_FF_ONLY=1
       shift
@@ -564,7 +571,7 @@ if (( SHELLEY_STATUS_ONLY )); then
   [[ -z "$STAVROBOT_DIR" ]] || die "--print-shelley-mode-status cannot be combined with --stavrobot-dir"
   (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHOW_SECRETS == 0 )) || \
     die "--print-shelley-mode-status cannot be combined with normal installer mutation flags"
-  (( SHELLEY_ALLOW_DIRTY == 0 && SHELLEY_SKIP_SMOKE == 0 && SHELLEY_EXPECT_DISPLAY_DATA == 0 && SHELLEY_REQUIRE_DISPLAY_HINTS == 0 && SHELLEY_EXPECT_MEDIA_REFS == 0 && SHELLEY_REQUIRE_MEDIA_REFS == 0 && SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING == 0 && SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 0 && SHELLEY_EXPECT_RAW_MEDIA_REJECTION == 0 && SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 0 && SHELLEY_EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 0 && SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 0 && SHELLEY_EXPECT_S2_MARKDOWN_MEDIA_REFS == 0 && SHELLEY_REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS == 0 && SHELLEY_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 0 && SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 0 && SHELLEY_STRICT_RAW_MEDIA_PROFILE == 0 && SHELLEY_S2_NARROW_FIDELITY_PROFILE == 0 && SHELLEY_SYNC_UPSTREAM_FF_ONLY == 0 )) && [[ -z "$SHELLEY_BRIDGE_FIXTURE" ]] || \
+  (( SHELLEY_ALLOW_DIRTY == 0 && SHELLEY_SKIP_SMOKE == 0 && SHELLEY_EXPECT_DISPLAY_DATA == 0 && SHELLEY_REQUIRE_DISPLAY_HINTS == 0 && SHELLEY_EXPECT_MEDIA_REFS == 0 && SHELLEY_REQUIRE_MEDIA_REFS == 0 && SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING == 0 && SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 0 && SHELLEY_EXPECT_RAW_MEDIA_REJECTION == 0 && SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 0 && SHELLEY_EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 0 && SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 0 && SHELLEY_EXPECT_S2_MARKDOWN_MEDIA_REFS == 0 && SHELLEY_REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS == 0 && SHELLEY_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 0 && SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 0 && SHELLEY_STRICT_RAW_MEDIA_PROFILE == 0 && SHELLEY_S2_NARROW_FIDELITY_PROFILE == 0 && SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE == 0 && SHELLEY_SYNC_UPSTREAM_FF_ONLY == 0 )) && [[ -z "$SHELLEY_BRIDGE_FIXTURE" ]] || \
     die "--print-shelley-mode-status cannot be combined with Shelley refresh-only flags"
 else
   (( SHELLEY_STATUS_JSON == 0 )) || die "--json currently requires --print-shelley-mode-status"
@@ -577,8 +584,8 @@ if (( SHELLEY_REFRESH_ONLY )); then
     die "--refresh-shelley-mode cannot be combined with normal installer mutation flags"
 fi
 
-if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE || SHELLEY_EXPECT_DISPLAY_DATA || SHELLEY_REQUIRE_DISPLAY_HINTS || SHELLEY_EXPECT_MEDIA_REFS || SHELLEY_REQUIRE_MEDIA_REFS || SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING || SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS || SHELLEY_EXPECT_RAW_MEDIA_REJECTION || SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS || SHELLEY_EXPECT_S2_MARKDOWN_TOOL_SUMMARY || SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS || SHELLEY_EXPECT_S2_MARKDOWN_MEDIA_REFS || SHELLEY_REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS || SHELLEY_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK || SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS || SHELLEY_STRICT_RAW_MEDIA_PROFILE || SHELLEY_S2_NARROW_FIDELITY_PROFILE || SHELLEY_SYNC_UPSTREAM_FF_ONLY) && SHELLEY_REFRESH_ONLY == 0 )) || ([[ -n "$SHELLEY_BRIDGE_FIXTURE" ]] && (( SHELLEY_REFRESH_ONLY == 0 ))); then
-  die "--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, --expect-shelley-media-refs, --require-shelley-media-refs, --expect-shelley-native-raw-media-gating, --require-shelley-native-raw-media-hints, --expect-shelley-raw-media-rejection, --require-shelley-raw-media-rejection-hints, --expect-shelley-s2-markdown-tool-summary, --require-shelley-s2-markdown-tool-summary-hints, --expect-shelley-s2-markdown-media-refs, --require-shelley-s2-markdown-media-refs-hints, --expect-shelley-s2-tool-summary-raw-fallback, --require-shelley-s2-tool-summary-raw-fallback-hints, --strict-shelley-raw-media-profile, --s2-shelley-narrow-fidelity-profile, --sync-shelley-upstream-ff-only, and --shelley-bridge-fixture require --refresh-shelley-mode"
+if (( (SHELLEY_ALLOW_DIRTY || SHELLEY_SKIP_SMOKE || SHELLEY_EXPECT_DISPLAY_DATA || SHELLEY_REQUIRE_DISPLAY_HINTS || SHELLEY_EXPECT_MEDIA_REFS || SHELLEY_REQUIRE_MEDIA_REFS || SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING || SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS || SHELLEY_EXPECT_RAW_MEDIA_REJECTION || SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS || SHELLEY_EXPECT_S2_MARKDOWN_TOOL_SUMMARY || SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS || SHELLEY_EXPECT_S2_MARKDOWN_MEDIA_REFS || SHELLEY_REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS || SHELLEY_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK || SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS || SHELLEY_STRICT_RAW_MEDIA_PROFILE || SHELLEY_S2_NARROW_FIDELITY_PROFILE || SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE || SHELLEY_SYNC_UPSTREAM_FF_ONLY) && SHELLEY_REFRESH_ONLY == 0 )) || ([[ -n "$SHELLEY_BRIDGE_FIXTURE" ]] && (( SHELLEY_REFRESH_ONLY == 0 ))); then
+  die "--allow-dirty-shelley, --skip-shelley-smoke, --expect-shelley-display-data, --require-shelley-display-hints, --expect-shelley-media-refs, --require-shelley-media-refs, --expect-shelley-native-raw-media-gating, --require-shelley-native-raw-media-hints, --expect-shelley-raw-media-rejection, --require-shelley-raw-media-rejection-hints, --expect-shelley-s2-markdown-tool-summary, --require-shelley-s2-markdown-tool-summary-hints, --expect-shelley-s2-markdown-media-refs, --require-shelley-s2-markdown-media-refs-hints, --expect-shelley-s2-tool-summary-raw-fallback, --require-shelley-s2-tool-summary-raw-fallback-hints, --strict-shelley-raw-media-profile, --s2-shelley-narrow-fidelity-profile, --memory-suitability-gate-shelley-profile, --sync-shelley-upstream-ff-only, and --shelley-bridge-fixture require --refresh-shelley-mode"
 fi
 if (( SHELLEY_REQUIRE_DISPLAY_HINTS == 1 && SHELLEY_EXPECT_DISPLAY_DATA == 0 )); then
   die "--require-shelley-display-hints requires --expect-shelley-display-data"
@@ -613,6 +620,17 @@ if (( SHELLEY_S2_NARROW_FIDELITY_PROFILE == 1 )); then
 fi
 if (( SHELLEY_STRICT_RAW_MEDIA_PROFILE == 1 && SHELLEY_S2_NARROW_FIDELITY_PROFILE == 1 )); then
   die "--strict-shelley-raw-media-profile cannot be combined with --s2-shelley-narrow-fidelity-profile"
+fi
+if (( SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE == 1 )); then
+  if (( SHELLEY_EXPECT_DISPLAY_DATA == 1 || SHELLEY_REQUIRE_DISPLAY_HINTS == 1 || SHELLEY_EXPECT_MEDIA_REFS == 1 || SHELLEY_REQUIRE_MEDIA_REFS == 1 || SHELLEY_EXPECT_NATIVE_RAW_MEDIA_GATING == 1 || SHELLEY_REQUIRE_NATIVE_RAW_MEDIA_HINTS == 1 || SHELLEY_EXPECT_RAW_MEDIA_REJECTION == 1 || SHELLEY_REQUIRE_RAW_MEDIA_REJECTION_HINTS == 1 || SHELLEY_EXPECT_S2_MARKDOWN_TOOL_SUMMARY == 1 || SHELLEY_REQUIRE_S2_MARKDOWN_TOOL_SUMMARY_HINTS == 1 || SHELLEY_EXPECT_S2_MARKDOWN_MEDIA_REFS == 1 || SHELLEY_REQUIRE_S2_MARKDOWN_MEDIA_REFS_HINTS == 1 || SHELLEY_EXPECT_S2_TOOL_SUMMARY_RAW_FALLBACK == 1 || SHELLEY_REQUIRE_S2_TOOL_SUMMARY_RAW_FALLBACK_HINTS == 1 )) || [[ -n "$SHELLEY_BRIDGE_FIXTURE" ]]; then
+    die "--memory-suitability-gate-shelley-profile cannot be combined with explicit --expect/--require Shelley smoke flags or --shelley-bridge-fixture"
+  fi
+fi
+if (( SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE == 1 && SHELLEY_STRICT_RAW_MEDIA_PROFILE == 1 )); then
+  die "--memory-suitability-gate-shelley-profile cannot be combined with --strict-shelley-raw-media-profile"
+fi
+if (( SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE == 1 && SHELLEY_S2_NARROW_FIDELITY_PROFILE == 1 )); then
+  die "--memory-suitability-gate-shelley-profile cannot be combined with --s2-shelley-narrow-fidelity-profile"
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then
@@ -684,6 +702,9 @@ if (( SHELLEY_REFRESH_ONLY )); then
   fi
   if (( SHELLEY_S2_NARROW_FIDELITY_PROFILE )); then
     refresh_args+=(--smoke-s2-narrow-fidelity-profile)
+  fi
+  if (( SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE )); then
+    refresh_args+=(--smoke-memory-suitability-gate-profile)
   fi
   if (( SHELLEY_SYNC_UPSTREAM_FF_ONLY )); then
     refresh_args+=(--sync-upstream-ff-only)
