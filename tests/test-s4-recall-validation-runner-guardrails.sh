@@ -21,3 +21,13 @@ out=$("$ROOT_DIR/run-shelley-managed-s4-recall-validation.sh" --port 9999 2>&1 |
 assert_contains "$out" '--port 9999 is reserved for operator/dev Shelley; choose a dedicated validation port'
 
 printf 's4 recall validation runner guardrail tests passed\n'
+
+script=$(cat "$ROOT_DIR/run-shelley-managed-s4-recall-validation.sh")
+assert_contains "$script" 'post_json_with_retry()'
+assert_contains "$script" 'print_server_log_tail()'
+assert_contains "$script" 'Response snippet:'
+out=$("$ROOT_DIR/run-shelley-managed-s4-recall-validation.sh" --isolation-bridge-request-timeout nope 2>&1 || true)
+assert_contains "$out" '--isolation-bridge-request-timeout must be numeric'
+
+out=$("$ROOT_DIR/run-shelley-managed-s4-recall-validation.sh" --isolation-bridge-retries 0 2>&1 || true)
+assert_contains "$out" '--isolation-bridge-retries must be >= 1'

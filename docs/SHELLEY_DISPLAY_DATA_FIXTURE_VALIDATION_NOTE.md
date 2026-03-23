@@ -737,6 +737,7 @@ Behavior mirrors the existing managed runtime contract tests:
 
 - default mode is skip-safe when managed runtime prerequisites are absent
 - `REQUIRE_PATCHED_MANAGED_RUNTIME=1` switches to fail-on-missing-prereqs behavior
+- strict S4 runner now logs actionable HTTP/response/server-log diagnostics when create/chat API calls fail (instead of surfacing opaque downstream JSON parse errors)
 
 What it asserts in the runnable lane:
 
@@ -804,3 +805,13 @@ Behavior:
 - runs `run-shelley-managed-memory-suitability-gate.sh --required-runtime` after managed rebuild
 - preserves profile exclusivity rules with existing strict raw-media and S2 narrow-fidelity proof profiles
 - rejects explicit smoke expectation/fixture flags in this profile mode to keep the lane deterministic
+
+### Strict S4 isolation runner resilience tuning (new)
+
+For environments where upstream/model latency is bursty, strict isolation mode now supports explicit per-seed bridge timeout/retry tuning:
+
+- `--isolation-bridge-request-timeout SEC` (default `85`)
+- `--isolation-bridge-retries COUNT` (default `1`)
+- `--isolation-bridge-retry-delay SEC` (default `2`)
+
+These flags only affect the deterministic per-seed isolation profiles created by `--remote-isolation-profile-session`; they do not mutate baseline profile-state files.

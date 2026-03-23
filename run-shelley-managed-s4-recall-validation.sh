@@ -18,6 +18,9 @@ REQUIRE_REMOTE_ISOLATION=0
 REMOTE_ISOLATION_PROFILE_SESSION=0
 ISOLATION_STATE_DIR=""
 ISOLATION_PROFILE_STATE_PATH=""
+ISOLATION_BRIDGE_REQUEST_TIMEOUT="${ISOLATION_BRIDGE_REQUEST_TIMEOUT:-85}"
+ISOLATION_BRIDGE_RETRIES="${ISOLATION_BRIDGE_RETRIES:-1}"
+ISOLATION_BRIDGE_RETRY_DELAY="${ISOLATION_BRIDGE_RETRY_DELAY:-2}"
 
 find_port_listener() {
   if command -v ss >/dev/null 2>&1; then
@@ -58,6 +61,12 @@ Flags:
   --require-remote-isolation Fail run if all seeded Shelley conversations do not map to distinct remote Stavrobot conversation IDs
   --remote-isolation-profile-session
                             Create deterministic per-seed conversation bridge profiles with isolated --state-file paths for this run
+  --isolation-bridge-request-timeout SEC
+                            Override per-seed isolation bridge --request-timeout (default: 85)
+  --isolation-bridge-retries COUNT
+                            Override per-seed isolation bridge --retries (default: 1)
+  --isolation-bridge-retry-delay SEC
+                            Override per-seed isolation bridge --retry-delay (default: 2)
   --keep-server              Leave validation server running after completion
   --help
 USAGE
@@ -105,6 +114,18 @@ while [[ $# -gt 0 ]]; do
       REMOTE_ISOLATION_PROFILE_SESSION=1
       shift
       ;;
+    --isolation-bridge-request-timeout)
+      ISOLATION_BRIDGE_REQUEST_TIMEOUT="$2"
+      shift 2
+      ;;
+    --isolation-bridge-retries)
+      ISOLATION_BRIDGE_RETRIES="$2"
+      shift 2
+      ;;
+    --isolation-bridge-retry-delay)
+      ISOLATION_BRIDGE_RETRY_DELAY="$2"
+      shift 2
+      ;;
     --keep-server)
       KEEP_SERVER=1
       shift
@@ -125,6 +146,12 @@ require_cmd sqlite3
 require_cmd python3
 
 [[ "$PORT" =~ ^[0-9]+$ ]] || die "--port must be numeric"
+[[ "$ISOLATION_BRIDGE_REQUEST_TIMEOUT" =~ ^[0-9]+$ ]] || die "--isolation-bridge-request-timeout must be numeric"
+[[ "$ISOLATION_BRIDGE_RETRIES" =~ ^[0-9]+$ ]] || die "--isolation-bridge-retries must be numeric"
+[[ "$ISOLATION_BRIDGE_RETRY_DELAY" =~ ^[0-9]+$ ]] || die "--isolation-bridge-retry-delay must be numeric"
+(( ISOLATION_BRIDGE_REQUEST_TIMEOUT > 0 )) || die "--isolation-bridge-request-timeout must be > 0"
+(( ISOLATION_BRIDGE_RETRIES >= 1 )) || die "--isolation-bridge-retries must be >= 1"
+(( ISOLATION_BRIDGE_RETRY_DELAY >= 0 )) || die "--isolation-bridge-retry-delay must be >= 0"
 if (( PORT == 9999 )); then
   die "--port 9999 is reserved for operator/dev Shelley; choose a dedicated validation port"
 fi
@@ -138,7 +165,7 @@ python3 "$ROOT_DIR/py/shelley_bridge_profiles.py" resolve "$PROFILE_STATE_PATH" 
 if (( REMOTE_ISOLATION_PROFILE_SESSION == 1 )); then
   ISOLATION_STATE_DIR=$(mktemp -d /tmp/shelley-s4-remote-iso.XXXXXX)
   ISOLATION_PROFILE_STATE_PATH="$ISOLATION_STATE_DIR/shelley-bridge-profiles.json"
-  python3 - "$PROFILE_STATE_PATH" "$BRIDGE_PROFILE" "$ISOLATION_PROFILE_STATE_PATH" "$ISOLATION_STATE_DIR" <<'PY'
+  python3 - "$PROFILE_STATE_PATH" "$BRIDGE_PROFILE" "$ISOLATION_PROFILE_STATE_PATH" "$ISOLATION_STATE_DIR" "$ISOLATION_BRIDGE_REQUEST_TIMEOUT" "$ISOLATION_BRIDGE_RETRIES" "$ISOLATION_BRIDGE_RETRY_DELAY" <<'PY'
 import json
 import os
 import stat
@@ -148,6 +175,9 @@ src_path = sys.argv[1]
 base_profile_name = sys.argv[2]
 out_path = sys.argv[3]
 state_dir = sys.argv[4]
+request_timeout = sys.argv[5]
+retries = sys.argv[6]
+retry_delay = sys.argv[7]
 
 with open(src_path) as f:
     doc = json.load(f)
@@ -214,9 +244,10 @@ prefix = sys.argv[2]
 raw = open(path).read()
 try:
     payload = json.loads(raw)
-except Exception:
-    print(raw, end='')
-    raise SystemExit(0)
+except Exception as exc:
+    snippet = raw[:500].replace('\n', ' ')
+    print(f'wrapper_json_parse_error: {{exc}}; output_snippet={{snippet}}', file=sys.stderr)
+    raise SystemExit(42)
 
 if isinstance(payload, dict):
     cid = payload.get('conversation_id')
@@ -244,11 +275,17 @@ rm -f "$out"
       if skip_next:
         skip_next = False
         continue
-      if item == '--state-file':
+      if item in ('--state-file', '--connect-timeout', '--request-timeout', '--retries', '--retry-delay'):
         skip_next = True
         continue
       filtered.append(item)
-    filtered.extend(['--state-file', state_file])
+    filtered.extend([
+      '--state-file', state_file,
+      '--connect-timeout', '10',
+      '--request-timeout', request_timeout,
+      '--retries', retries,
+      '--retry-delay', retry_delay,
+    ])
     p['args'] = filtered
     p['notes'] = f'S4 deterministic per-conversation isolation profile for seed {label}'
     new_profiles[name] = p
@@ -341,10 +378,49 @@ print(json.dumps(out))
 PY
 )
 
-post_json() {
+print_server_log_tail() {
+  if [[ -f "$SERVER_LOG" ]]; then
+    warn "Server log tail ($SERVER_LOG):"
+    tail -n 40 "$SERVER_LOG" >&2 || true
+  fi
+}
+
+post_json_with_retry() {
   local path="$1"
   local payload="$2"
-  curl -sS -X POST "$BASE_URL$path" -H 'Content-Type: application/json' -d "$payload"
+  local out_file="$3"
+  local attempts="${4:-1}"
+  local sleep_secs="${5:-1}"
+  local http_code=""
+
+  for attempt in $(seq 1 "$attempts"); do
+    local transport_ok=1
+    http_code=$(curl -sS -o "$out_file" -w '%{http_code}' -X POST "$BASE_URL$path" -H 'Content-Type: application/json' -d "$payload") || transport_ok=0
+    if (( transport_ok == 1 )) && [[ "$http_code" =~ ^2 ]]; then
+      return 0
+    fi
+
+    if (( attempt < attempts )); then
+      if (( transport_ok == 0 )); then
+        warn "POST $path transport failure (attempt $attempt/$attempts); retrying"
+      else
+        warn "POST $path returned HTTP $http_code (attempt $attempt/$attempts); retrying"
+        warn "Response snippet: $(head -c 300 "$out_file" | tr '\n' ' ')"
+      fi
+      sleep "$sleep_secs"
+      continue
+    fi
+
+    if (( transport_ok == 0 )); then
+      print_server_log_tail
+      die "POST $path failed at transport level"
+    fi
+
+    warn "POST $path failed with HTTP $http_code"
+    warn "Response snippet: $(head -c 500 "$out_file" | tr '\n' ' ')"
+    print_server_log_tail
+    die "POST $path failed with HTTP $http_code"
+  done
 }
 
 json_field() {
@@ -352,8 +428,12 @@ json_field() {
   local path="$2"
   python3 - "$file" "$path" <<'PY'
 import json,sys
-with open(sys.argv[1]) as f:
-    data=json.load(f)
+try:
+    with open(sys.argv[1]) as f:
+        data=json.load(f)
+except Exception:
+    print("")
+    raise SystemExit(0)
 cur=data
 for part in sys.argv[2].split('.'):
     if not part:
@@ -428,9 +508,14 @@ print(json.dumps({k:v for k,v in arr[int(sys.argv[2])].items() if not k.startswi
 PY
 )
   resp_tmp=$(mktemp)
-  post_json "/api/conversations/new" "$payload" > "$resp_tmp"
+  post_json_with_retry "/api/conversations/new" "$payload" "$resp_tmp" 3 2
   cid=$(json_field "$resp_tmp" conversation_id)
-  [[ -n "$cid" ]] || die "failed creating seed conversation index=$idx"
+  if [[ -z "$cid" ]]; then
+    warn "Create-conversation response missing conversation_id (index=$idx)"
+    warn "Response snippet: $(head -c 500 "$resp_tmp" | tr '\n' ' ')"
+    print_server_log_tail
+    die "failed creating seed conversation index=$idx"
+  fi
   profile_used=$(python3 - "$seed_json" "$idx" <<'PY'
 import json,sys
 arr=json.load(open(sys.argv[1]))
@@ -451,6 +536,7 @@ PY
       seed_profile_c_actual="$profile_used"
       ;;
   esac
+  rm -f "$resp_tmp"
   sleep 2
 done
 
@@ -518,7 +604,9 @@ import json,sys
 print(json.dumps({"message":sys.argv[1]}))
 PY
 )
-  post_json "/api/conversation/$cid/chat" "$payload" >/dev/null
+  resp_tmp=$(mktemp)
+  post_json_with_retry "/api/conversation/$cid/chat" "$payload" "$resp_tmp" 3 2
+  rm -f "$resp_tmp"
   sleep 2
   answer=$(get_last_assistant_text "$cid")
   python3 - "$probe_json" "$idx" "$answer" > "$probe_json.next" <<'PY'

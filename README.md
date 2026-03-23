@@ -349,6 +349,18 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runti
   --require-remote-isolation \
   --remote-isolation-profile-session
 
+# Optional strict S4 resilience tuning for slower/backpressured remote backends
+# (tighten/loosen per-seed bridge timeouts and retries in isolation mode)
+./run-shelley-managed-s4-recall-validation.sh \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json \
+  --port 8922 \
+  --require-remote-isolation \
+  --remote-isolation-profile-session \
+  --isolation-bridge-request-timeout 85 \
+  --isolation-bridge-retries 2 \
+  --isolation-bridge-retry-delay 2
+
 # Aggregate managed memory-suitability gate (recommended deterministic checkpoint lane)
 ./run-shelley-managed-memory-suitability-gate.sh \
   --required-runtime \
