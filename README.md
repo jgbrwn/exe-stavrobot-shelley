@@ -328,6 +328,7 @@ Lightweight helper/status validation:
 ./tests/run.sh test-shelley-managed-memory-suitability-gate.sh
 ./tests/run.sh test-ci-memory-suitability-required-runtime.sh
 ./tests/run.sh test-ci-memory-suitability-runtime-prereqs.sh
+./tests/run.sh test-ci-memory-suitability-artifacts.sh
 
 # Optional required-runtime lane (fails instead of skipping when /opt/shelley is missing/unpatched)
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
@@ -383,7 +384,9 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runti
   - CI authoritative entrypoint (same gate, required-runtime):
     - `./ci/check-memory-suitability-runtime-prereqs.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
     - `./ci/run-memory-suitability-required-runtime.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
+    - `./ci/collect-memory-suitability-artifacts.sh --output-dir ./ci-artifacts`
     - pass criteria: preflight passes and all three contract lanes pass; any missing/unpatched runtime prerequisite fails the lane
+    - CI workflow uploads `ci-artifacts/` even on failure for postmortem inspection
   - any missing/unpatched managed runtime prerequisite is a failure (not skip)
 
 ## Operator helper: Stavrobot backend model control

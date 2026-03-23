@@ -37,3 +37,16 @@ jobs:
 
       - name: Run authoritative required-runtime gate
         run: ./ci/run-memory-suitability-required-runtime.sh --shelley-dir "$SHELLEY_DIR" --profile-state-path "$PROFILE_STATE_PATH"
+
+      - name: Collect memory-suitability artifacts
+        if: always()
+        run: ./ci/collect-memory-suitability-artifacts.sh --output-dir "$GITHUB_WORKSPACE/ci-artifacts" --repo-dir "$GITHUB_WORKSPACE"
+
+      - name: Upload memory-suitability artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-suitability-required-runtime-artifacts
+          path: |
+            ${{ github.workspace }}/ci-artifacts
+          if-no-files-found: warn

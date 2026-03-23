@@ -829,3 +829,19 @@ Hardening now in place:
 - fixture smoke/contract lanes short-circuit remote client/session calls in fixture mode, avoiding unrelated live-backend drift during deterministic fixture proofs
 
 This keeps required-runtime gate behavior stable and diagnosable even under upstream context pressure.
+
+### CI artifact capture (new)
+
+Required-runtime CI lane now uploads artifacts on both pass/fail via:
+
+- `ci/collect-memory-suitability-artifacts.sh`
+
+Captured bundle includes (when present):
+
+- `s4-server.log`
+- `s4-runtime-contract.json`
+- `s4-last-report.json`
+- `diagnostics.txt` (docker/listener/runtime snapshot)
+- `manifest.txt`
+
+This provides direct postmortem data in CI UI without rerunning lanes interactively.
