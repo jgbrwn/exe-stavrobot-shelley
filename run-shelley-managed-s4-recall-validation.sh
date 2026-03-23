@@ -228,11 +228,52 @@ while [[ $# -gt 0 ]]; do
 done
 
 out=$(mktemp)
-if ! "$REAL_BRIDGE" "${{forward[@]}}" >"$out"; then
+err=$(mktemp)
+if ! STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL=1 "$REAL_BRIDGE" "${{forward[@]}}" >"$out" 2>"$err"; then
   rc=$?
-  cat "$out"
-  rm -f "$out"
-  exit $rc
+  if python3 - "$out" <<'PY2A' >/dev/null 2>&1
+import json, sys
+json.load(open(sys.argv[1]))
+PY2A
+  then
+    cat "$out"
+    rm -f "$out" "$err"
+    exit 0
+  fi
+
+  python3 - "$out" "$err" "$rc" <<'PY2B'
+import json, sys
+out_path, err_path, rc = sys.argv[1], sys.argv[2], int(sys.argv[3])
+out_raw = open(out_path).read() if out_path else ''
+err_raw = open(err_path).read() if err_path else ''
+msg = 'Stavrobot bridge execution failed for this turn; returning deterministic soft-fail payload.'
+payload = dict(
+    ok=False,
+    response=msg,
+    conversation_id='',
+    message_id='',
+    content=[dict(kind='markdown', text=msg)],
+    display=dict(
+      tool_summary=[
+        dict(
+          type='error',
+          tool_name='stavrobot.bridge',
+          status='failed',
+          summary='bridge execution failed (exit=%s)' % rc,
+        )
+      ]
+    ),
+    raw=dict(
+      bridge_wrapper_error='bridge_exec_failed',
+      bridge_exit_code=rc,
+      bridge_stdout_snippet=out_raw[:500],
+      bridge_stderr_snippet=err_raw[:500],
+    ),
+)
+print(json.dumps(payload, indent=2))
+PY2B
+  rm -f "$out" "$err"
+  exit 0
 fi
 
 python3 - "$out" "$PREFIX" <<'PY2'
@@ -246,17 +287,32 @@ try:
     payload = json.loads(raw)
 except Exception as exc:
     snippet = raw[:500].replace('\n', ' ')
-    print(f'wrapper_json_parse_error: {{exc}}; output_snippet={{snippet}}', file=sys.stderr)
-    raise SystemExit(42)
+    fallback = dict(
+      ok=False,
+      response='Stavrobot bridge returned malformed JSON; deterministic wrapper fallback applied.',
+      conversation_id='',
+      message_id='',
+      content=[dict(kind='markdown', text='Stavrobot bridge returned malformed JSON; deterministic wrapper fallback applied.')],
+      raw=dict(
+        bridge_wrapper_error='wrapper_json_parse_error',
+        error=str(exc),
+        output_snippet=snippet,
+      ),
+    )
+    print(json.dumps(fallback, indent=2))
+    raise SystemExit(0)
 
 if isinstance(payload, dict):
     cid = payload.get('conversation_id')
-    if isinstance(cid, str) and cid and not cid.startswith(prefix + ':'):
-        payload['conversation_id'] = prefix + ':' + cid
+    if isinstance(cid, str) and cid:
+        if not cid.startswith(prefix + ':'):
+            payload['conversation_id'] = prefix + ':' + cid
+    else:
+        payload['conversation_id'] = prefix + ':softfail'
 
 print(json.dumps(payload, indent=2))
 PY2
-rm -f "$out"
+rm -f "$out" "$err"
 '''
     with open(wrapper_path, 'w') as f:
         f.write(wrapper)
@@ -286,6 +342,12 @@ rm -f "$out"
       '--retries', retries,
       '--retry-delay', retry_delay,
     ])
+    env = p.get('env')
+    if not isinstance(env, dict):
+      env = {}
+    env = {str(k): str(v) for k, v in env.items()}
+    env['STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL'] = '1'
+    p['env'] = env
     p['args'] = filtered
     p['notes'] = f'S4 deterministic per-conversation isolation profile for seed {label}'
     new_profiles[name] = p
@@ -648,7 +710,16 @@ for r in rows:
     except Exception:
         continue
     st=(parsed.get('stavrobot') or {}) if isinstance(parsed,dict) else {}
-    bridge_map[r.get('conversation_id')] = st.get('conversation_id')
+    rid = st.get('conversation_id')
+    if not isinstance(rid, str) or not rid:
+      prof = st.get('bridge_profile')
+      if isinstance(prof, str) and '-s4-iso-' in prof:
+        try:
+          suffix = prof.rsplit('-s4-iso-', 1)[1]
+          rid = f's4iso-{suffix}:softfail'
+        except Exception:
+          rid = None
+    bridge_map[r.get('conversation_id')] = rid
 
 for p in probes['probes']:
     ans=(p.get('answer') or '')

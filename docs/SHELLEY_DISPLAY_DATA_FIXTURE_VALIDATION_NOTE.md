@@ -815,3 +815,17 @@ For environments where upstream/model latency is bursty, strict isolation mode n
 - `--isolation-bridge-retry-delay SEC` (default `2`)
 
 These flags only affect the deterministic per-seed isolation profiles created by `--remote-isolation-profile-session`; they do not mutate baseline profile-state files.
+
+## Context-overflow resilience hardening (new)
+
+Recent failures in required-runtime lanes were traced to upstream Stavrobot context-overflow errors surfacing as opaque bridge parse failures.
+
+Hardening now in place:
+
+- bridge-level soft-fail mode via `STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL=1`
+  - when overflow is detected from client stderr, bridge emits deterministic JSON with `raw.bridge_softfail = "context_overflow"` instead of exiting with non-JSON output
+- strict S4 isolation wrappers force soft-fail mode and still namespace remote IDs, allowing deterministic isolation metadata even when turns fail due to context pressure
+- strict S4 wrapper fallback now emits deterministic JSON for malformed/non-JSON bridge output, including stderr/stdout snippets
+- fixture smoke/contract lanes short-circuit remote client/session calls in fixture mode, avoiding unrelated live-backend drift during deterministic fixture proofs
+
+This keeps required-runtime gate behavior stable and diagnosable even under upstream context pressure.

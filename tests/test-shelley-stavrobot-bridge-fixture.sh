@@ -104,3 +104,18 @@ assert_contains "$out_s2_raw_fallback" '"events": ['
 assert_not_contains "$out_s2_raw_fallback" '"tool_summary": ['
 
 printf 'shelley-stavrobot-bridge fixture tests passed\n'
+
+CLIENT_OVERFLOW_STUB="$TMP_DIR/client-overflow-stub.sh"
+cat > "$CLIENT_OVERFLOW_STUB" <<'EOF_CLIENT'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '[warn] Stavrobot returned HTTP 500\n' >&2
+printf '{"error":"Agent error: maximum context length exceeded; requested about 144363 tokens"}\n' >&2
+exit 1
+EOF_CLIENT
+chmod +x "$CLIENT_OVERFLOW_STUB"
+
+out_softfail=$(STAVROBOT_CLIENT_BIN="$CLIENT_OVERFLOW_STUB" STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL=1 "$ROOT_DIR/shelley-stavrobot-bridge.sh" --stateless --message "hi" --conversation-id conv_7)
+assert_contains "$out_softfail" '"ok": false'
+assert_contains "$out_softfail" '"bridge_softfail": "context_overflow"'
+assert_contains "$out_softfail" '"conversation_id": "conv_7"'

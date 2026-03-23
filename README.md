@@ -411,6 +411,12 @@ Important scope notes:
 - this mutates the shared local Stavrobot backend model, not per-conversation Shelley metadata
 - Shelley-native UI exposure for this should remain a later Stavrobot-mode-only admin surface layered on top of this helper boundary
 
+Bridge resilience notes (context pressure environments):
+
+- `shelley-stavrobot-bridge.sh` now supports `STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL=1` to emit deterministic JSON soft-fail output when upstream context-length overflow is reported.
+- managed strict S4 isolation wrappers force this soft-fail mode and preserve per-seed remote-ID namespacing even for soft-fail turns, so remote-isolation evidence remains deterministic under overflow pressure.
+- fixture-backed smoke/contract lanes short-circuit remote client calls in fixture mode and remain deterministic/offline-safe.
+
 ## Status
 
 Phase 1 is implemented and usable. Phase 2 has started with the Cloudflare automation track.

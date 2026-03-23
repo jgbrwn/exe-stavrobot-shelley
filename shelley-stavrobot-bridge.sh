@@ -26,6 +26,7 @@ STAVROBOT_CLIENT_BIN="${STAVROBOT_CLIENT_BIN:-$ROOT_DIR/client-stavrobot.sh}"
 STAVROBOT_BRIDGE_FIXTURE="${STAVROBOT_BRIDGE_FIXTURE:-}"
 STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED="${STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED:-1}"
 STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES="${STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES:-262144}"
+STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL="${STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL:-0}"
 
 usage() {
   cat <<'EOF'
@@ -83,6 +84,7 @@ Environment:
   STAVROBOT_BRIDGE_FIXTURE  Optional test fixture payload mode (e.g. tool_summary, raw_media_image, runtime_raw_media_only, runtime_invalid_raw_media, s2_markdown_tool_summary, s2_markdown_media_refs, s2_markdown_raw_tool_events)
   STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED  Enable/disable narrow raw-media extraction (1/0, default: 1)
   STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES  Max decoded bytes per raw media item (default: 262144)
+  STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL  When 1, convert context-length overflows into deterministic bridge JSON instead of non-zero exit
 EOF
 }
 
@@ -150,6 +152,66 @@ run_client() {
     cmd+=(--pretty)
   fi
   "${cmd[@]}" "$@"
+}
+
+emit_softfail_context_overflow_json() {
+  local err_text="$1"
+  local conversation_id_hint="${2:-}"
+  local msg="Stavrobot context window overflow prevented this turn from completing. Start a new conversation or compress context before retrying."
+  python3 - "$msg" "$err_text" "$conversation_id_hint" <<'PY'
+import json, re, sys
+msg, raw_err, cid = sys.argv[1:4]
+out = {
+    "ok": False,
+    "response": msg,
+    "conversation_id": cid,
+    "message_id": "",
+    "content": [{"kind": "markdown", "text": msg}],
+    "display": {
+        "tool_summary": [
+            {
+                "type": "error",
+                "tool_name": "stavrobot.client.chat",
+                "status": "failed",
+                "summary": "context length exceeded",
+            }
+        ]
+    },
+    "raw": {
+        "error": raw_err,
+        "bridge_softfail": "context_overflow",
+    },
+}
+match = re.search(r"conversation[_ ]id[^\w]*(conv_\d+)", raw_err)
+if (not out["conversation_id"]) and match:
+    out["conversation_id"] = match.group(1)
+print(json.dumps(out, indent=2))
+PY
+}
+
+fixture_short_circuit_mode() {
+  case "$STAVROBOT_BRIDGE_FIXTURE" in
+    tool_summary|raw_media_image|runtime_raw_media_only|runtime_invalid_raw_media|runtime_unsupported_raw_mime|runtime_oversize_raw_media|s2_markdown_tool_summary|s2_markdown_media_refs|s2_markdown_raw_tool_events)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+build_fixture_chat_seed_json() {
+  local conversation_id_hint="${1:-}"
+  python3 - "$conversation_id_hint" <<'PY'
+import json, sys
+cid = sys.argv[1] or "conv_fixture"
+out = {
+  "response": "fixture bridge synthetic response",
+  "conversation_id": cid,
+  "message_id": "msg_fixture",
+}
+print(json.dumps(out))
+PY
 }
 
 while [[ $# -gt 0 ]]; do
@@ -243,6 +305,7 @@ done
 [[ "$RETRY_DELAY" =~ ^[0-9]+$ ]] || die "--retry-delay must be an integer"
 [[ "$STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED" =~ ^[01]$ ]] || die "STAVROBOT_BRIDGE_RAW_MEDIA_ENABLED must be 0 or 1"
 [[ "$STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES" =~ ^[0-9]+$ ]] || die "STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES must be an integer"
+[[ "$STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL" =~ ^[01]$ ]] || die "STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL must be 0 or 1"
 (( RETRIES >= 1 )) || die "--retries must be at least 1"
 (( STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES > 0 )) || die "STAVROBOT_BRIDGE_RAW_MEDIA_MAX_BYTES must be greater than 0"
 
@@ -689,11 +752,28 @@ PY
 
 case "$COMMAND" in
   chat)
-    if (( STATEFUL )); then
+    chat_json=""
+    if fixture_short_circuit_mode; then
+      chat_json=$(build_fixture_chat_seed_json "$CONVERSATION_ID")
+    elif (( STATEFUL )); then
       if [[ -n "$MESSAGE" ]]; then
-        chat_json=$(run_session chat --message "$MESSAGE")
+        if ! chat_json=$(run_session chat --message "$MESSAGE" 2> >(tee /tmp/shelley-bridge-chat.err >&2)); then
+          if [[ "$STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL" == "1" ]] && rg -qi 'maximum context length|context length|requested about [0-9]+ tokens' /tmp/shelley-bridge-chat.err; then
+            chat_json=$(emit_softfail_context_overflow_json "$(cat /tmp/shelley-bridge-chat.err)" "$CONVERSATION_ID")
+          else
+            rm -f /tmp/shelley-bridge-chat.err
+            exit 1
+          fi
+        fi
       else
-        chat_json=$(run_session chat)
+        if ! chat_json=$(run_session chat 2> >(tee /tmp/shelley-bridge-chat.err >&2)); then
+          if [[ "$STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL" == "1" ]] && rg -qi 'maximum context length|context length|requested about [0-9]+ tokens' /tmp/shelley-bridge-chat.err; then
+            chat_json=$(emit_softfail_context_overflow_json "$(cat /tmp/shelley-bridge-chat.err)" "$CONVERSATION_ID")
+          else
+            rm -f /tmp/shelley-bridge-chat.err
+            exit 1
+          fi
+        fi
       fi
     else
       args=(chat)
@@ -709,8 +789,16 @@ case "$COMMAND" in
       if [[ -n "$SENDER" ]]; then
         args+=(--sender "$SENDER")
       fi
-      chat_json=$(run_client "${args[@]}")
+      if ! chat_json=$(run_client "${args[@]}" 2> >(tee /tmp/shelley-bridge-chat.err >&2)); then
+        if [[ "$STAVROBOT_BRIDGE_CONTEXT_OVERFLOW_SOFTFAIL" == "1" ]] && rg -qi 'maximum context length|context length|requested about [0-9]+ tokens' /tmp/shelley-bridge-chat.err; then
+          chat_json=$(emit_softfail_context_overflow_json "$(cat /tmp/shelley-bridge-chat.err)" "$CONVERSATION_ID")
+        else
+          rm -f /tmp/shelley-bridge-chat.err
+          exit 1
+        fi
+      fi
     fi
+    rm -f /tmp/shelley-bridge-chat.err
 
     if [[ -n "$EXTRACT" ]]; then
       python3 - "$EXTRACT" "$chat_json" <<'PY'
