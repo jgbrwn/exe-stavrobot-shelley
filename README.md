@@ -321,6 +321,7 @@ Lightweight helper/status validation:
 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
 ./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh
 ./tests/run.sh test-s4-recall-validation-runtime-contract.sh
+./tests/run.sh test-shelley-managed-memory-suitability-gate.sh
 
 # Optional required-runtime lane (fails instead of skipping when /opt/shelley is missing/unpatched)
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
@@ -341,6 +342,12 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runti
   --port 8922 \
   --require-remote-isolation \
   --remote-isolation-profile-session
+
+# Aggregate managed memory-suitability gate (recommended deterministic checkpoint lane)
+./run-shelley-managed-memory-suitability-gate.sh \
+  --required-runtime \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json
 ```
 
 ### Managed runtime smoke contract lane policy (checklist)
@@ -353,6 +360,8 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runti
   - run `REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh`
   - run `REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh`
   - run `REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runtime-contract.sh`
+  - or run one aggregate deterministic gate command:
+    - `./run-shelley-managed-memory-suitability-gate.sh --required-runtime --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
   - any missing/unpatched managed runtime prerequisite is a failure (not skip)
 
 ## Operator helper: Stavrobot backend model control

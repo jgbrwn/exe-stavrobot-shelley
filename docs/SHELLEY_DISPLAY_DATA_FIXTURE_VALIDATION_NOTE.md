@@ -741,3 +741,44 @@ What it asserts in the runnable lane:
   - `remote_isolation_profile_session = true`
   - `remote_isolation_ok = true`
 - deterministic per-seed profile naming and remote-ID prefix isolation are present in metadata
+
+## Aggregate managed memory-suitability gate (new)
+
+A single deterministic helper now runs the three required-runtime contract lanes that matter for current memory-suitability evidence hygiene:
+
+- raw-media runtime contract
+- S2 narrow-fidelity runtime contract
+- strict S4 remote-isolation runtime contract
+
+Helper:
+
+- `./run-shelley-managed-memory-suitability-gate.sh`
+
+Recommended release/required-runtime invocation:
+
+```bash
+./run-shelley-managed-memory-suitability-gate.sh \
+  --required-runtime \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json
+```
+
+This does not replace manual report review, but it gives a clean deterministic pre-checkpoint gate for the current S2+S4 evidence stack.
+
+### Latest aggregate gate checkpoint
+
+Executed successfully:
+
+```bash
+./run-shelley-managed-memory-suitability-gate.sh \
+  --required-runtime \
+  --shelley-dir /opt/shelley \
+  --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json
+```
+
+Result:
+
+- passed all three contract lanes in sequence:
+  - `test-shelley-managed-smoke-raw-media-runtime-contract.sh`
+  - `test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh`
+  - `test-s4-recall-validation-runtime-contract.sh`
