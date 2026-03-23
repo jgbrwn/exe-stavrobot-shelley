@@ -719,3 +719,25 @@ Interpretation note:
 
 - this is a higher-confidence checkpoint for S4 lane integrity because it prevents false-positive “cross-conversation” conclusions caused by shared remote session identity
 - it does **not** by itself improve model recall quality; it improves evidence hygiene by enforcing deterministic per-conversation remote identity isolation in the validation harness
+
+## S4 strict runtime-contract lane (new)
+
+A required-runtime contract test now exists for the strict S4 remote-isolation lane:
+
+- `tests/test-s4-recall-validation-runtime-contract.sh`
+
+Behavior mirrors the existing managed runtime contract tests:
+
+- default mode is skip-safe when managed runtime prerequisites are absent
+- `REQUIRE_PATCHED_MANAGED_RUNTIME=1` switches to fail-on-missing-prereqs behavior
+
+What it asserts in the runnable lane:
+
+- strict S4 run succeeds with:
+  - `--require-remote-isolation`
+  - `--remote-isolation-profile-session`
+- report metadata confirms:
+  - `require_remote_isolation = true`
+  - `remote_isolation_profile_session = true`
+  - `remote_isolation_ok = true`
+- deterministic per-seed profile naming and remote-ID prefix isolation are present in metadata

@@ -320,10 +320,12 @@ Lightweight helper/status validation:
 ./tests/run.sh test-shelley-runtime-raw-media-patch-contract.sh
 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
 ./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh
+./tests/run.sh test-s4-recall-validation-runtime-contract.sh
 
 # Optional required-runtime lane (fails instead of skipping when /opt/shelley is missing/unpatched)
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh
+REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runtime-contract.sh
 
 # S4 recall evidence runner (managed isolated path)
 ./run-shelley-managed-s4-recall-validation.sh \
@@ -350,6 +352,7 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-s2-n
 - **Release / patched-runtime lane (required):**
   - run `REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh`
   - run `REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-s2-narrow-fidelity-contract.sh`
+  - run `REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runtime-contract.sh`
   - any missing/unpatched managed runtime prerequisite is a failure (not skip)
 
 ## Operator helper: Stavrobot backend model control
