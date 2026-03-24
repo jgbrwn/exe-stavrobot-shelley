@@ -867,3 +867,26 @@ To standardize first/ongoing strict-lane checkpoint recording, use:
 ```
 
 This renders a compact markdown block containing run URL, diagnostics timestamp, artifact manifest, and strict-policy reminder.
+
+### CI checkpoint ledger + summary helpers (new)
+
+To retain run history/trend signal across strict-lane executions:
+
+```bash
+./ci/append-memory-suitability-checkpoint-ledger.sh \
+  --ledger-path ./docs/checkpoints/memory-suitability-required-runtime-ledger.json \
+  --run-url <CI_RUN_URL> \
+  --policy strict \
+  --outcome <pass|fail> \
+  --s4-softfail-evidence <yes|no|unknown> \
+  --artifact-dir ./ci-artifacts \
+  --artifact-ref memory-suitability-required-runtime-artifacts \
+  --note-path ./ci-artifacts/checkpoint-note.md
+
+./ci/render-memory-suitability-ledger-summary.sh \
+  --ledger-path ./docs/checkpoints/memory-suitability-required-runtime-ledger.json \
+  --last 10 \
+  > ./docs/checkpoints/memory-suitability-required-runtime-summary.md
+```
+
+This keeps an append-only machine-readable index plus a compact human summary table for recent runs.

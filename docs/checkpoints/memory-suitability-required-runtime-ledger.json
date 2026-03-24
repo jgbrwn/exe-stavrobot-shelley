@@ -1,0 +1,17 @@
+{
+  "checkpoints": [
+    {
+      "artifact_dir": "state/ci-artifacts-memory-suitability-20260324T181354Z",
+      "artifact_ref": "memory-suitability-required-runtime-artifacts",
+      "created_at_utc": "2026-03-24T18:20:38Z",
+      "diagnostics_timestamp_utc": "2026-03-24T18:13:54Z",
+      "git_head": "d7d67c65c4f56ccb56ec0d00cc5664bc83a98fe1",
+      "note_path": "state/ci-artifacts-memory-suitability-20260324T181354Z/checkpoint-note.md",
+      "outcome": "pass",
+      "policy": "strict",
+      "run_url": "https://github.com/<org>/<repo>/actions/runs/<run_id>",
+      "s4_softfail_evidence": "no"
+    }
+  ],
+  "schema_version": 1
+}
