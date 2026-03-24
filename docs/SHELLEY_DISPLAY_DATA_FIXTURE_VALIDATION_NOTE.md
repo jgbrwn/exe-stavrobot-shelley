@@ -854,3 +854,16 @@ Required-runtime gate entrypoints now support explicit S4 softfail policy contro
 - `--s4-softfail-policy strict`: fail lane if S4 report contains context-overflow softfail evidence
 
 CI workflow is now pinned to `strict` to make context-pressure regressions explicit.
+
+### CI checkpoint note helper (new)
+
+To standardize first/ongoing strict-lane checkpoint recording, use:
+
+```bash
+./ci/render-memory-suitability-checkpoint-note.sh \
+  --artifact-dir ./ci-artifacts \
+  --run-url <CI_RUN_URL> \
+  --output ./ci-artifacts/checkpoint-note.md
+```
+
+This renders a compact markdown block containing run URL, diagnostics timestamp, artifact manifest, and strict-policy reminder.

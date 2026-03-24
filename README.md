@@ -329,6 +329,7 @@ Lightweight helper/status validation:
 ./tests/run.sh test-ci-memory-suitability-required-runtime.sh
 ./tests/run.sh test-ci-memory-suitability-runtime-prereqs.sh
 ./tests/run.sh test-ci-memory-suitability-artifacts.sh
+./tests/run.sh test-ci-memory-suitability-checkpoint-note.sh
 
 # Optional required-runtime lane (fails instead of skipping when /opt/shelley is missing/unpatched)
 REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-shelley-managed-smoke-raw-media-runtime-contract.sh
@@ -385,6 +386,7 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runti
     - `./ci/check-memory-suitability-runtime-prereqs.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
     - `./ci/run-memory-suitability-required-runtime.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json --s4-softfail-policy strict`
     - `./ci/collect-memory-suitability-artifacts.sh --output-dir ./ci-artifacts`
+    - `./ci/render-memory-suitability-checkpoint-note.sh --artifact-dir ./ci-artifacts --run-url <CI_RUN_URL> --output ./ci-artifacts/checkpoint-note.md`
     - pass criteria: preflight passes and all three contract lanes pass; any missing/unpatched runtime prerequisite fails the lane
     - strict policy additionally fails the lane if S4 context-overflow softfail evidence appears
     - CI workflow uploads `ci-artifacts/` even on failure for postmortem inspection
