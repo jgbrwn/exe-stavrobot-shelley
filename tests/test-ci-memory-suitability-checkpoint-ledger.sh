@@ -37,7 +37,7 @@ ledger="$tmpdir/ledger.json"
 
 "$APPEND" \
   --ledger-path "$ledger" \
-  --run-url "https://github.com/org/repo/actions/runs/111" \
+  --run-ref "local:checkpoint-111" \
   --policy strict \
   --outcome pass \
   --s4-softfail-evidence no \
@@ -62,7 +62,7 @@ PY
 
 "$APPEND" \
   --ledger-path "$ledger" \
-  --run-url "https://github.com/org/repo/actions/runs/112" \
+  --run-ref "local:checkpoint-112" \
   --policy strict \
   --outcome fail \
   --s4-softfail-evidence yes \
@@ -70,7 +70,7 @@ PY
 
 dup=$("$APPEND" \
   --ledger-path "$ledger" \
-  --run-url "https://github.com/org/repo/actions/runs/112" \
+  --run-ref "local:checkpoint-112" \
   --policy strict \
   --outcome fail \
   --s4-softfail-evidence yes \
@@ -79,7 +79,7 @@ assert_contains "$dup" 'duplicate checkpoint'
 
 "$APPEND" \
   --ledger-path "$ledger" \
-  --run-url "https://github.com/org/repo/actions/runs/112" \
+  --run-ref "local:checkpoint-112" \
   --policy strict \
   --outcome fail \
   --s4-softfail-evidence yes \
@@ -88,10 +88,10 @@ assert_contains "$dup" 'duplicate checkpoint'
 
 summary=$("$SUMMARY" --ledger-path "$ledger" --last 1)
 assert_contains "$summary" 'run history (last 1)'
-assert_contains "$summary" 'https://github.com/org/repo/actions/runs/112'
+assert_contains "$summary" 'local:checkpoint-112'
 assert_contains "$summary" '| fail | strict | yes |'
 
-bad=$("$APPEND" --ledger-path "$ledger" --run-url x --outcome nope --artifact-dir "$artifact_dir" 2>&1 || true)
+bad=$("$APPEND" --ledger-path "$ledger" --run-ref x --outcome nope --artifact-dir "$artifact_dir" 2>&1 || true)
 assert_contains "$bad" '--outcome must be pass or fail'
 
 echo "ci memory suitability checkpoint ledger tests passed"

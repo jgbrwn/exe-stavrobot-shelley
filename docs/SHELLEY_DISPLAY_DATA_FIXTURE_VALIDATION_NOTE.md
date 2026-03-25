@@ -853,7 +853,7 @@ Required-runtime gate entrypoints now support explicit S4 softfail policy contro
 - `--s4-softfail-policy allow` (default): tolerate S4 context-overflow softfail evidence while keeping diagnostics
 - `--s4-softfail-policy strict`: fail lane if S4 report contains context-overflow softfail evidence
 
-CI workflow is now pinned to `strict` to make context-pressure regressions explicit.
+Local required-runtime checkpoint flow should use `strict` policy to make context-pressure regressions explicit.
 
 ### CI checkpoint note helper (new)
 
@@ -862,7 +862,7 @@ To standardize first/ongoing strict-lane checkpoint recording, use:
 ```bash
 ./ci/render-memory-suitability-checkpoint-note.sh \
   --artifact-dir ./ci-artifacts \
-  --run-url <CI_RUN_URL> \
+  --run-ref <LOCAL_RUN_REF> \
   --output ./ci-artifacts/checkpoint-note.md
 ```
 
@@ -875,7 +875,7 @@ To retain run history/trend signal across strict-lane executions, preferred one-
 ```bash
 ./ci/record-memory-suitability-checkpoint.sh \
   --artifact-dir ./ci-artifacts \
-  --run-url <CI_RUN_URL> \
+  --run-ref <LOCAL_RUN_REF> \
   --outcome <pass|fail> \
   --policy strict \
   --s4-softfail-evidence <yes|no|unknown>
@@ -886,7 +886,7 @@ Equivalent split-mode commands (manual control):
 ```bash
 ./ci/append-memory-suitability-checkpoint-ledger.sh \
   --ledger-path ./docs/checkpoints/memory-suitability-required-runtime-ledger.json \
-  --run-url <CI_RUN_URL> \
+  --run-ref <LOCAL_RUN_REF> \
   --policy strict \
   --outcome <pass|fail> \
   --s4-softfail-evidence <yes|no|unknown> \
@@ -903,4 +903,4 @@ Equivalent split-mode commands (manual control):
 This keeps an append-only machine-readable index plus a compact human summary table for recent runs.
 
 Ledger behavior note:
-- duplicate protection is enabled by default on `run_url + artifact_ref`; append helper rejects accidental double-writes unless `--allow-duplicate` is explicitly set.
+- duplicate protection is enabled by default on `run_ref + artifact_ref`; append helper rejects accidental double-writes unless `--allow-duplicate` is explicitly set.

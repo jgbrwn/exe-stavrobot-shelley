@@ -7,6 +7,7 @@ APPEND_LEDGER="$ROOT_DIR/ci/append-memory-suitability-checkpoint-ledger.sh"
 RENDER_SUMMARY="$ROOT_DIR/ci/render-memory-suitability-ledger-summary.sh"
 
 ARTIFACT_DIR=""
+RUN_REF=""
 RUN_URL=""
 OUTCOME=""
 POLICY="strict"
@@ -19,13 +20,13 @@ LAST_N=10
 
 usage() {
   cat <<'USAGE'
-Usage: ./ci/record-memory-suitability-checkpoint.sh --artifact-dir PATH --run-url URL --outcome pass|fail [flags]
+Usage: ./ci/record-memory-suitability-checkpoint.sh --artifact-dir PATH --run-ref TEXT --outcome pass|fail [flags]
 
 Render checkpoint note, append ledger entry, and regenerate summary in one command.
 
 Required:
   --artifact-dir PATH             Directory containing collected CI artifacts
-  --run-url URL                   GitHub Actions run URL
+  --run-ref TEXT                  Local run reference label (or URL)
   --outcome STATUS                STATUS=pass|fail
 
 Optional:
@@ -46,8 +47,13 @@ while [[ $# -gt 0 ]]; do
       ARTIFACT_DIR="$2"
       shift 2
       ;;
+    --run-ref)
+      RUN_REF="$2"
+      shift 2
+      ;;
     --run-url)
       RUN_URL="$2"
+      RUN_REF="$2"
       shift 2
       ;;
     --outcome)
@@ -95,7 +101,11 @@ done
 
 [[ -n "$ARTIFACT_DIR" ]] || { echo "[error] --artifact-dir is required" >&2; exit 1; }
 [[ -d "$ARTIFACT_DIR" ]] || { echo "[error] Artifact dir not found: $ARTIFACT_DIR" >&2; exit 1; }
-[[ -n "$RUN_URL" ]] || { echo "[error] --run-url is required" >&2; exit 1; }
+if [[ -z "$RUN_REF" ]]; then
+  echo "[error] --run-ref is required" >&2
+  echo "[error] --run-url is supported as a backward-compatible alias" >&2
+  exit 1
+fi
 [[ -n "$OUTCOME" ]] || { echo "[error] --outcome is required" >&2; exit 1; }
 [[ "$LAST_N" =~ ^[0-9]+$ ]] || { echo "[error] --last must be a non-negative integer" >&2; exit 1; }
 
@@ -107,11 +117,11 @@ mkdir -p "$(dirname "$LEDGER_PATH")"
 mkdir -p "$(dirname "$SUMMARY_PATH")"
 mkdir -p "$(dirname "$NOTE_PATH")"
 
-"$RENDER_NOTE" --artifact-dir "$ARTIFACT_DIR" --run-url "$RUN_URL" --output "$NOTE_PATH"
+"$RENDER_NOTE" --artifact-dir "$ARTIFACT_DIR" --run-ref "$RUN_REF" --output "$NOTE_PATH"
 
 "$APPEND_LEDGER" \
   --ledger-path "$LEDGER_PATH" \
-  --run-url "$RUN_URL" \
+  --run-ref "$RUN_REF" \
   --policy "$POLICY" \
   --outcome "$OUTCOME" \
   --s4-softfail-evidence "$SOFTFAIL_EVIDENCE" \

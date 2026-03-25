@@ -2,14 +2,15 @@
 set -euo pipefail
 
 ARTIFACT_DIR=""
+RUN_REF=""
 RUN_URL=""
 OUTPUT_PATH=""
 
 usage() {
   cat <<'USAGE'
-Usage: ./ci/render-memory-suitability-checkpoint-note.sh --artifact-dir PATH --run-url URL [--output PATH]
+Usage: ./ci/render-memory-suitability-checkpoint-note.sh --artifact-dir PATH --run-ref TEXT [--output PATH]
 
-Renders a markdown checkpoint note from CI artifact bundle contents.
+Renders a markdown checkpoint note from local artifact bundle contents.
 USAGE
 }
 
@@ -19,8 +20,13 @@ while [[ $# -gt 0 ]]; do
       ARTIFACT_DIR="$2"
       shift 2
       ;;
+    --run-ref)
+      RUN_REF="$2"
+      shift 2
+      ;;
     --run-url)
       RUN_URL="$2"
+      RUN_REF="$2"
       shift 2
       ;;
     --output)
@@ -39,7 +45,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$ARTIFACT_DIR" ]] || { echo "[error] --artifact-dir is required" >&2; exit 1; }
-[[ -n "$RUN_URL" ]] || { echo "[error] --run-url is required" >&2; exit 1; }
+if [[ -z "$RUN_REF" ]]; then
+  echo "[error] --run-ref is required" >&2
+  echo "[error] --run-url is supported as a backward-compatible alias" >&2
+  exit 1
+fi
 [[ -d "$ARTIFACT_DIR" ]] || { echo "[error] Artifact dir not found: $ARTIFACT_DIR" >&2; exit 1; }
 
 manifest="$ARTIFACT_DIR/manifest.txt"
@@ -58,9 +68,9 @@ fi
 
 render() {
   cat <<EOF
-### CI strict memory-suitability checkpoint
+### Local strict memory-suitability checkpoint
 
-- run: $RUN_URL
+- run: $RUN_REF
 - artifact_dir: $ARTIFACT_DIR
 - diagnostics_timestamp_utc: ${diag_stamp:-unknown}
 - s4_last_report: $status
@@ -69,7 +79,7 @@ Artifact files:
 $(if [[ -f "$manifest" ]]; then sed 's/^/- /' "$manifest"; else echo '- manifest.txt missing'; fi)
 
 Notes:
-- CI lane policy: S4 softfail policy is strict.
+- Local required-runtime lane policy: S4 softfail policy is strict.
 - If this checkpoint failed, inspect s4-server.log and diagnostics.txt first.
 EOF
 }

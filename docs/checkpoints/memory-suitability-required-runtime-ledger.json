@@ -9,7 +9,7 @@
       "note_path": "state/ci-artifacts-memory-suitability-20260324T181354Z/checkpoint-note.md",
       "outcome": "pass",
       "policy": "strict",
-      "run_url": "https://github.com/<org>/<repo>/actions/runs/<run_id>",
+      "run_ref": "local:2026-03-24T18:13:54Z-required-runtime-gate",
       "s4_softfail_evidence": "no"
     }
   ],

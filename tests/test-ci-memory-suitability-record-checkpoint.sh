@@ -40,7 +40,7 @@ note="$tmpdir/note.md"
 
 "$RECORDER" \
   --artifact-dir "$artifact_dir" \
-  --run-url "https://github.com/org/repo/actions/runs/999" \
+  --run-ref "local:checkpoint-999" \
   --outcome pass \
   --policy strict \
   --s4-softfail-evidence no \
@@ -55,8 +55,8 @@ note="$tmpdir/note.md"
 [[ -f "$summary" ]] || { echo 'expected summary file' >&2; exit 1; }
 
 note_out=$(cat "$note")
-assert_contains "$note_out" 'CI strict memory-suitability checkpoint'
-assert_contains "$note_out" 'https://github.com/org/repo/actions/runs/999'
+assert_contains "$note_out" 'Local strict memory-suitability checkpoint'
+assert_contains "$note_out" 'local:checkpoint-999'
 
 summary_out=$(cat "$summary")
 assert_contains "$summary_out" 'run history (last 5)'
@@ -70,11 +70,11 @@ with open(sys.argv[1], 'r', encoding='utf-8') as f:
 assert len(data['checkpoints']) == 1
 entry = data['checkpoints'][0]
 assert entry['outcome'] == 'pass'
-assert entry['run_url'].endswith('/999')
+assert entry['run_ref'] == 'local:checkpoint-999'
 assert entry['note_path'].endswith('/note.md')
 PY
 
-bad=$("$RECORDER" --artifact-dir "$artifact_dir" --run-url x --outcome pass --last nope 2>&1 || true)
+bad=$("$RECORDER" --artifact-dir "$artifact_dir" --run-ref x --outcome pass --last nope 2>&1 || true)
 assert_contains "$bad" '--last must be a non-negative integer'
 
 echo "ci memory suitability record-checkpoint tests passed"

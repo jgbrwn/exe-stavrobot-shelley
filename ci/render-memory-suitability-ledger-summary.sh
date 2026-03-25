@@ -65,15 +65,15 @@ def short(v):
     s = str(v)
     return s.replace("|", "\\|")
 
-print("### Memory-suitability required-runtime run history (last %d)" % (last_n,))
+print("### Memory-suitability required-runtime local run history (last %d)" % (last_n,))
 print("")
-print("| created_at_utc | outcome | policy | s4_softfail_evidence | run | artifact_ref | git_head |")
+print("| created_at_utc | outcome | policy | s4_softfail_evidence | run_ref | artifact_ref | git_head |")
 print("|---|---|---|---|---|---|---|")
 for e in rows:
-    run_url = e.get("run_url", "")
-    run_cell = short(run_url)
-    if run_url:
-        run_cell = f"[link]({run_url})"
+    run_ref = e.get("run_ref", "")
+    run_cell = short(run_ref)
+    if run_ref.startswith("http://") or run_ref.startswith("https://"):
+        run_cell = f"[link]({run_ref})"
     git_head = e.get("git_head", "")
     if git_head:
         git_head = git_head[:12]

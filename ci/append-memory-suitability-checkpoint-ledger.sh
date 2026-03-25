@@ -2,6 +2,7 @@
 set -euo pipefail
 
 LEDGER_PATH=""
+RUN_REF=""
 RUN_URL=""
 POLICY="strict"
 OUTCOME=""
@@ -13,13 +14,13 @@ ALLOW_DUPLICATE=0
 
 usage() {
   cat <<'USAGE'
-Usage: ./ci/append-memory-suitability-checkpoint-ledger.sh --ledger-path PATH --run-url URL --outcome pass|fail --artifact-dir PATH [flags]
+Usage: ./ci/append-memory-suitability-checkpoint-ledger.sh --ledger-path PATH --run-ref TEXT --outcome pass|fail --artifact-dir PATH [flags]
 
 Append one memory-suitability checkpoint row to an append-only JSON ledger.
 
 Required:
   --ledger-path PATH              Ledger JSON file to append/create
-  --run-url URL                   CI run URL (or rehearsal URL placeholder)
+  --run-ref TEXT                  Local run reference label (or URL)
   --outcome STATUS                STATUS=pass|fail
   --artifact-dir PATH             Artifact directory used for this checkpoint
 
@@ -28,7 +29,7 @@ Optional:
   --s4-softfail-evidence STATE    STATE=yes|no|unknown (default: unknown)
   --artifact-ref TEXT             Artifact handle/name (default: basename(artifact-dir))
   --note-path PATH                Rendered checkpoint note path
-  --allow-duplicate               Allow duplicate run_url+artifact_ref entries
+  --allow-duplicate               Allow duplicate run_ref+artifact_ref entries
   --help
 USAGE
 }
@@ -39,8 +40,13 @@ while [[ $# -gt 0 ]]; do
       LEDGER_PATH="$2"
       shift 2
       ;;
+    --run-ref)
+      RUN_REF="$2"
+      shift 2
+      ;;
     --run-url)
       RUN_URL="$2"
+      RUN_REF="$2"
       shift 2
       ;;
     --policy)
@@ -83,7 +89,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$LEDGER_PATH" ]] || { echo "[error] --ledger-path is required" >&2; exit 1; }
-[[ -n "$RUN_URL" ]] || { echo "[error] --run-url is required" >&2; exit 1; }
+if [[ -z "$RUN_REF" ]]; then
+  echo "[error] --run-ref is required" >&2
+  echo "[error] --run-url is supported as a backward-compatible alias" >&2
+  exit 1
+fi
 [[ -n "$OUTCOME" ]] || { echo "[error] --outcome is required" >&2; exit 1; }
 [[ -n "$ARTIFACT_DIR" ]] || { echo "[error] --artifact-dir is required" >&2; exit 1; }
 [[ -d "$ARTIFACT_DIR" ]] || { echo "[error] Artifact dir not found: $ARTIFACT_DIR" >&2; exit 1; }
@@ -114,7 +124,7 @@ fi
 
 mkdir -p "$(dirname "$LEDGER_PATH")"
 
-python3 - "$LEDGER_PATH" "$RUN_URL" "$POLICY" "$OUTCOME" "$SOFTFAIL_EVIDENCE" "$ARTIFACT_DIR" "$ARTIFACT_REF" "$diag_stamp" "$git_head" "$NOTE_PATH" "$ALLOW_DUPLICATE" <<'PY'
+python3 - "$LEDGER_PATH" "$RUN_REF" "$POLICY" "$OUTCOME" "$SOFTFAIL_EVIDENCE" "$ARTIFACT_DIR" "$ARTIFACT_REF" "$diag_stamp" "$git_head" "$NOTE_PATH" "$ALLOW_DUPLICATE" <<'PY'
 import json
 import os
 import sys
@@ -122,7 +132,7 @@ from datetime import datetime, timezone
 
 (
     ledger_path,
-    run_url,
+    run_ref,
     policy,
     outcome,
     softfail,
@@ -137,7 +147,7 @@ allow_duplicate = allow_duplicate_raw == "1"
 
 entry = {
     "created_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-    "run_url": run_url,
+    "run_ref": run_ref,
     "policy": policy,
     "outcome": outcome,
     "s4_softfail_evidence": softfail,
@@ -162,11 +172,11 @@ else:
 if not allow_duplicate:
     for existing in data["checkpoints"]:
         if (
-            existing.get("run_url") == run_url
+            existing.get("run_ref") == run_ref
             and existing.get("artifact_ref") == artifact_ref
         ):
             raise SystemExit(
-                "[error] duplicate checkpoint (same run_url + artifact_ref); use --allow-duplicate to override"
+                "[error] duplicate checkpoint (same run_ref + artifact_ref); use --allow-duplicate to override"
             )
 
 data["checkpoints"].append(entry)

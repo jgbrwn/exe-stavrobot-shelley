@@ -1,25 +1,23 @@
 # Memory-suitability required-runtime checkpoints
 
-## 2026-03-24 — local strict-lane rehearsal (pre-live CI dispatch)
+## 2026-03-24 — local strict-lane checkpoint
 
-Status: **local rehearsal only** (not a GitHub Actions run).
-
-Reason: this VM currently has no GitHub CLI auth/session configured, so workflow dispatch/download could not be executed from here yet.
+Status: **local execution on dev VM**.
 
 Rendered with:
 
 ```bash
 ./ci/render-memory-suitability-checkpoint-note.sh \
   --artifact-dir state/ci-artifacts-memory-suitability-20260324T181354Z \
-  --run-url https://github.com/<org>/<repo>/actions/runs/<run_id> \
+  --run-ref local:2026-03-24T18:13:54Z-required-runtime-gate \
   --output state/ci-artifacts-memory-suitability-20260324T181354Z/checkpoint-note.md
 ```
 
 Checkpoint note:
 
-### CI strict memory-suitability checkpoint
+### Local strict memory-suitability checkpoint
 
-- run: https://github.com/<org>/<repo>/actions/runs/<run_id>
+- run: local:2026-03-24T18:13:54Z-required-runtime-gate
 - artifact_dir: state/ci-artifacts-memory-suitability-20260324T181354Z
 - diagnostics_timestamp_utc: 2026-03-24T18:13:54Z
 - s4_last_report: present
@@ -31,14 +29,5 @@ Artifact files:
 - diagnostics.txt <= generated
 
 Notes:
-- CI lane policy: S4 softfail policy is strict.
+- Local required-runtime lane policy: S4 softfail policy is strict.
 - If this checkpoint failed, inspect s4-server.log and diagnostics.txt first.
-
----
-
-### TODO for operational closure
-
-1. Dispatch `.github/workflows/memory-suitability-required-runtime.yml` on a `shelley-required-runtime` runner.
-2. Download uploaded `memory-suitability-required-runtime-artifacts` bundle from that run.
-3. Re-render checkpoint note with the **real** run URL and artifact dir.
-4. Append the live-run checkpoint below this rehearsal entry.

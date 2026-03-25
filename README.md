@@ -382,20 +382,19 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runti
   - run `REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runtime-contract.sh`
   - or run one aggregate deterministic gate command:
     - `./run-shelley-managed-memory-suitability-gate.sh --required-runtime --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
-  - CI authoritative entrypoint (same gate, required-runtime):
+  - Local required-runtime entrypoint (same gate, required-runtime):
     - `./ci/check-memory-suitability-runtime-prereqs.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
     - `./ci/run-memory-suitability-required-runtime.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json --s4-softfail-policy strict`
     - `./ci/collect-memory-suitability-artifacts.sh --output-dir ./ci-artifacts`
-    - `./ci/render-memory-suitability-checkpoint-note.sh --artifact-dir ./ci-artifacts --run-url <CI_RUN_URL> --output ./ci-artifacts/checkpoint-note.md`
+    - `./ci/render-memory-suitability-checkpoint-note.sh --artifact-dir ./ci-artifacts --run-ref <LOCAL_RUN_REF> --output ./ci-artifacts/checkpoint-note.md`
     - one-step checkpoint recording (note + ledger append + summary render):
-      - `./ci/record-memory-suitability-checkpoint.sh --artifact-dir ./ci-artifacts --run-url <CI_RUN_URL> --outcome <pass|fail> --policy strict --s4-softfail-evidence <yes|no|unknown>`
+      - `./ci/record-memory-suitability-checkpoint.sh --artifact-dir ./ci-artifacts --run-ref <LOCAL_RUN_REF> --outcome <pass|fail> --policy strict --s4-softfail-evidence <yes|no|unknown>`
     - manual helpers (optional split mode):
-      - `./ci/append-memory-suitability-checkpoint-ledger.sh --ledger-path ./docs/checkpoints/memory-suitability-required-runtime-ledger.json --run-url <CI_RUN_URL> --policy strict --outcome <pass|fail> --s4-softfail-evidence <yes|no|unknown> --artifact-dir ./ci-artifacts --artifact-ref memory-suitability-required-runtime-artifacts --note-path ./ci-artifacts/checkpoint-note.md`
-      - duplicate guard is on by default (same `run_url` + `artifact_ref` is rejected); use `--allow-duplicate` only for intentional replay entries
+      - `./ci/append-memory-suitability-checkpoint-ledger.sh --ledger-path ./docs/checkpoints/memory-suitability-required-runtime-ledger.json --run-ref <LOCAL_RUN_REF> --policy strict --outcome <pass|fail> --s4-softfail-evidence <yes|no|unknown> --artifact-dir ./ci-artifacts --artifact-ref memory-suitability-required-runtime-artifacts --note-path ./ci-artifacts/checkpoint-note.md`
+      - duplicate guard is on by default (same `run_ref` + `artifact_ref` is rejected); use `--allow-duplicate` only for intentional replay entries
       - `./ci/render-memory-suitability-ledger-summary.sh --ledger-path ./docs/checkpoints/memory-suitability-required-runtime-ledger.json --last 10 > ./docs/checkpoints/memory-suitability-required-runtime-summary.md`
     - pass criteria: preflight passes and all three contract lanes pass; any missing/unpatched runtime prerequisite fails the lane
     - strict policy additionally fails the lane if S4 context-overflow softfail evidence appears
-    - CI workflow uploads `ci-artifacts/` even on failure for postmortem inspection
   - any missing/unpatched managed runtime prerequisite is a failure (not skip)
 
 ## Operator helper: Stavrobot backend model control
