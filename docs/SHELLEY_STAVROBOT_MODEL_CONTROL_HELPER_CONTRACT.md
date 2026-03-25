@@ -191,6 +191,7 @@ If not applicable, it should return a clear machine-readable refusal.
 - reuse this repo's existing OpenRouter model fetch/filter logic
 - return structured model list
 - include `openrouter/free`
+- include model context limit in both machine (`context_length`) and human-display (`context_limit_display`) form for picker UI
 
 ### Recommended implementation source
 
@@ -211,12 +212,14 @@ Do not duplicate the filtering/sorting logic in multiple places unless necessary
     {
       "id": "openrouter/free",
       "name": "Free Models Router",
-      "context_length": 200000
+      "context_length": 200000,
+      "context_limit_display": "200k tokens"
     },
     {
       "id": "qwen/qwen3-coder:free",
       "name": "Qwen: Qwen3 Coder 480B A35B (free)",
-      "context_length": 262000
+      "context_length": 262000,
+      "context_limit_display": "262k tokens"
     }
   ]
 }

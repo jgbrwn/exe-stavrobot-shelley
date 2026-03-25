@@ -64,6 +64,9 @@ assert_contains "$list_ok" '"status": "ok"'
 assert_contains "$list_ok" '"source": "openrouter-free"'
 assert_contains "$list_ok" '"id": "openrouter/free"'
 assert_contains "$list_ok" '"id": "qwen/qwen3-coder:free"'
+assert_contains "$list_ok" '"context_length": 200000'
+assert_contains "$list_ok" '"context_limit_display": "200k tokens"'
+assert_contains "$list_ok" '"context_limit_display": "262k tokens"'
 
 FAKE_STAVROBOT="$TMP_DIR/stavrobot"
 mkdir -p "$FAKE_STAVROBOT/data/main" "$TMP_DIR/bin"

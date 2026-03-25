@@ -144,13 +144,33 @@ list_openrouter_free() {
   ensure_openrouter_active
   python3 - "$OPENROUTER_MODELS_SCRIPT" <<'PY'
 import json, subprocess, sys
+
+def display_context(v):
+  if isinstance(v, int) and v > 0:
+    if v >= 1_000_000:
+      return f"{v/1_000_000:.1f}M tokens"
+    if v >= 1_000:
+      return f"{v/1_000:.0f}k tokens"
+    return f"{v} tokens"
+  return "unknown"
+
 out = subprocess.check_output(["python3", sys.argv[1]], text=True)
-payload = json.loads(out)
+raw = json.loads(out)
+models = []
+for item in raw.get("models", []):
+  context = item.get("context_length")
+  models.append({
+    "id": item.get("id", ""),
+    "name": item.get("name", ""),
+    "context_length": context,
+    "context_limit_display": display_context(context),
+  })
+
 payload = {
   "status": "ok",
   "source": "openrouter-free",
   "provider": "openrouter",
-  "models": payload.get("models", []),
+  "models": models,
 }
 print(json.dumps(payload, indent=2))
 PY

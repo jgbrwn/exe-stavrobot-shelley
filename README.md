@@ -417,6 +417,7 @@ Current behavior:
   - prints machine-readable JSON describing current `provider`, `model`, auth mode, and whether OpenRouter model selection is currently applicable
 - `list-openrouter-free`
   - returns live OpenRouter free-model suggestions only when active Stavrobot config is actually using `provider = "openrouter"` with corresponding auth/config
+  - each model includes numeric `context_length` and picker-friendly `context_limit_display`
 - `apply --model MODEL_ID`
   - edits Stavrobot `config.toml`, restarts the `app` service, falls back to force-recreate if needed, and waits for health to report the expected provider/model
 
