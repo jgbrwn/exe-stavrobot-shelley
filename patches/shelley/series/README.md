@@ -75,6 +75,11 @@ So these are now replay/test-validated prototype patches, but not yet a fully sm
    - adds conversation-scoped apply endpoint for shared backend model mutation
    - extends the compact UI chip with picker + apply button + success/error feedback
 
+12. `0007-stavrobot-model-control-apply-safety-copy.patch`
+   - adds UI-side shared-impact acknowledgement gating before apply is enabled
+   - improves non-OpenRouter gating copy with explicit provider/auth requirement messaging
+   - keeps the model-control UI compact while preventing accidental shared backend mutations
+
 ## Why this exists
 
 The disposable patch already proved the seam.

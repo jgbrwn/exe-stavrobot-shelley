@@ -1,0 +1,165 @@
+diff --git a/ui/src/components/ChatInterface.tsx b/ui/src/components/ChatInterface.tsx
+index 91801a4..7492d9a 100644
+--- a/ui/src/components/ChatInterface.tsx
++++ b/ui/src/components/ChatInterface.tsx
+@@ -684,6 +684,7 @@ function ChatInterface({
+       setStavrobotModelControlLoading(false);
+       setStavrobotModelControlApplying(false);
+       setStavrobotSelectedModel("");
++      setStavrobotApplyAcknowledge(false);
+       return;
+     }
+ 
+@@ -694,6 +695,7 @@ function ChatInterface({
+       setStavrobotModelControlLoading(false);
+       setStavrobotModelControlApplying(false);
+       setStavrobotSelectedModel("");
++      setStavrobotApplyAcknowledge(false);
+       return;
+     }
+ 
+@@ -711,6 +713,7 @@ function ChatInterface({
+       setStavrobotModelControlLoading(false);
+       setStavrobotModelControlApplying(false);
+       setStavrobotSelectedModel("");
++      setStavrobotApplyAcknowledge(false);
+       return;
+     }
+ 
+@@ -844,6 +847,7 @@ function ChatInterface({
+   const [stavrobotModelControlApplyMessage, setStavrobotModelControlApplyMessage] =
+     useState<string | null>(null);
+   const [stavrobotSelectedModel, setStavrobotSelectedModel] = useState<string>("");
++  const [stavrobotApplyAcknowledge, setStavrobotApplyAcknowledge] = useState(false);
+   const advancedSettingsRef = useRef<HTMLDivElement>(null);
+ 
+   // Close advanced settings popover on click outside
+@@ -1723,6 +1727,7 @@ function ChatInterface({
+         view.models[0]?.id ||
+         fallback;
+       setStavrobotSelectedModel(preferred);
++      setStavrobotApplyAcknowledge(false);
+     } catch (err) {
+       setStavrobotModelControlView(null);
+       setStavrobotSelectedModel("");
+@@ -1741,8 +1746,21 @@ function ChatInterface({
+     return `Applied shared Stavrobot backend model: ${from} → ${to}${op}.`;
+   };
+ 
++  const hasPendingStavrobotModelChange =
++    !!stavrobotModelControlView &&
++    stavrobotModelControlView.current.openrouter_model_selection_available &&
++    !!stavrobotSelectedModel &&
++    stavrobotSelectedModel !== stavrobotModelControlView.current.model;
++
+   const applyStavrobotModelSelection = useCallback(async () => {
+-    if (!conversationId || !stavrobotSelectedModel || stavrobotModelControlApplying) return;
++    if (
++      !conversationId ||
++      !stavrobotSelectedModel ||
++      stavrobotModelControlApplying ||
++      !hasPendingStavrobotModelChange
++    ) {
++      return;
++    }
+     setStavrobotModelControlApplying(true);
+     setStavrobotModelControlError(null);
+     setStavrobotModelControlApplyMessage(null);
+@@ -1762,6 +1780,7 @@ function ChatInterface({
+     stavrobotSelectedModel,
+     stavrobotModelControlApplying,
+     refreshStavrobotModelControlView,
++    hasPendingStavrobotModelChange,
+   ]);
+ 
+   const handleUnarchive = async () => {
+@@ -2205,6 +2224,7 @@ function ChatInterface({
+                           setStavrobotSelectedModel(e.target.value);
+                           setStavrobotModelControlApplyMessage(null);
+                           setStavrobotModelControlError(null);
++                          setStavrobotApplyAcknowledge(false);
+                         }}
+                         disabled={stavrobotModelControlApplying}
+                         title="Shared backend model selection"
+@@ -2215,13 +2235,27 @@ function ChatInterface({
+                           </option>
+                         ))}
+                       </select>
++                      {hasPendingStavrobotModelChange && (
++                        <label
++                          className="stavrobot-model-control-ack"
++                          title="Confirm this updates the shared backend model for all Stavrobot-mode conversations"
++                        >
++                          <input
++                            type="checkbox"
++                            checked={stavrobotApplyAcknowledge}
++                            onChange={(e) => setStavrobotApplyAcknowledge(e.target.checked)}
++                            disabled={stavrobotModelControlApplying}
++                          />
++                          <span>shared backend impact acknowledged</span>
++                        </label>
++                      )}
+                       <button
+                         className="stavrobot-model-control-apply"
+                         onClick={applyStavrobotModelSelection}
+                         disabled={
+                           stavrobotModelControlApplying ||
+-                          !stavrobotSelectedModel ||
+-                          stavrobotSelectedModel === stavrobotModelControlView.current.model
++                          !hasPendingStavrobotModelChange ||
++                          !stavrobotApplyAcknowledge
+                         }
+                         title="Apply selected model to shared Stavrobot backend"
+                       >
+@@ -2229,8 +2263,14 @@ function ChatInterface({
+                       </button>
+                     </>
+                   ) : (
+-                    <span className="stavrobot-model-control-gated" title="OpenRouter picker is unavailable for current provider/auth state">
+-                      OpenRouter picker unavailable
++                    <span
++                      className="stavrobot-model-control-gated"
++                      title={
++                        stavrobotModelControlView.current.reason ||
++                        "OpenRouter picker is unavailable for current provider/auth state"
++                      }
++                    >
++                      OpenRouter picker unavailable (requires provider=openrouter with valid auth)
+                     </span>
+                   )}
+                   {stavrobotModelControlApplyMessage && (
+diff --git a/ui/src/styles.css b/ui/src/styles.css
+index e54e3a2..c305f02 100644
+--- a/ui/src/styles.css
++++ b/ui/src/styles.css
+@@ -3849,6 +3849,19 @@ svg {
+   padding: 0.15rem 0.35rem;
+ }
+ 
++.stavrobot-model-control-ack {
++  display: inline-flex;
++  align-items: center;
++  gap: 0.3rem;
++  color: var(--text-secondary);
++  font-size: 0.68rem;
++  white-space: nowrap;
++}
++
++.stavrobot-model-control-ack input {
++  margin: 0;
++}
++
+ .stavrobot-model-control-apply {
+   border: 1px solid var(--border);
+   border-radius: 0.3rem;
+@@ -3873,6 +3886,10 @@ svg {
+   .stavrobot-model-control-select {
+     max-width: min(48vw, 18rem);
+   }
++
++  .stavrobot-model-control-ack {
++    display: none;
++  }
+ }
+ 
+ .status-working-group {
