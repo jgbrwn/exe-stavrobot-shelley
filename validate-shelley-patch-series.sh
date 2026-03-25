@@ -17,6 +17,10 @@ PATCHES=(
   "$PATCH_DIR/0002-conversation-manager.patch"
   "$PATCH_DIR/0003-route-branching.patch"
   "$PATCH_DIR/0004-stavrobot-runtime-unit.patch"
+  "$PATCH_DIR/0005-stavrobot-model-control-readonly-picker.patch"
+  "$PATCH_DIR/0006-stavrobot-model-control-apply-picker.patch"
+  "$PATCH_DIR/0007-stavrobot-model-control-apply-safety-copy.patch"
+  "$PATCH_DIR/0008-stavrobot-model-control-tests-and-contract.patch"
 )
 
 usage() {

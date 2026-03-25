@@ -80,6 +80,11 @@ So these are now replay/test-validated prototype patches, but not yet a fully sm
    - improves non-OpenRouter gating copy with explicit provider/auth requirement messaging
    - keeps the model-control UI compact while preventing accidental shared backend mutations
 
+13. `0008-stavrobot-model-control-tests-and-contract.patch`
+   - adds targeted server tests for model-control view/apply error and success paths
+   - validates non-Stavrobot rejection, malformed model-control helper output handling, and apply transition response shape
+   - documents model-control endpoint + UX gating contract in upstream `ARCHITECTURE.md`
+
 ## Why this exists
 
 The disposable patch already proved the seam.
