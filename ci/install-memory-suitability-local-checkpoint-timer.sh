@@ -113,9 +113,14 @@ if (( DRY_RUN == 1 )); then
   exit 0
 fi
 
-mkdir -p "$SYSTEMD_DIR"
-printf '%s\n' "$service_body" > "$service_path"
-printf '%s\n' "$timer_body" > "$timer_path"
+if mkdir -p "$SYSTEMD_DIR" 2>/dev/null && [[ -w "$SYSTEMD_DIR" ]]; then
+  printf '%s\n' "$service_body" > "$service_path"
+  printf '%s\n' "$timer_body" > "$timer_path"
+else
+  sudo mkdir -p "$SYSTEMD_DIR"
+  printf '%s\n' "$service_body" | sudo tee "$service_path" >/dev/null
+  printf '%s\n' "$timer_body" | sudo tee "$timer_path" >/dev/null
+fi
 
 echo "[info] wrote $service_path"
 echo "[info] wrote $timer_path"
