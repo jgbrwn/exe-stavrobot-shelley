@@ -65,6 +65,11 @@ So these are now replay/test-validated prototype patches, but not yet a fully sm
 9. `0004-stavrobot-runtime-unit.patch`
    - captured prototype diff adding `server/stavrobot.go`
 
+10. `0005-stavrobot-model-control-readonly-picker.patch`
+   - read-only Stavrobot-mode model-control admin wiring
+   - exposes conversation-scoped API endpoint for current provider/model + gated OpenRouter free-model list
+   - surfaces compact UI status chip showing provider/model and `context_limit_display` values when available
+
 ## Why this exists
 
 The disposable patch already proved the seam.
