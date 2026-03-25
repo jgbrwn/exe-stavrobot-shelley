@@ -9,6 +9,7 @@ SOFTFAIL_EVIDENCE="unknown"
 ARTIFACT_DIR=""
 ARTIFACT_REF=""
 NOTE_PATH=""
+ALLOW_DUPLICATE=0
 
 usage() {
   cat <<'USAGE'
@@ -27,6 +28,7 @@ Optional:
   --s4-softfail-evidence STATE    STATE=yes|no|unknown (default: unknown)
   --artifact-ref TEXT             Artifact handle/name (default: basename(artifact-dir))
   --note-path PATH                Rendered checkpoint note path
+  --allow-duplicate               Allow duplicate run_url+artifact_ref entries
   --help
 USAGE
 }
@@ -64,6 +66,10 @@ while [[ $# -gt 0 ]]; do
     --note-path)
       NOTE_PATH="$2"
       shift 2
+      ;;
+    --allow-duplicate)
+      ALLOW_DUPLICATE=1
+      shift
       ;;
     --help)
       usage
@@ -108,7 +114,7 @@ fi
 
 mkdir -p "$(dirname "$LEDGER_PATH")"
 
-python3 - "$LEDGER_PATH" "$RUN_URL" "$POLICY" "$OUTCOME" "$SOFTFAIL_EVIDENCE" "$ARTIFACT_DIR" "$ARTIFACT_REF" "$diag_stamp" "$git_head" "$NOTE_PATH" <<'PY'
+python3 - "$LEDGER_PATH" "$RUN_URL" "$POLICY" "$OUTCOME" "$SOFTFAIL_EVIDENCE" "$ARTIFACT_DIR" "$ARTIFACT_REF" "$diag_stamp" "$git_head" "$NOTE_PATH" "$ALLOW_DUPLICATE" <<'PY'
 import json
 import os
 import sys
@@ -125,7 +131,9 @@ from datetime import datetime, timezone
     diagnostics_ts,
     git_head,
     note_path,
+    allow_duplicate_raw,
 ) = sys.argv[1:]
+allow_duplicate = allow_duplicate_raw == "1"
 
 entry = {
     "created_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -150,6 +158,16 @@ if os.path.exists(ledger_path):
         raise SystemExit(f"[error] invalid ledger structure: {ledger_path}")
 else:
     data = {"schema_version": 1, "checkpoints": []}
+
+if not allow_duplicate:
+    for existing in data["checkpoints"]:
+        if (
+            existing.get("run_url") == run_url
+            and existing.get("artifact_ref") == artifact_ref
+        ):
+            raise SystemExit(
+                "[error] duplicate checkpoint (same run_url + artifact_ref); use --allow-duplicate to override"
+            )
 
 data["checkpoints"].append(entry)
 

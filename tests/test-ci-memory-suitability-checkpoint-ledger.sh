@@ -68,6 +68,24 @@ PY
   --s4-softfail-evidence yes \
   --artifact-dir "$artifact_dir" >/dev/null
 
+dup=$("$APPEND" \
+  --ledger-path "$ledger" \
+  --run-url "https://github.com/org/repo/actions/runs/112" \
+  --policy strict \
+  --outcome fail \
+  --s4-softfail-evidence yes \
+  --artifact-dir "$artifact_dir" 2>&1 || true)
+assert_contains "$dup" 'duplicate checkpoint'
+
+"$APPEND" \
+  --ledger-path "$ledger" \
+  --run-url "https://github.com/org/repo/actions/runs/112" \
+  --policy strict \
+  --outcome fail \
+  --s4-softfail-evidence yes \
+  --artifact-dir "$artifact_dir" \
+  --allow-duplicate >/dev/null
+
 summary=$("$SUMMARY" --ledger-path "$ledger" --last 1)
 assert_contains "$summary" 'run history (last 1)'
 assert_contains "$summary" 'https://github.com/org/repo/actions/runs/112'

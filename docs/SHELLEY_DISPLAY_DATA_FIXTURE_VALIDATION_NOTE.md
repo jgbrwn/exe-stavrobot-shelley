@@ -870,7 +870,18 @@ This renders a compact markdown block containing run URL, diagnostics timestamp,
 
 ### CI checkpoint ledger + summary helpers (new)
 
-To retain run history/trend signal across strict-lane executions:
+To retain run history/trend signal across strict-lane executions, preferred one-step recorder:
+
+```bash
+./ci/record-memory-suitability-checkpoint.sh \
+  --artifact-dir ./ci-artifacts \
+  --run-url <CI_RUN_URL> \
+  --outcome <pass|fail> \
+  --policy strict \
+  --s4-softfail-evidence <yes|no|unknown>
+```
+
+Equivalent split-mode commands (manual control):
 
 ```bash
 ./ci/append-memory-suitability-checkpoint-ledger.sh \
@@ -890,3 +901,6 @@ To retain run history/trend signal across strict-lane executions:
 ```
 
 This keeps an append-only machine-readable index plus a compact human summary table for recent runs.
+
+Ledger behavior note:
+- duplicate protection is enabled by default on `run_url + artifact_ref`; append helper rejects accidental double-writes unless `--allow-duplicate` is explicitly set.
