@@ -904,3 +904,28 @@ This keeps an append-only machine-readable index plus a compact human summary ta
 
 Ledger behavior note:
 - duplicate protection is enabled by default on `run_ref + artifact_ref`; append helper rejects accidental double-writes unless `--allow-duplicate` is explicitly set.
+
+### Local one-command checkpoint runner (new)
+
+Preferred local operational command for this lane:
+
+```bash
+./ci/run-memory-suitability-local-checkpoint.sh --policy strict
+```
+
+This runs preflight + required-runtime gate + artifact collection + checkpoint recording (note/ledger/summary) in sequence and sets outcome/softfail evidence automatically from run artifacts.
+
+### Optional local scheduling via systemd timer (new)
+
+For unattended local cadence (without GitHub Actions), install/update timer units:
+
+```bash
+./ci/install-memory-suitability-local-checkpoint-timer.sh
+```
+
+Defaults:
+- service: `memory-suitability-local-checkpoint.service`
+- timer: `memory-suitability-local-checkpoint.timer`
+- schedule: daily `06:17 UTC`
+
+Override schedule with `--on-calendar`, e.g. `--on-calendar 'hourly'`.

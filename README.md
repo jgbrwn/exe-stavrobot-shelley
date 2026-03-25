@@ -383,13 +383,17 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runti
   - or run one aggregate deterministic gate command:
     - `./run-shelley-managed-memory-suitability-gate.sh --required-runtime --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
   - Local required-runtime entrypoint (same gate, required-runtime):
-    - `./ci/check-memory-suitability-runtime-prereqs.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
-    - `./ci/run-memory-suitability-required-runtime.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json --s4-softfail-policy strict`
-    - `./ci/collect-memory-suitability-artifacts.sh --output-dir ./ci-artifacts`
-    - `./ci/render-memory-suitability-checkpoint-note.sh --artifact-dir ./ci-artifacts --run-ref <LOCAL_RUN_REF> --output ./ci-artifacts/checkpoint-note.md`
-    - one-step checkpoint recording (note + ledger append + summary render):
+    - single-command local checkpoint flow (recommended):
+      - `./ci/run-memory-suitability-local-checkpoint.sh --policy strict`
+      - creates timestamped artifact dir under `./state/`, then updates checkpoint note/ledger/summary automatically
+      - on failures, still attempts artifact collection and records failed checkpoint outcome
+      - supports `--dry-run` for operator verification
+    - equivalent explicit split flow:
+      - `./ci/check-memory-suitability-runtime-prereqs.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json`
+      - `./ci/run-memory-suitability-required-runtime.sh --shelley-dir /opt/shelley --profile-state-path /home/exedev/exe-stavrobot-shelley/state/shelley-bridge-profiles.json --s4-softfail-policy strict`
+      - `./ci/collect-memory-suitability-artifacts.sh --output-dir ./ci-artifacts`
+      - `./ci/render-memory-suitability-checkpoint-note.sh --artifact-dir ./ci-artifacts --run-ref <LOCAL_RUN_REF> --output ./ci-artifacts/checkpoint-note.md`
       - `./ci/record-memory-suitability-checkpoint.sh --artifact-dir ./ci-artifacts --run-ref <LOCAL_RUN_REF> --outcome <pass|fail> --policy strict --s4-softfail-evidence <yes|no|unknown>`
-    - manual helpers (optional split mode):
       - `./ci/append-memory-suitability-checkpoint-ledger.sh --ledger-path ./docs/checkpoints/memory-suitability-required-runtime-ledger.json --run-ref <LOCAL_RUN_REF> --policy strict --outcome <pass|fail> --s4-softfail-evidence <yes|no|unknown> --artifact-dir ./ci-artifacts --artifact-ref memory-suitability-required-runtime-artifacts --note-path ./ci-artifacts/checkpoint-note.md`
       - duplicate guard is on by default (same `run_ref` + `artifact_ref` is rejected); use `--allow-duplicate` only for intentional replay entries
       - `./ci/render-memory-suitability-ledger-summary.sh --ledger-path ./docs/checkpoints/memory-suitability-required-runtime-ledger.json --last 10 > ./docs/checkpoints/memory-suitability-required-runtime-summary.md`
@@ -603,3 +607,26 @@ Default local base URL is now `http://localhost:8000`. Override with `--base-url
 Docs:
 
 - `docs/SHELLEY_ADAPTER_SMOKE_TESTS.md`
+
+### Optional: install local scheduled checkpoint timer
+
+To run strict required-runtime checkpoints automatically on this VM (no GitHub Actions):
+
+```bash
+./ci/install-memory-suitability-local-checkpoint-timer.sh
+```
+
+This installs:
+
+- `memory-suitability-local-checkpoint.service`
+- `memory-suitability-local-checkpoint.timer`
+
+Default schedule is daily at `06:17 UTC`; customize with `--on-calendar`.
+
+Useful commands:
+
+```bash
+systemctl status memory-suitability-local-checkpoint.timer --no-pager
+systemctl list-timers memory-suitability-local-checkpoint.timer --no-pager
+journalctl -u memory-suitability-local-checkpoint.service -n 200 --no-pager
+```
