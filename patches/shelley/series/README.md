@@ -70,6 +70,11 @@ So these are now replay/test-validated prototype patches, but not yet a fully sm
    - exposes conversation-scoped API endpoint for current provider/model + gated OpenRouter free-model list
    - surfaces compact UI status chip showing provider/model and `context_limit_display` values when available
 
+11. `0006-stavrobot-model-control-apply-picker.patch`
+   - adds Stavrobot-mode apply-action wiring on top of `0005`
+   - adds conversation-scoped apply endpoint for shared backend model mutation
+   - extends the compact UI chip with picker + apply button + success/error feedback
+
 ## Why this exists
 
 The disposable patch already proved the seam.

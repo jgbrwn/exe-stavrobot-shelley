@@ -1,0 +1,516 @@
+diff --git a/server/handlers.go b/server/handlers.go
+index 4234177..5fa77fb 100644
+--- a/server/handlers.go
++++ b/server/handlers.go
+@@ -583,6 +583,9 @@ func (s *Server) conversationMux() *http.ServeMux {
+ 	mux.HandleFunc("GET /{id}/stavrobot/model-control-view", func(w http.ResponseWriter, r *http.Request) {
+ 		s.handleStavrobotModelControlView(w, r, r.PathValue("id"))
+ 	})
++	mux.HandleFunc("POST /{id}/stavrobot/model-control-apply", func(w http.ResponseWriter, r *http.Request) {
++		s.handleStavrobotModelControlApply(w, r, r.PathValue("id"))
++	})
+ 	return mux
+ }
+ 
+@@ -1155,6 +1158,23 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
+ 	json.NewEncoder(w).Encode(s.getModelList())
+ }
+ 
++type stavrobotModelControlApplyRequest struct {
++	Model string `json:"model"`
++}
++
++var errStavrobotModelControlConversationNotFound = errors.New("stavrobot_model_control_conversation_not_found")
++
++func (s *Server) loadConversationManagerForStavrobotModelControl(ctx context.Context, conversationID string) (*ConversationManager, error) {
++	manager, err := s.getOrCreateConversationManager(ctx, conversationID, "")
++	if err != nil {
++		if errors.Is(err, sql.ErrNoRows) {
++			return nil, errStavrobotModelControlConversationNotFound
++		}
++		return nil, err
++	}
++	return manager, nil
++}
++
+ func (s *Server) handleStavrobotModelControlView(w http.ResponseWriter, r *http.Request, conversationID string) {
+ 	if r.Method != http.MethodGet {
+ 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+@@ -1162,9 +1182,9 @@ func (s *Server) handleStavrobotModelControlView(w http.ResponseWriter, r *http.
+ 	}
+ 
+ 	ctx := r.Context()
+-	manager, err := s.getOrCreateConversationManager(ctx, conversationID, "")
++	manager, err := s.loadConversationManagerForStavrobotModelControl(ctx, conversationID)
+ 	if err != nil {
+-		if errors.Is(err, sql.ErrNoRows) {
++		if errors.Is(err, errStavrobotModelControlConversationNotFound) {
+ 			http.Error(w, "Conversation not found", http.StatusNotFound)
+ 			return
+ 		}
+@@ -1189,6 +1209,44 @@ func (s *Server) handleStavrobotModelControlView(w http.ResponseWriter, r *http.
+ 	json.NewEncoder(w).Encode(resp)
+ }
+ 
++func (s *Server) handleStavrobotModelControlApply(w http.ResponseWriter, r *http.Request, conversationID string) {
++	if r.Method != http.MethodPost {
++		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
++		return
++	}
++
++	var req stavrobotModelControlApplyRequest
++	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
++		http.Error(w, "invalid request body", http.StatusBadRequest)
++		return
++	}
++
++	ctx := r.Context()
++	manager, err := s.loadConversationManagerForStavrobotModelControl(ctx, conversationID)
++	if err != nil {
++		if errors.Is(err, errStavrobotModelControlConversationNotFound) {
++			http.Error(w, "Conversation not found", http.StatusNotFound)
++			return
++		}
++		s.logger.Error("Failed to load conversation manager for stavrobot model control apply", "conversationID", conversationID, "error", err)
++		http.Error(w, "Internal server error", http.StatusInternalServerError)
++		return
++	}
++
++	result, err := s.ApplyStavrobotModelSelection(ctx, manager, req.Model)
++	if err != nil {
++		s.logger.Error("Failed to apply stavrobot model selection", "conversationID", conversationID, "model", req.Model, "error", err)
++		http.Error(w, err.Error(), http.StatusBadRequest)
++		return
++	}
++
++	w.Header().Set("Content-Type", "application/json")
++	json.NewEncoder(w).Encode(map[string]any{
++		"status": "ok",
++		"apply":  result,
++	})
++}
++
+ // handleConversationPreviews handles GET /api/conversations/previews
+ // Returns a map of conversation_id -> last agent message text preview
+ func (s *Server) handleConversationPreviews(w http.ResponseWriter, r *http.Request) {
+diff --git a/server/stavrobot.go b/server/stavrobot.go
+index 6121119..c5e7fdc 100644
+--- a/server/stavrobot.go
++++ b/server/stavrobot.go
+@@ -110,6 +110,18 @@ type StavrobotModelControlListResponse struct {
+ 	Models   []StavrobotModelOption `json:"models,omitempty"`
+ }
+ 
++type StavrobotModelApplyResult struct {
++	Status         string `json:"status"`
++	Error          string `json:"error,omitempty"`
++	Message        string `json:"message,omitempty"`
++	Operation      string `json:"operation,omitempty"`
++	PreviousModel  string `json:"previous_model,omitempty"`
++	CurrentModel   string `json:"current_model,omitempty"`
++	AttemptedModel string `json:"attempted_model,omitempty"`
++	Provider       string `json:"provider,omitempty"`
++	Ready          bool   `json:"ready"`
++}
++
+ func normalizeStavrobotRawMediaMime(raw string) string {
+ 	mime := strings.TrimSpace(strings.ToLower(raw))
+ 	if mime == "" {
+@@ -520,23 +532,31 @@ func (s *Server) executeStavrobotModelControl(ctx context.Context, profile *Reso
+ 	return output, nil
+ }
+ 
+-func (s *Server) GetStavrobotModelControlView(ctx context.Context, manager *ConversationManager) (*StavrobotModelControlCurrent, []StavrobotModelOption, error) {
++func (s *Server) resolveStavrobotModelControlProfile(manager *ConversationManager) (*ResolvedStavrobotProfile, error) {
+ 	if manager == nil {
+-		return nil, nil, fmt.Errorf("nil conversation manager")
++		return nil, fmt.Errorf("nil conversation manager")
+ 	}
+ 	if !manager.IsStavrobotMode() {
+-		return nil, nil, fmt.Errorf("stavrobot model control is only available in stavrobot mode")
++		return nil, fmt.Errorf("stavrobot model control is only available in stavrobot mode")
+ 	}
+ 
+ 	opts := manager.StavrobotOptions()
+ 	if opts == nil {
+-		return nil, nil, fmt.Errorf("missing stavrobot conversation options")
++		return nil, fmt.Errorf("missing stavrobot conversation options")
+ 	}
+ 	state, err := LoadStavrobotBridgeProfiles(s.stavrobotProfileStatePath())
+ 	if err != nil {
+-		return nil, nil, err
++		return nil, err
+ 	}
+ 	profile, err := ResolveStavrobotBridgeProfile(state, opts.BridgeProfile)
++	if err != nil {
++		return nil, err
++	}
++	return profile, nil
++}
++
++func (s *Server) GetStavrobotModelControlView(ctx context.Context, manager *ConversationManager) (*StavrobotModelControlCurrent, []StavrobotModelOption, error) {
++	profile, err := s.resolveStavrobotModelControlProfile(manager)
+ 	if err != nil {
+ 		return nil, nil, err
+ 	}
+@@ -580,6 +600,38 @@ func (s *Server) GetStavrobotModelControlView(ctx context.Context, manager *Conv
+ 	return &current, listResp.Models, nil
+ }
+ 
++func (s *Server) ApplyStavrobotModelSelection(ctx context.Context, manager *ConversationManager, model string) (*StavrobotModelApplyResult, error) {
++	profile, err := s.resolveStavrobotModelControlProfile(manager)
++	if err != nil {
++		return nil, err
++	}
++	model = strings.TrimSpace(model)
++	if model == "" {
++		return nil, fmt.Errorf("model is required")
++	}
++
++	applyOut, err := s.executeStavrobotModelControl(ctx, profile, "apply", "--model", model)
++	if err != nil {
++		return nil, err
++	}
++
++	var result StavrobotModelApplyResult
++	if err := json.Unmarshal(applyOut, &result); err != nil {
++		return nil, fmt.Errorf("invalid apply response: %w", err)
++	}
++	if result.Status != "ok" {
++		if result.Message != "" {
++			return nil, fmt.Errorf("apply failed: %s", result.Message)
++		}
++		if result.Error != "" {
++			return nil, fmt.Errorf("apply failed: %s", result.Error)
++		}
++		return nil, fmt.Errorf("apply failed with status: %s", result.Status)
++	}
++
++	return &result, nil
++}
++
+ func (s *Server) ProcessStavrobotConversationTurn(ctx context.Context, manager *ConversationManager, userMessage llm.Message) error {
+ 	if manager == nil {
+ 		return fmt.Errorf("nil conversation manager")
+diff --git a/ui/src/components/ChatInterface.tsx b/ui/src/components/ChatInterface.tsx
+index c1df728..91801a4 100644
+--- a/ui/src/components/ChatInterface.tsx
++++ b/ui/src/components/ChatInterface.tsx
+@@ -8,6 +8,7 @@ import {
+   isDistillStatusMessage,
+   isQueuedMessage,
+   StavrobotModelControlViewResponse,
++  StavrobotModelControlApplyResult,
+ } from "../types";
+ import { api } from "../services/api";
+ import { conversationCache } from "../services/conversationCache";
+@@ -679,14 +680,20 @@ function ChatInterface({
+       setShowAdvancedSettings(false);
+       setStavrobotModelControlView(null);
+       setStavrobotModelControlError(null);
++      setStavrobotModelControlApplyMessage(null);
+       setStavrobotModelControlLoading(false);
++      setStavrobotModelControlApplying(false);
++      setStavrobotSelectedModel("");
+       return;
+     }
+ 
+     if (!currentConversation?.conversation_options) {
+       setStavrobotModelControlView(null);
+       setStavrobotModelControlError(null);
++      setStavrobotModelControlApplyMessage(null);
+       setStavrobotModelControlLoading(false);
++      setStavrobotModelControlApplying(false);
++      setStavrobotSelectedModel("");
+       return;
+     }
+ 
+@@ -700,7 +707,10 @@ function ChatInterface({
+     if (parsedOptions?.type !== "stavrobot") {
+       setStavrobotModelControlView(null);
+       setStavrobotModelControlError(null);
++      setStavrobotModelControlApplyMessage(null);
+       setStavrobotModelControlLoading(false);
++      setStavrobotModelControlApplying(false);
++      setStavrobotSelectedModel("");
+       return;
+     }
+ 
+@@ -712,10 +722,17 @@ function ChatInterface({
+       .then((view) => {
+         if (cancelled) return;
+         setStavrobotModelControlView(view);
++        const fallback = view.current.model || "";
++        const preferred =
++          view.models.find((m) => m.id === view.current.model)?.id ||
++          view.models[0]?.id ||
++          fallback;
++        setStavrobotSelectedModel(preferred);
+       })
+       .catch((err) => {
+         if (cancelled) return;
+         setStavrobotModelControlView(null);
++        setStavrobotSelectedModel("");
+         setStavrobotModelControlError(
+           err instanceof Error ? err.message : "Failed to load Stavrobot model control view",
+         );
+@@ -822,7 +839,11 @@ function ChatInterface({
+   const [stavrobotModelControlView, setStavrobotModelControlView] =
+     useState<StavrobotModelControlViewResponse | null>(null);
+   const [stavrobotModelControlLoading, setStavrobotModelControlLoading] = useState(false);
++  const [stavrobotModelControlApplying, setStavrobotModelControlApplying] = useState(false);
+   const [stavrobotModelControlError, setStavrobotModelControlError] = useState<string | null>(null);
++  const [stavrobotModelControlApplyMessage, setStavrobotModelControlApplyMessage] =
++    useState<string | null>(null);
++  const [stavrobotSelectedModel, setStavrobotSelectedModel] = useState<string>("");
+   const advancedSettingsRef = useRef<HTMLDivElement>(null);
+ 
+   // Close advanced settings popover on click outside
+@@ -1689,6 +1710,60 @@ function ChatInterface({
+     }
+   }, [conversationId, currentConversation?.conversation_options]);
+ 
++  const refreshStavrobotModelControlView = useCallback(async () => {
++    if (!conversationId) return;
++    setStavrobotModelControlLoading(true);
++    setStavrobotModelControlError(null);
++    try {
++      const view = await api.getStavrobotModelControlView(conversationId);
++      setStavrobotModelControlView(view);
++      const fallback = view.current.model || "";
++      const preferred =
++        view.models.find((m) => m.id === view.current.model)?.id ||
++        view.models[0]?.id ||
++        fallback;
++      setStavrobotSelectedModel(preferred);
++    } catch (err) {
++      setStavrobotModelControlView(null);
++      setStavrobotSelectedModel("");
++      setStavrobotModelControlError(
++        err instanceof Error ? err.message : "Failed to load Stavrobot model control view",
++      );
++    } finally {
++      setStavrobotModelControlLoading(false);
++    }
++  }, [conversationId]);
++
++  const summarizeApplyResult = (result: StavrobotModelControlApplyResult): string => {
++    const from = result.previous_model || "(unknown)";
++    const to = result.current_model || result.attempted_model || "(unknown)";
++    const op = result.operation ? ` via ${result.operation}` : "";
++    return `Applied shared Stavrobot backend model: ${from} → ${to}${op}.`;
++  };
++
++  const applyStavrobotModelSelection = useCallback(async () => {
++    if (!conversationId || !stavrobotSelectedModel || stavrobotModelControlApplying) return;
++    setStavrobotModelControlApplying(true);
++    setStavrobotModelControlError(null);
++    setStavrobotModelControlApplyMessage(null);
++    try {
++      const resp = await api.applyStavrobotModelSelection(conversationId, stavrobotSelectedModel);
++      setStavrobotModelControlApplyMessage(summarizeApplyResult(resp.apply));
++      await refreshStavrobotModelControlView();
++    } catch (err) {
++      setStavrobotModelControlError(
++        err instanceof Error ? err.message : "Failed to apply Stavrobot model selection",
++      );
++    } finally {
++      setStavrobotModelControlApplying(false);
++    }
++  }, [
++    conversationId,
++    stavrobotSelectedModel,
++    stavrobotModelControlApplying,
++    refreshStavrobotModelControlView,
++  ]);
++
+   const handleUnarchive = async () => {
+     if (!conversationId) return;
+     try {
+@@ -2122,19 +2197,47 @@ function ChatInterface({
+                     {stavrobotModelControlView.current.provider} / {stavrobotModelControlView.current.model}
+                   </span>
+                   {stavrobotModelControlView.current.openrouter_model_selection_available ? (
+-                    <span className="stavrobot-model-control-openrouter-list" title="OpenRouter free models (read-only)">
+-                      {stavrobotModelControlView.models
+-                        .slice(0, 3)
+-                        .map((m) => `${m.id} (${m.context_limit_display})`)
+-                        .join(" • ")}
+-                      {stavrobotModelControlView.models.length > 3 &&
+-                        ` • +${stavrobotModelControlView.models.length - 3} more`}
+-                    </span>
++                    <>
++                      <select
++                        className="stavrobot-model-control-select"
++                        value={stavrobotSelectedModel}
++                        onChange={(e) => {
++                          setStavrobotSelectedModel(e.target.value);
++                          setStavrobotModelControlApplyMessage(null);
++                          setStavrobotModelControlError(null);
++                        }}
++                        disabled={stavrobotModelControlApplying}
++                        title="Shared backend model selection"
++                      >
++                        {stavrobotModelControlView.models.map((m) => (
++                          <option key={m.id} value={m.id}>
++                            {m.id} ({m.context_limit_display})
++                          </option>
++                        ))}
++                      </select>
++                      <button
++                        className="stavrobot-model-control-apply"
++                        onClick={applyStavrobotModelSelection}
++                        disabled={
++                          stavrobotModelControlApplying ||
++                          !stavrobotSelectedModel ||
++                          stavrobotSelectedModel === stavrobotModelControlView.current.model
++                        }
++                        title="Apply selected model to shared Stavrobot backend"
++                      >
++                        {stavrobotModelControlApplying ? "Applying…" : "Apply"}
++                      </button>
++                    </>
+                   ) : (
+                     <span className="stavrobot-model-control-gated" title="OpenRouter picker is unavailable for current provider/auth state">
+                       OpenRouter picker unavailable
+                     </span>
+                   )}
++                  {stavrobotModelControlApplyMessage && (
++                    <span className="stavrobot-model-control-success" title={stavrobotModelControlApplyMessage}>
++                      {stavrobotModelControlApplyMessage}
++                    </span>
++                  )}
+                 </>
+               ) : null}
+             </div>
+diff --git a/ui/src/services/api.ts b/ui/src/services/api.ts
+index 4563c8e..126e263 100644
+--- a/ui/src/services/api.ts
++++ b/ui/src/services/api.ts
+@@ -9,6 +9,7 @@ import {
+   VersionInfo,
+   CommitInfo,
+   StavrobotModelControlViewResponse,
++  StavrobotModelControlApplyResponse,
+ } from "../types";
+ 
+ class ApiService {
+@@ -167,6 +168,25 @@ class ApiService {
+     return response.json();
+   }
+ 
++  async applyStavrobotModelSelection(
++    conversationId: string,
++    model: string,
++  ): Promise<StavrobotModelControlApplyResponse> {
++    const response = await fetch(
++      `${this.baseUrl}/conversation/${conversationId}/stavrobot/model-control-apply`,
++      {
++        method: "POST",
++        headers: this.postHeaders,
++        body: JSON.stringify({ model }),
++      },
++    );
++    if (!response.ok) {
++      const message = await response.text();
++      throw new Error(message || `Failed to apply Stavrobot model selection: ${response.status}`);
++    }
++    return response.json();
++  }
++
+   createMessageStream(conversationId: string, lastSequenceId?: number): EventSource {
+     let url = `${this.baseUrl}/conversation/${conversationId}/stream`;
+     if (lastSequenceId !== undefined && lastSequenceId >= 0) {
+diff --git a/ui/src/styles.css b/ui/src/styles.css
+index e066fc0..e54e3a2 100644
+--- a/ui/src/styles.css
++++ b/ui/src/styles.css
+@@ -3820,9 +3820,9 @@ svg {
+   white-space: nowrap;
+ }
+ 
+-.stavrobot-model-control-openrouter-list,
+ .stavrobot-model-control-gated,
+-.stavrobot-model-control-error {
++.stavrobot-model-control-error,
++.stavrobot-model-control-success {
+   color: var(--text-secondary);
+   overflow: hidden;
+   text-overflow: ellipsis;
+@@ -3833,9 +3833,45 @@ svg {
+   color: var(--error-text);
+ }
+ 
+-@media (max-width: 900px) {
+-  .stavrobot-model-control-openrouter-list {
+-    display: none;
++.stavrobot-model-control-success {
++  color: var(--green-text, #22c55e);
++  max-width: 22rem;
++}
++
++.stavrobot-model-control-select {
++  max-width: min(38vw, 24rem);
++  min-width: 10rem;
++  border: 1px solid var(--border);
++  border-radius: 0.3rem;
++  background: var(--bg-secondary);
++  color: var(--text-primary);
++  font-size: 0.72rem;
++  padding: 0.15rem 0.35rem;
++}
++
++.stavrobot-model-control-apply {
++  border: 1px solid var(--border);
++  border-radius: 0.3rem;
++  background: var(--bg-secondary);
++  color: var(--text-primary);
++  font-size: 0.72rem;
++  padding: 0.15rem 0.45rem;
++  cursor: pointer;
++}
++
++.stavrobot-model-control-apply:hover:not(:disabled) {
++  border-color: var(--blue-text);
++  color: var(--blue-text);
++}
++
++.stavrobot-model-control-apply:disabled {
++  opacity: 0.55;
++  cursor: not-allowed;
++}
++
++@media (max-width: 1100px) {
++  .stavrobot-model-control-select {
++    max-width: min(48vw, 18rem);
+   }
+ }
+ 
+diff --git a/ui/src/types.ts b/ui/src/types.ts
+index 70d7396..6f16a5a 100644
+--- a/ui/src/types.ts
++++ b/ui/src/types.ts
+@@ -92,6 +92,23 @@ export interface StavrobotModelControlViewResponse {
+   current: StavrobotModelControlCurrent;
+   models: StavrobotModelOption[];
+ }
++
++export interface StavrobotModelControlApplyResult {
++  status: string;
++  error?: string;
++  message?: string;
++  operation?: string;
++  previous_model?: string;
++  current_model?: string;
++  attempted_model?: string;
++  provider?: string;
++  ready: boolean;
++}
++
++export interface StavrobotModelControlApplyResponse {
++  status: string;
++  apply: StavrobotModelControlApplyResult;
++}
+ // Notification event types
+ export type NotificationEventType = "agent_done" | "agent_error";
+ 
