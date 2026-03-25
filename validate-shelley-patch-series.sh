@@ -21,6 +21,7 @@ PATCHES=(
   "$PATCH_DIR/0006-stavrobot-model-control-apply-picker.patch"
   "$PATCH_DIR/0007-stavrobot-model-control-apply-safety-copy.patch"
   "$PATCH_DIR/0008-stavrobot-model-control-tests-and-contract.patch"
+  "$PATCH_DIR/0009-stavrobot-model-control-notfound-hardening.patch"
 )
 
 usage() {

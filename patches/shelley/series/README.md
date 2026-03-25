@@ -85,6 +85,11 @@ So these are now replay/test-validated prototype patches, but not yet a fully sm
    - validates non-Stavrobot rejection, malformed model-control helper output handling, and apply transition response shape
    - documents model-control endpoint + UX gating contract in upstream `ARCHITECTURE.md`
 
+14. `0009-stavrobot-model-control-notfound-hardening.patch`
+   - fixes model-control 404 handling by removing fragile `sql.ErrNoRows` sentinel mapping in handlers
+   - maps missing conversations to `404` using existing wrapped error text from conversation manager hydration
+   - adds explicit endpoint tests for missing-conversation cases on both model-control view and apply routes
+
 ## Why this exists
 
 The disposable patch already proved the seam.
