@@ -156,3 +156,46 @@ Practically, future sessions should treat this as a review rule for patch `0004`
 - even though Shelley is rich, generic raw assistant HTML/embed/audio/video should not be forced into the first Stavrobot adaptation cut unless a clearly native Shelley-safe shape is identified; sandboxed iframe/tool-style rendering and existing media-aware paths are better guides
 - for image/media references specifically, a good intermediate patch-0004 step is compact `media_refs` preservation in display metadata before claiming a fuller native assistant-media mapping
 - current upstream rendering uses persisted `display_data`, so the preferred follow-on is a focused Stavrobot assistant-message recording helper that can feed that native path directly while keeping debug/raw adaptation data in `user_data`
+
+## RC handoff pass for current managed stack (`0001`..`0009`)
+
+### Apply order (authoritative)
+
+Apply exactly in this order:
+
+1. `0001-metadata-sql-ui.patch`
+2. `0002-conversation-manager.patch`
+3. `0003-route-branching.patch`
+4. `0004-stavrobot-runtime-unit.patch`
+5. `0005-stavrobot-model-control-readonly-picker.patch`
+6. `0006-stavrobot-model-control-apply-picker.patch`
+7. `0007-stavrobot-model-control-apply-safety-copy.patch`
+8. `0008-stavrobot-model-control-tests-and-contract.patch`
+9. `0009-stavrobot-model-control-notfound-hardening.patch`
+
+Do not reorder `0008` and `0009`: `0009` is intentionally incremental hardening on top of test/contract coverage added in `0008`.
+
+### RC risk notes
+
+- **Low-to-medium risk (server handler coupling):** `0005`/`0006`/`0009` touch handler-side routing and error mapping. Main regression surface is status-code mapping and JSON error shape for non-happy paths.
+- **Low risk (UI gating UX):** `0007` is UI-only gating/copy hardening; behavior risk is mostly accidental enable/disable state logic drift.
+- **Low risk (documentation/testing):** `0008` is mostly tests + contract docs; operational behavior changes are limited.
+- **Known technical debt (intentional):** not-found detection currently uses wrapped error text matching (`"conversation not found"`) to align with existing handler patterns. Prefer future typed/sentinel error plumbing when touching conversation hydration boundaries again.
+
+### Upstream handoff checklist (before applying to `/opt/shelley`)
+
+1. Confirm upstream target ref is still intended baseline (last validated: `5b07230`).
+2. Run `./validate-shelley-patch-series.sh --upstream-checkout /tmp/shelley-official --upstream-ref <target-ref>` and require full pass.
+3. Verify patch apply and validation summary includes full stack through `0009`.
+4. Capture final handoff note with:
+   - target upstream ref
+   - validator command used
+   - pass/fail status
+   - any local conflicts/manual offsets (should be none on validated ref)
+5. Apply to managed upstream checkout (`/opt/shelley`) in the same order, then re-run upstream-local smoke/tests as required by operator policy.
+
+### Is another doc-only patch needed before `/opt/shelley` apply?
+
+**Current answer: no, not required.**
+
+Rationale: current series metadata and validator now consistently cover `0001`..`0009`, and `0008` already carries the API/UX contract documentation addition in upstream `ARCHITECTURE.md`. A further doc-only patch is optional polish, not a release blocker for applying the current stack.

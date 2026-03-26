@@ -40,7 +40,7 @@ Flags:
 
 Behavior:
   - creates a detached git worktree from the upstream checkout
-  - runs git apply --check for 0001 -> 0004
+  - runs git apply --check for the full managed series (currently 0001 -> 0009)
   - applies the patches in sequence
   - optionally builds ui/dist using pnpm
   - optionally runs go test ./server/... ./db/...
