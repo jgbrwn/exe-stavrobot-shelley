@@ -24,9 +24,9 @@ Phase 1 installer project for deploying and updating [stavrobot](https://github.
 - Shelley "Stavrobot mode"
 - Stavrobot code changes
 
-## Phase 2 in progress
+## Phase 2 status
 
-Two Phase 2 tracks have now started:
+Two Phase 2 tracks are active and substantially implemented:
 
 ### Cloudflare automation
 
@@ -34,7 +34,7 @@ Two Phase 2 tracks have now started:
 - output includes `worker.js`, `wrangler.toml`, `.dev.vars.example`, worker-specific `README.md`, and deployment `CHECKLIST.md`
 - optional `--deploy` support can run Wrangler deploy and upload `WEBHOOK_SECRET`
 
-Still manual in this track:
+Remaining manual steps in this track:
 
 - Cloudflare account auth/login if not already set up
 - Cloudflare Email Routing rule creation in the dashboard
