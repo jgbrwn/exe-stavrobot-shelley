@@ -5,7 +5,11 @@ Install and run [Stavrobot](https://github.com/skorokithakis/stavrobot) on an [e
 ## 5-minute VM quickstart
 
 ```bash
-# 1) clone (home-dir path avoids /opt permission issues)
+# 0) use user-owned paths (avoid /opt permission issues on fresh VMs)
+export STAVROBOT_DIR="$HOME/stavrobot"
+export MANAGED_SHELLEY_DIR="$HOME/managed_shelley"
+
+# 1) clone installer
 git clone https://github.com/jgbrwn/exe-stavrobot-shelley.git "$HOME/stavrobot-installer"
 cd "$HOME/stavrobot-installer"
 
@@ -13,11 +17,17 @@ cd "$HOME/stavrobot-installer"
 ./install-stavrobot.sh --doctor
 
 # 3) install Stavrobot (interactive provider/key setup)
-./install-stavrobot.sh --stavrobot-dir "$HOME/stavrobot"
+./install-stavrobot.sh --stavrobot-dir "$STAVROBOT_DIR"
 
 # 4) optional: managed Shelley refresh + release-lane memory suitability gate
 ./install-stavrobot.sh --refresh-shelley-mode-release
 ```
+
+Notes:
+
+- `MANAGED_SHELLEY_DIR` tells installer-managed Shelley status/refresh lanes where your Shelley checkout lives.
+- Using `$HOME/managed_shelley` makes it explicit this is the installer-managed Shelley checkout.
+
 
 ## Make your exe.dev VM public (for Telegram/webhook integrations)
 
@@ -53,10 +63,10 @@ No `:8000` suffix is needed for the main shared/public port.
 
 ```bash
 # 1) Generate worker bundle from current Stavrobot config
-./install-stavrobot.sh --configure-cloudflare-email-worker --stavrobot-dir /opt/stavrobot
+./install-stavrobot.sh --configure-cloudflare-email-worker --stavrobot-dir "$STAVROBOT_DIR"
 
 # 2) Optional: deploy worker + upload WEBHOOK_SECRET automatically
-./install-stavrobot.sh --configure-cloudflare-email-worker --deploy-cloudflare-email-worker --stavrobot-dir /opt/stavrobot
+./install-stavrobot.sh --configure-cloudflare-email-worker --deploy-cloudflare-email-worker --stavrobot-dir "$STAVROBOT_DIR"
 ```
 
 Manual Cloudflare portal step still required:
@@ -127,6 +137,7 @@ Use user-owned paths by default:
 
 - installer repo: `$HOME/stavrobot-installer`
 - Stavrobot checkout: `$HOME/stavrobot`
+- managed Shelley checkout: `$HOME/managed_shelley`
 
 Why: cloning/building under `/opt/...` can fail for non-root users on fresh VMs.
 
@@ -137,4 +148,12 @@ sudo mkdir -p /opt/stavrobot-installer /opt/stavrobot /opt/shelley
 sudo chown -R "$USER:$USER" /opt/stavrobot-installer /opt/stavrobot /opt/shelley
 ```
 
-Managed Shelley refresh currently targets `/opt/shelley` by default in installer wrappers. If `/opt/shelley` is missing or not user-writable, create/chown it as above before running Shelley refresh/status commands.
+Managed Shelley refresh/status uses `MANAGED_SHELLEY_DIR` when set; otherwise it defaults to `/opt/shelley`.
+
+So with home-dir paths, export once before using Shelley commands:
+
+```bash
+export MANAGED_SHELLEY_DIR="$HOME/managed_shelley"
+```
+
+If you keep `/opt/shelley`, ensure it exists and is user-writable (create/chown as above).
