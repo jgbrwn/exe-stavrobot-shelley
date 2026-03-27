@@ -105,3 +105,18 @@ curl -fsS https://<vm-name>.exe.xyz/ >/dev/null && echo "public web ok"
 - Provider/API key setup is handled by the interactive installer flow.
 - OpenRouter path includes live model suggestions.
 - Advanced architecture/patch docs live under `docs/`.
+
+## Known limitations
+
+- Cloudflare Email Routing rule creation is still manual in the Cloudflare portal.
+- Some integrations (Signal/WhatsApp/authFile/login flows) still include manual operator activation steps.
+- Non-interactive full automation is not complete yet; the guided interactive installer path is the primary supported user flow.
+
+## Optional screenshots for docs maintainers
+
+When you are ready, add these under `docs/public/` and reference them here:
+
+- installer doctor success output
+- first-run installer completion summary
+- Cloudflare Email Routing dashboard route example
+- managed Shelley status (`--print-shelley-mode-status --basic`)

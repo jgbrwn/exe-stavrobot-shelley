@@ -22,6 +22,7 @@ Use this before tagging or publishing release artifacts.
 
 - [ ] `README_PUBLIC.md` matches current user install path
 - [ ] Root `README.md` references remain accurate
+- [ ] `CHANGELOG.md` updated for this milestone/release tag
 - [ ] No secrets or private state files staged
 
 ## 5) Optional `/opt/shelley` handoff lane
