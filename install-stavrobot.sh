@@ -841,7 +841,17 @@ if (( CF_EMAIL_WORKER_ONLY )); then
   if [[ -n "$CF_EMAIL_WORKER_ACCOUNT_ID" ]]; then
     cf_args+=(--account-id "$CF_EMAIL_WORKER_ACCOUNT_ID")
   fi
-  exec "$ROOT_DIR/install-cloudflare-email-worker.sh" "${cf_args[@]}"
+  "$ROOT_DIR/install-cloudflare-email-worker.sh" "${cf_args[@]}"
+
+  cat <<'EOF'
+
+[manual-cloudflare-steps]
+You still need to complete one Cloudflare portal step:
+  1) Cloudflare Dashboard -> Email -> Email Routing
+  2) Route inbound mail to the deployed worker (default: stavrobot-email-worker)
+  3) Send a test email and verify Stavrobot receives /email/webhook
+EOF
+  exit 0
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then

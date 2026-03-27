@@ -49,17 +49,27 @@ No `:8000` suffix is needed for the main shared/public port.
 
 (For alternate internal ports in 3000-9999 you can still use `:port`, but those are not your primary public URL.)
 
+## Cloudflare email worker (basic user flow)
+
+```bash
+# 1) Generate worker bundle from current Stavrobot config
+./install-stavrobot.sh --configure-cloudflare-email-worker --stavrobot-dir /opt/stavrobot
+
+# 2) Optional: deploy worker + upload WEBHOOK_SECRET automatically
+./install-stavrobot.sh --configure-cloudflare-email-worker --deploy-cloudflare-email-worker --stavrobot-dir /opt/stavrobot
+```
+
+Manual Cloudflare portal step still required:
+
+1. Open **Cloudflare Dashboard → Email → Email Routing** for your domain.
+2. Create/confirm route(s) to worker `stavrobot-email-worker` (or your override name).
+3. Send a test email and verify Stavrobot receives `/email/webhook` traffic.
+
 ## Most-used commands
 
 ```bash
 # refresh upstream stavrobot
 ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --refresh
-
-# Cloudflare email worker helper (bundle only)
-./install-stavrobot.sh --configure-cloudflare-email-worker --stavrobot-dir /opt/stavrobot
-
-# Cloudflare email worker helper (deploy + secret upload)
-./install-stavrobot.sh --configure-cloudflare-email-worker --deploy-cloudflare-email-worker --stavrobot-dir /opt/stavrobot
 
 # managed Shelley status
 ./install-stavrobot.sh --print-shelley-mode-status --basic
