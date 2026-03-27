@@ -95,20 +95,33 @@ Still manual in this track:
 ## Quickstart (most users)
 
 ```bash
-# First install / setup
+# 0) Preflight check on this VM (safe/read-only)
+./install-stavrobot.sh --doctor
+
+# 1) First install / setup (provider + API key setup is handled interactively)
 ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot
 
-# Later: refresh Stavrobot upstream + rebuild only when needed
+# 2) Later: refresh Stavrobot upstream + rebuild only when needed
 ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --refresh
 
-# Optional: refresh Shelley from upstream + reapply managed patch + run strict proof
+# 3) Optional: refresh Shelley from upstream + reapply managed patch + strict proof
 ./install-stavrobot.sh --refresh-shelley-mode-basic
 
-# Optional: inspect managed Shelley status
+# 4) Optional: release-lane Shelley refresh with required-runtime memory/recall suitability gate
+./install-stavrobot.sh --refresh-shelley-mode-release
+
+# 5) Optional: inspect managed Shelley status
 ./install-stavrobot.sh --print-shelley-mode-status --basic
+./install-stavrobot.sh --refresh-shelley-mode-release
 ```
 
 For this same short guide from the CLI: `./install-stavrobot.sh --help-basic`
+
+### Provider/key setup note
+
+Yes — provider and API key setup are already part of the installer’s interactive config flow during normal `--stavrobot-dir ...` install/refresh runs.
+
+For OpenRouter specifically, the installer also fetches current free-model suggestions and prompts for provider/model/key values in the same setup path.
 
 ## Planned usage
 
@@ -138,6 +151,8 @@ Current core installer flag semantics:
 Current installer-facing Shelley mode commands:
 
 ```bash
+./install-stavrobot.sh --doctor
+./install-stavrobot.sh --doctor --json
 ./install-stavrobot.sh --print-shelley-mode-status --basic
 ./install-stavrobot.sh --print-shelley-mode-status
 ./install-stavrobot.sh --print-shelley-mode-status --json
@@ -157,10 +172,15 @@ Current installer-facing Shelley mode commands:
 ./install-stavrobot.sh --refresh-shelley-mode --memory-suitability-gate-shelley-profile
 ./install-stavrobot.sh --refresh-shelley-mode --sync-shelley-upstream-ff-only
 ./install-stavrobot.sh --refresh-shelley-mode-basic
+./install-stavrobot.sh --refresh-shelley-mode-release
 ```
 
 What they do:
 
+- `--doctor`
+  - read-only preflight checker for required local tools/files and managed Shelley prerequisites
+- `--doctor --json`
+  - machine-readable preflight output for automation/use in external wrappers
 - `--print-shelley-mode-status`
   - read-only human status for managed Shelley mode
 - `--print-shelley-mode-status --json`
@@ -190,6 +210,8 @@ What they do:
   - fails if checkout is detached, lacks upstream tracking branch, or cannot be fast-forwarded
 - `--refresh-shelley-mode-basic`
   - convenience alias for common users: equivalent to `--refresh-shelley-mode --sync-shelley-upstream-ff-only --strict-shelley-raw-media-profile`
+- `--refresh-shelley-mode-release`
+  - release-lane alias: equivalent to `--refresh-shelley-mode --sync-shelley-upstream-ff-only --memory-suitability-gate-shelley-profile`
 - `--s2-shelley-narrow-fidelity-profile`
   - deterministic S2 narrow-fidelity fixture proof profile (runs `s2_markdown_tool_summary`, `s2_markdown_media_refs`, `s2_markdown_raw_tool_events` with strict assertions)
   - helper implementation: `run-shelley-managed-s2-narrow-fidelity-proof.sh`

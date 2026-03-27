@@ -157,3 +157,6 @@ assert_contains "$out" '--smoke-memory-suitability-gate-profile cannot be combin
 
 out=$("$ROOT_DIR/refresh-shelley-managed-s1.sh" --smoke-memory-suitability-gate-profile --smoke-s2-narrow-fidelity-profile 2>&1 || true)
 assert_contains "$out" '--smoke-memory-suitability-gate-profile cannot be combined with --smoke-s2-narrow-fidelity-profile'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --doctor --refresh-shelley-mode 2>&1 || true)
+assert_contains "$out" '--doctor cannot be combined with installer mutation or Shelley refresh/status flags'

@@ -42,6 +42,9 @@ SHELLEY_S2_NARROW_FIDELITY_PROFILE=0
 SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE=0
 SHELLEY_SYNC_UPSTREAM_FF_ONLY=0
 SHELLEY_REFRESH_BASIC=0
+SHELLEY_REFRESH_RELEASE=0
+DOCTOR_ONLY=0
+DOCTOR_JSON=0
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 
 ENV_PATH=""
@@ -64,6 +67,9 @@ usage_basic() {
   cat <<'EOF'
 Usage (most users):
 
+  # 0) Preflight doctor (safe/read-only)
+  ./install-stavrobot.sh --doctor
+
   # 1) First install / setup
   ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot
 
@@ -73,7 +79,10 @@ Usage (most users):
   # 3) Optional: refresh managed Shelley mode from upstream + reapply patch + strict proof
   ./install-stavrobot.sh --refresh-shelley-mode-basic
 
-  # 4) Optional: status checks
+  # 4) Optional: refresh managed Shelley mode + required-runtime memory suitability gate
+  ./install-stavrobot.sh --refresh-shelley-mode-release
+
+  # 5) Optional: status checks
   ./install-stavrobot.sh --print-shelley-mode-status --basic
   ./install-stavrobot.sh --print-shelley-mode-status
   ./install-stavrobot.sh --print-shelley-mode-status --json
@@ -120,6 +129,9 @@ Flags:
   --memory-suitability-gate-shelley-profile  Run aggregate required-runtime memory suitability gate profile during Shelley refresh
   --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
   --refresh-shelley-mode-basic      Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --strict-shelley-raw-media-profile
+  --refresh-shelley-mode-release    Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --memory-suitability-gate-shelley-profile
+  --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
+  --doctor --json               Emit machine-readable doctor output
   --help-basic                 Print basic user quickstart and common commands
   --help
 
@@ -153,11 +165,126 @@ Shelley mode helpers:
   --memory-suitability-gate-shelley-profile  Run aggregate required-runtime memory suitability gate profile during Shelley refresh
   --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
   --refresh-shelley-mode-basic      Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --strict-shelley-raw-media-profile
+  --refresh-shelley-mode-release    Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --memory-suitability-gate-shelley-profile
+  --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
+  --doctor --json               Emit machine-readable doctor output
 EOF
 }
 
 json_quote() {
   python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"
+}
+
+run_doctor() {
+  local as_json="${1:-0}"
+  local -a required_cmds=(git python3 docker curl node npx go tmux)
+  local ok_count=0
+  local fail_count=0
+
+  if [[ "$as_json" == "1" ]]; then
+    python3 - "$ROOT_DIR" <<'PY'
+import json, os, shutil, subprocess, sys
+root = sys.argv[1]
+required_cmds = ["git", "python3", "docker", "curl", "node", "npx", "go", "tmux"]
+required_files = [
+  "install-stavrobot.sh",
+  "refresh-shelley-managed-s1.sh",
+  "print-shelley-managed-status.sh",
+  "run-shelley-managed-memory-suitability-gate.sh",
+  "validate-shelley-patch-series.sh",
+]
+patch_files = [f"patches/shelley/series/{i:04d}" for i in range(1, 10)]
+state_path = "/var/lib/stavrobot-installer/shelley-bridge-profiles.json"
+opt_shelley = "/opt/shelley"
+
+def run(cmd):
+    try:
+      p = subprocess.run(cmd, shell=True, text=True, capture_output=True)
+      return p.returncode, (p.stdout or "").strip(), (p.stderr or "").strip()
+    except Exception as e:
+      return 1, "", str(e)
+
+checks = []
+for c in required_cmds:
+    checks.append({"name": f"cmd:{c}", "ok": shutil.which(c) is not None})
+for f in required_files:
+    checks.append({"name": f"file:{f}", "ok": os.path.isfile(os.path.join(root, f))})
+for p in patch_files:
+    matches = [x for x in os.listdir(os.path.join(root, "patches/shelley/series")) if x.startswith(os.path.basename(p)+"-") and x.endswith(".patch")]
+    checks.append({"name": f"patch:{os.path.basename(p)}", "ok": len(matches) == 1})
+checks.append({"name": "state:bridge-profiles", "ok": os.path.isfile(state_path)})
+checks.append({"name": "dir:/opt/shelley", "ok": os.path.isdir(opt_shelley)})
+if os.path.isdir(os.path.join(opt_shelley, ".git")):
+    rc, out, _ = run("git -C /opt/shelley rev-parse --short HEAD")
+    checks.append({"name": "opt-shelley:git", "ok": rc == 0, "value": out if rc == 0 else ""})
+else:
+    checks.append({"name": "opt-shelley:git", "ok": False})
+
+ok = sum(1 for c in checks if c.get("ok"))
+fail = sum(1 for c in checks if not c.get("ok"))
+print(json.dumps({"ok": fail == 0, "ok_count": ok, "fail_count": fail, "checks": checks}, indent=2))
+PY
+    return 0
+  fi
+
+  info "Running installer doctor preflight"
+  for cmd in "${required_cmds[@]}"; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+      printf '[ok] cmd:%s\n' "$cmd"
+      ((ok_count+=1))
+    else
+      printf '[fail] cmd:%s (missing)\n' "$cmd"
+      ((fail_count+=1))
+    fi
+  done
+
+  for path in \
+    "$ROOT_DIR/install-stavrobot.sh" \
+    "$ROOT_DIR/refresh-shelley-managed-s1.sh" \
+    "$ROOT_DIR/print-shelley-managed-status.sh" \
+    "$ROOT_DIR/run-shelley-managed-memory-suitability-gate.sh" \
+    "$ROOT_DIR/validate-shelley-patch-series.sh"; do
+    if [[ -f "$path" ]]; then
+      printf '[ok] file:%s\n' "${path#$ROOT_DIR/}"
+      ((ok_count+=1))
+    else
+      printf '[fail] file:%s (missing)\n' "${path#$ROOT_DIR/}"
+      ((fail_count+=1))
+    fi
+  done
+
+  local patch_dir="$ROOT_DIR/patches/shelley/series"
+  for n in 0001 0002 0003 0004 0005 0006 0007 0008 0009; do
+    if compgen -G "$patch_dir/${n}-*.patch" >/dev/null; then
+      printf '[ok] patch:%s\n' "$n"
+      ((ok_count+=1))
+    else
+      printf '[fail] patch:%s (missing)\n' "$n"
+      ((fail_count+=1))
+    fi
+  done
+
+  if [[ -f /var/lib/stavrobot-installer/shelley-bridge-profiles.json ]]; then
+    printf '[ok] state:bridge-profiles\n'
+    ((ok_count+=1))
+  else
+    printf '[warn] state:bridge-profiles missing (managed Shelley refresh may fail until installer state exists)\n'
+  fi
+
+  if [[ -d /opt/shelley/.git ]]; then
+    local shelley_head
+    shelley_head=$(git -C /opt/shelley rev-parse --short HEAD 2>/dev/null || true)
+    printf '[ok] opt-shelley:git (%s)\n' "${shelley_head:-unknown}"
+    ((ok_count+=1))
+  else
+    printf '[warn] opt-shelley:git missing (Shelley refresh/status paths unavailable until checkout exists)\n'
+  fi
+
+  printf '[summary] ok=%d fail=%d\n' "$ok_count" "$fail_count"
+  if (( fail_count > 0 )); then
+    die "Doctor preflight failed"
+  fi
+  info "Doctor preflight passed"
 }
 
 append_plugin_report() {
@@ -536,6 +663,14 @@ while [[ $# -gt 0 ]]; do
       SHELLEY_REFRESH_BASIC=1
       shift
       ;;
+    --refresh-shelley-mode-release)
+      SHELLEY_REFRESH_RELEASE=1
+      shift
+      ;;
+    --doctor)
+      DOCTOR_ONLY=1
+      shift
+      ;;
     --help-basic)
       usage_basic
       exit 0
@@ -556,6 +691,17 @@ if (( SHELLEY_REFRESH_BASIC )); then
   SHELLEY_STRICT_RAW_MEDIA_PROFILE=1
 fi
 
+if (( SHELLEY_REFRESH_RELEASE )); then
+  SHELLEY_REFRESH_ONLY=1
+  SHELLEY_SYNC_UPSTREAM_FF_ONLY=1
+  SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE=1
+fi
+
+if (( DOCTOR_ONLY )) && (( SHELLEY_STATUS_JSON )); then
+  DOCTOR_JSON=1
+  SHELLEY_STATUS_JSON=0
+fi
+
 if (( SHELLEY_REFRESH_ONLY )) && (( SHELLEY_STATUS_JSON )); then
   die "--json cannot be combined with --refresh-shelley-mode"
 fi
@@ -564,6 +710,9 @@ if (( SHELLEY_REFRESH_ONLY )) && (( SHELLEY_STATUS_BASIC )); then
 fi
 if (( SHELLEY_STATUS_JSON )) && (( SHELLEY_STATUS_BASIC )); then
   die "--json cannot be combined with --basic"
+fi
+if (( DOCTOR_ONLY )) && (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || REFRESH_ONLY || PLUGINS_ONLY || CONFIG_ONLY || SKIP_CONFIG || SKIP_PLUGINS || SHOW_SECRETS )); then
+  die "--doctor cannot be combined with installer mutation or Shelley refresh/status flags"
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then
@@ -631,6 +780,11 @@ if (( SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE == 1 && SHELLEY_STRICT_RAW_MEDIA_P
 fi
 if (( SHELLEY_MEMORY_SUITABILITY_GATE_PROFILE == 1 && SHELLEY_S2_NARROW_FIDELITY_PROFILE == 1 )); then
   die "--memory-suitability-gate-shelley-profile cannot be combined with --s2-shelley-narrow-fidelity-profile"
+fi
+
+if (( DOCTOR_ONLY )); then
+  run_doctor "$DOCTOR_JSON"
+  exit 0
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then
