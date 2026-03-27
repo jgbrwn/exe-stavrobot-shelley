@@ -160,3 +160,12 @@ assert_contains "$out" '--smoke-memory-suitability-gate-profile cannot be combin
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --doctor --refresh-shelley-mode 2>&1 || true)
 assert_contains "$out" '--doctor cannot be combined with installer mutation or Shelley refresh/status flags'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --deploy-cloudflare-email-worker 2>&1 || true)
+assert_contains "$out" '--deploy-cloudflare-email-worker, --cloudflare-worker-name, and --cloudflare-account-id require --configure-cloudflare-email-worker'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --cloudflare-worker-name foo 2>&1 || true)
+assert_contains "$out" '--deploy-cloudflare-email-worker, --cloudflare-worker-name, and --cloudflare-account-id require --configure-cloudflare-email-worker'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --configure-cloudflare-email-worker --refresh-shelley-mode --stavrobot-dir /tmp/stavrobot 2>&1 || true)
+assert_contains "$out" '--configure-cloudflare-email-worker cannot be combined with --refresh-shelley-mode'

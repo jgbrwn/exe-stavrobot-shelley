@@ -45,6 +45,10 @@ SHELLEY_REFRESH_BASIC=0
 SHELLEY_REFRESH_RELEASE=0
 DOCTOR_ONLY=0
 DOCTOR_JSON=0
+CF_EMAIL_WORKER_ONLY=0
+CF_EMAIL_WORKER_DEPLOY=0
+CF_EMAIL_WORKER_NAME=""
+CF_EMAIL_WORKER_ACCOUNT_ID=""
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 
 ENV_PATH=""
@@ -82,7 +86,10 @@ Usage (most users):
   # 4) Optional: refresh managed Shelley mode + required-runtime memory suitability gate
   ./install-stavrobot.sh --refresh-shelley-mode-release
 
-  # 5) Optional: status checks
+  # 5) Optional: Cloudflare email worker bundle/deploy helper
+  ./install-stavrobot.sh --configure-cloudflare-email-worker --stavrobot-dir /opt/stavrobot
+
+  # 6) Optional: status checks
   ./install-stavrobot.sh --print-shelley-mode-status --basic
   ./install-stavrobot.sh --print-shelley-mode-status
   ./install-stavrobot.sh --print-shelley-mode-status --json
@@ -130,6 +137,10 @@ Flags:
   --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
   --refresh-shelley-mode-basic      Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --strict-shelley-raw-media-profile
   --refresh-shelley-mode-release    Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --memory-suitability-gate-shelley-profile
+  --configure-cloudflare-email-worker   Run Cloudflare email worker helper using current Stavrobot config
+  --deploy-cloudflare-email-worker      With --configure-cloudflare-email-worker, also run wrangler deploy + secret upload
+  --cloudflare-worker-name NAME         Optional worker name override for Cloudflare helper
+  --cloudflare-account-id ID            Optional Cloudflare account ID for generated wrangler.toml
   --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
   --doctor --json               Emit machine-readable doctor output
   --help-basic                 Print basic user quickstart and common commands
@@ -166,6 +177,10 @@ Shelley mode helpers:
   --sync-shelley-upstream-ff-only   Fetch + pull --ff-only managed Shelley checkout before refresh patch/rebuild
   --refresh-shelley-mode-basic      Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --strict-shelley-raw-media-profile
   --refresh-shelley-mode-release    Convenience alias: --refresh-shelley-mode + --sync-shelley-upstream-ff-only + --memory-suitability-gate-shelley-profile
+  --configure-cloudflare-email-worker   Run Cloudflare email worker helper using current Stavrobot config
+  --deploy-cloudflare-email-worker      With --configure-cloudflare-email-worker, also run wrangler deploy + secret upload
+  --cloudflare-worker-name NAME         Optional worker name override for Cloudflare helper
+  --cloudflare-account-id ID            Optional Cloudflare account ID for generated wrangler.toml
   --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
   --doctor --json               Emit machine-readable doctor output
 EOF
@@ -667,6 +682,22 @@ while [[ $# -gt 0 ]]; do
       SHELLEY_REFRESH_RELEASE=1
       shift
       ;;
+    --configure-cloudflare-email-worker)
+      CF_EMAIL_WORKER_ONLY=1
+      shift
+      ;;
+    --deploy-cloudflare-email-worker)
+      CF_EMAIL_WORKER_DEPLOY=1
+      shift
+      ;;
+    --cloudflare-worker-name)
+      CF_EMAIL_WORKER_NAME="$2"
+      shift 2
+      ;;
+    --cloudflare-account-id)
+      CF_EMAIL_WORKER_ACCOUNT_ID="$2"
+      shift 2
+      ;;
     --doctor)
       DOCTOR_ONLY=1
       shift
@@ -705,13 +736,22 @@ fi
 if (( SHELLEY_REFRESH_ONLY )) && (( SHELLEY_STATUS_JSON )); then
   die "--json cannot be combined with --refresh-shelley-mode"
 fi
+if (( CF_EMAIL_WORKER_ONLY == 0 && (CF_EMAIL_WORKER_DEPLOY == 1 || ${#CF_EMAIL_WORKER_NAME} > 0 || ${#CF_EMAIL_WORKER_ACCOUNT_ID} > 0) )); then
+  die "--deploy-cloudflare-email-worker, --cloudflare-worker-name, and --cloudflare-account-id require --configure-cloudflare-email-worker"
+fi
+if (( CF_EMAIL_WORKER_ONLY == 1 && SHELLEY_REFRESH_ONLY == 1 )); then
+  die "--configure-cloudflare-email-worker cannot be combined with --refresh-shelley-mode"
+fi
+if (( CF_EMAIL_WORKER_ONLY == 1 && (SHELLEY_STATUS_JSON == 1 || SHELLEY_STATUS_BASIC == 1) )); then
+  die "--json/--basic cannot be combined with --configure-cloudflare-email-worker"
+fi
 if (( SHELLEY_REFRESH_ONLY )) && (( SHELLEY_STATUS_BASIC )); then
   die "--basic cannot be combined with --refresh-shelley-mode"
 fi
 if (( SHELLEY_STATUS_JSON )) && (( SHELLEY_STATUS_BASIC )); then
   die "--json cannot be combined with --basic"
 fi
-if (( DOCTOR_ONLY )) && (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || REFRESH_ONLY || PLUGINS_ONLY || CONFIG_ONLY || SKIP_CONFIG || SKIP_PLUGINS || SHOW_SECRETS )); then
+if (( DOCTOR_ONLY )) && (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || REFRESH_ONLY || PLUGINS_ONLY || CONFIG_ONLY || SKIP_CONFIG || SKIP_PLUGINS || SHOW_SECRETS || CF_EMAIL_WORKER_ONLY || CF_EMAIL_WORKER_DEPLOY )); then
   die "--doctor cannot be combined with installer mutation or Shelley refresh/status flags"
 fi
 
@@ -785,6 +825,23 @@ fi
 if (( DOCTOR_ONLY )); then
   run_doctor "$DOCTOR_JSON"
   exit 0
+fi
+
+if (( CF_EMAIL_WORKER_ONLY )); then
+  [[ -n "$STAVROBOT_DIR" ]] || die "--configure-cloudflare-email-worker requires --stavrobot-dir"
+  (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHELLEY_STATUS_ONLY == 0 && SHELLEY_REFRESH_ONLY == 0 )) || \
+    die "--configure-cloudflare-email-worker cannot be combined with installer mutation/status/refresh flags"
+  cf_args=(--stavrobot-dir "$STAVROBOT_DIR")
+  if (( CF_EMAIL_WORKER_DEPLOY )); then
+    cf_args+=(--deploy)
+  fi
+  if [[ -n "$CF_EMAIL_WORKER_NAME" ]]; then
+    cf_args+=(--worker-name "$CF_EMAIL_WORKER_NAME")
+  fi
+  if [[ -n "$CF_EMAIL_WORKER_ACCOUNT_ID" ]]; then
+    cf_args+=(--account-id "$CF_EMAIL_WORKER_ACCOUNT_ID")
+  fi
+  exec "$ROOT_DIR/install-cloudflare-email-worker.sh" "${cf_args[@]}"
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then

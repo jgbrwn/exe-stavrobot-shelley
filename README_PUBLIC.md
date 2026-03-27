@@ -55,6 +55,12 @@ No `:8000` suffix is needed for the main shared/public port.
 # refresh upstream stavrobot
 ./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --refresh
 
+# Cloudflare email worker helper (bundle only)
+./install-stavrobot.sh --configure-cloudflare-email-worker --stavrobot-dir /opt/stavrobot
+
+# Cloudflare email worker helper (deploy + secret upload)
+./install-stavrobot.sh --configure-cloudflare-email-worker --deploy-cloudflare-email-worker --stavrobot-dir /opt/stavrobot
+
 # managed Shelley status
 ./install-stavrobot.sh --print-shelley-mode-status --basic
 
@@ -79,6 +85,10 @@ curl -fsS https://<vm-name>.exe.xyz/ >/dev/null && echo "public web ok"
 - If Shelley refresh fails, run:
   - `./install-stavrobot.sh --print-shelley-mode-status --basic`
   - `./install-stavrobot.sh --refresh-shelley-mode-release`
+- If Cloudflare email is not receiving:
+  - ensure VM is public (`share set-public`) and using the intended shared port
+  - ensure Cloudflare Email Routing rule is created to the deployed worker
+  - verify worker secret `WEBHOOK_SECRET` matches Stavrobot config
 
 ## Notes
 
