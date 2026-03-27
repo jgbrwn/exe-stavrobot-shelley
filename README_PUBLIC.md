@@ -5,15 +5,15 @@ Install and run [Stavrobot](https://github.com/skorokithakis/stavrobot) on an [e
 ## 5-minute VM quickstart
 
 ```bash
-# 1) clone
-git clone https://github.com/jgbrwn/exe-stavrobot-shelley.git /opt/stavrobot-installer
-cd /opt/stavrobot-installer
+# 1) clone (home-dir path avoids /opt permission issues)
+git clone https://github.com/jgbrwn/exe-stavrobot-shelley.git "$HOME/stavrobot-installer"
+cd "$HOME/stavrobot-installer"
 
 # 2) preflight (safe)
 ./install-stavrobot.sh --doctor
 
 # 3) install Stavrobot (interactive provider/key setup)
-./install-stavrobot.sh --stavrobot-dir /opt/stavrobot
+./install-stavrobot.sh --stavrobot-dir "$HOME/stavrobot"
 
 # 4) optional: managed Shelley refresh + release-lane memory suitability gate
 ./install-stavrobot.sh --refresh-shelley-mode-release
@@ -69,7 +69,7 @@ Manual Cloudflare portal step still required:
 
 ```bash
 # refresh upstream stavrobot
-./install-stavrobot.sh --stavrobot-dir /opt/stavrobot --refresh
+./install-stavrobot.sh --stavrobot-dir "$HOME/stavrobot" --refresh
 
 # managed Shelley status
 ./install-stavrobot.sh --print-shelley-mode-status --basic
@@ -120,3 +120,21 @@ When you are ready, add these under `docs/public/` and reference them here:
 - first-run installer completion summary
 - Cloudflare Email Routing dashboard route example
 - managed Shelley status (`--print-shelley-mode-status --basic`)
+
+## Permissions and path guidance (exe.dev)
+
+Use user-owned paths by default:
+
+- installer repo: `$HOME/stavrobot-installer`
+- Stavrobot checkout: `$HOME/stavrobot`
+
+Why: cloning/building under `/opt/...` can fail for non-root users on fresh VMs.
+
+If you *want* `/opt/...`, create/chown once first:
+
+```bash
+sudo mkdir -p /opt/stavrobot-installer /opt/stavrobot /opt/shelley
+sudo chown -R "$USER:$USER" /opt/stavrobot-installer /opt/stavrobot /opt/shelley
+```
+
+Managed Shelley refresh currently targets `/opt/shelley` by default in installer wrappers. If `/opt/shelley` is missing or not user-writable, create/chown it as above before running Shelley refresh/status commands.

@@ -49,6 +49,7 @@ CF_EMAIL_WORKER_ONLY=0
 CF_EMAIL_WORKER_DEPLOY=0
 CF_EMAIL_WORKER_NAME=""
 CF_EMAIL_WORKER_ACCOUNT_ID=""
+MANAGED_SHELLEY_DIR="${MANAGED_SHELLEY_DIR:-${SHELLEY_DIR:-/opt/shelley}}"
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 
 ENV_PATH=""
@@ -148,12 +149,13 @@ Flags:
 
 Environment:
   STAVROBOT_BASE_URL   Local Stavrobot URL for readiness/plugin calls (default: http://localhost:8000)
+  MANAGED_SHELLEY_DIR  Managed Shelley checkout path for refresh/status lanes (default: /opt/shelley)
 
 Shelley mode helpers:
   --print-shelley-mode-status   Read-only managed Shelley mode status
   --json                        With --print-shelley-mode-status, emit machine-readable JSON
   --basic                       With --print-shelley-mode-status, emit compact basic summary
-  --refresh-shelley-mode        Apply/rebuild/smoke managed Shelley mode in /opt/shelley
+  --refresh-shelley-mode        Apply/rebuild/smoke managed Shelley mode (default checkout: MANAGED_SHELLEY_DIR or /opt/shelley)
   --allow-dirty-shelley         Allow managed Shelley refresh against a dirty checkout
   --skip-shelley-smoke          Skip isolated Shelley smoke validation during refresh
   --expect-shelley-display-data Assert persisted display_data during Shelley smoke validation
@@ -197,9 +199,10 @@ run_doctor() {
   local fail_count=0
 
   if [[ "$as_json" == "1" ]]; then
-    python3 - "$ROOT_DIR" <<'PY'
-import json, os, shutil, subprocess, sys
+    python3 - "$ROOT_DIR" "$MANAGED_SHELLEY_DIR" <<'PY'
+import json, os, shlex, shutil, subprocess, sys
 root = sys.argv[1]
+managed_shelley = sys.argv[2]
 required_cmds = ["git", "python3", "docker", "curl", "node", "npx", "go", "tmux"]
 required_files = [
   "install-stavrobot.sh",
@@ -210,7 +213,6 @@ required_files = [
 ]
 patch_files = [f"patches/shelley/series/{i:04d}" for i in range(1, 10)]
 state_path = "/var/lib/stavrobot-installer/shelley-bridge-profiles.json"
-opt_shelley = "/opt/shelley"
 
 def run(cmd):
     try:
@@ -228,12 +230,12 @@ for p in patch_files:
     matches = [x for x in os.listdir(os.path.join(root, "patches/shelley/series")) if x.startswith(os.path.basename(p)+"-") and x.endswith(".patch")]
     checks.append({"name": f"patch:{os.path.basename(p)}", "ok": len(matches) == 1})
 checks.append({"name": "state:bridge-profiles", "ok": os.path.isfile(state_path)})
-checks.append({"name": "dir:/opt/shelley", "ok": os.path.isdir(opt_shelley)})
-if os.path.isdir(os.path.join(opt_shelley, ".git")):
-    rc, out, _ = run("git -C /opt/shelley rev-parse --short HEAD")
-    checks.append({"name": "opt-shelley:git", "ok": rc == 0, "value": out if rc == 0 else ""})
+checks.append({"name": f"dir:{managed_shelley}", "ok": os.path.isdir(managed_shelley)})
+if os.path.isdir(os.path.join(managed_shelley, ".git")):
+    rc, out, _ = run(f"git -C {shlex.quote(managed_shelley)} rev-parse --short HEAD")
+    checks.append({"name": "managed-shelley:git", "ok": rc == 0, "value": out if rc == 0 else "", "path": managed_shelley})
 else:
-    checks.append({"name": "opt-shelley:git", "ok": False})
+    checks.append({"name": "managed-shelley:git", "ok": False, "path": managed_shelley})
 
 ok = sum(1 for c in checks if c.get("ok"))
 fail = sum(1 for c in checks if not c.get("ok"))
@@ -286,13 +288,13 @@ PY
     printf '[warn] state:bridge-profiles missing (managed Shelley refresh may fail until installer state exists)\n'
   fi
 
-  if [[ -d /opt/shelley/.git ]]; then
+  if [[ -d "$MANAGED_SHELLEY_DIR/.git" ]]; then
     local shelley_head
-    shelley_head=$(git -C /opt/shelley rev-parse --short HEAD 2>/dev/null || true)
-    printf '[ok] opt-shelley:git (%s)\n' "${shelley_head:-unknown}"
+    shelley_head=$(git -C "$MANAGED_SHELLEY_DIR" rev-parse --short HEAD 2>/dev/null || true)
+    printf '[ok] managed-shelley:git (%s @ %s)\n' "${shelley_head:-unknown}" "$MANAGED_SHELLEY_DIR"
     ((ok_count+=1))
   else
-    printf '[warn] opt-shelley:git missing (Shelley refresh/status paths unavailable until checkout exists)\n'
+    printf '[warn] managed-shelley:git missing at %s (Shelley refresh/status paths unavailable until checkout exists)\n' "$MANAGED_SHELLEY_DIR"
   fi
 
   printf '[summary] ok=%d fail=%d\n' "$ok_count" "$fail_count"
@@ -855,7 +857,7 @@ EOF
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then
-  status_args=()
+  status_args=(--shelley-dir "$MANAGED_SHELLEY_DIR")
   if (( SHELLEY_STATUS_JSON )); then
     status_args+=(--json)
   fi
@@ -866,7 +868,7 @@ if (( SHELLEY_STATUS_ONLY )); then
 fi
 
 if (( SHELLEY_REFRESH_ONLY )); then
-  refresh_args=(--shelley-dir /opt/shelley --profile-state-path /var/lib/stavrobot-installer/shelley-bridge-profiles.json)
+  refresh_args=(--shelley-dir "$MANAGED_SHELLEY_DIR" --profile-state-path /var/lib/stavrobot-installer/shelley-bridge-profiles.json)
   if (( SHELLEY_ALLOW_DIRTY )); then
     refresh_args+=(--allow-dirty)
   fi
