@@ -27,6 +27,7 @@ Notes:
 
 - `MANAGED_SHELLEY_DIR` tells installer-managed Shelley status/refresh lanes where your Shelley checkout lives.
 - Using `$HOME/managed_shelley` makes it explicit this is the installer-managed Shelley checkout.
+- If `--stavrobot-dir` does not exist, installer now auto-clones Stavrobot there.
 
 
 ## Make your exe.dev VM public (for Telegram/webhook integrations)
@@ -101,6 +102,7 @@ curl -fsS https://<vm-name>.exe.xyz/ >/dev/null && echo "public web ok"
 ## Troubleshooting
 
 - If `--doctor` fails, install missing tools first and rerun it.
+- If installer says it cannot create/clone into your `--stavrobot-dir`, switch to a user-owned path (for example `$HOME/stavrobot`) or create/chown your target path first.
 - If Docker permission errors appear, add your user to `docker` group and re-login.
 - If Shelley refresh fails, run:
   - `./install-stavrobot.sh --print-shelley-mode-status --basic`

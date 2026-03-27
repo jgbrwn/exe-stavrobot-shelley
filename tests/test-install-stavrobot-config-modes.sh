@@ -66,3 +66,10 @@ assert_contains "$out" 'Skip-config mode: reusing existing config files'
 assert_contains "$out" 'No rebuild needed'
 
 printf 'install-stavrobot config-mode tests passed\n'
+
+TMP_CLONE_ROOT=$(mktemp -d)
+NEW_STAVROBOT_DIR="$TMP_CLONE_ROOT/stavrobot-new"
+out=$(SHELLEY_INSTALLER_TEST_SKIP_OPENROUTER_FETCH=1 "$ROOT_DIR/install-stavrobot.sh" --stavrobot-dir "$NEW_STAVROBOT_DIR" --skip-config --skip-plugins 2>&1 || true)
+assert_contains "$out" "Cloning stavrobot into $NEW_STAVROBOT_DIR"
+assert_contains "$out" "Skip-config mode: reusing existing config files"
+rm -rf "$TMP_CLONE_ROOT"

@@ -50,6 +50,7 @@ CF_EMAIL_WORKER_DEPLOY=0
 CF_EMAIL_WORKER_NAME=""
 CF_EMAIL_WORKER_ACCOUNT_ID=""
 MANAGED_SHELLEY_DIR="${MANAGED_SHELLEY_DIR:-${SHELLEY_DIR:-/opt/shelley}}"
+STAVROBOT_REPO_URL="${STAVROBOT_REPO_URL:-https://github.com/skorokithakis/stavrobot.git}"
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
 
 ENV_PATH=""
@@ -149,6 +150,7 @@ Flags:
 
 Environment:
   STAVROBOT_BASE_URL   Local Stavrobot URL for readiness/plugin calls (default: http://localhost:8000)
+  STAVROBOT_REPO_URL   Upstream Stavrobot repo URL to clone when --stavrobot-dir is missing (default: https://github.com/skorokithakis/stavrobot.git)
   MANAGED_SHELLEY_DIR  Managed Shelley checkout path for refresh/status lanes (default: /opt/shelley)
 
 Shelley mode helpers:
@@ -942,7 +944,7 @@ require_cmd python3
 require_cmd docker
 require_cmd curl
 
-validate_stavrobot_repo "$STAVROBOT_DIR"
+ensure_stavrobot_checkout "$STAVROBOT_DIR" "$STAVROBOT_REPO_URL"
 mkdir -p "$ROOT_DIR/state"
 ENV_PATH="$STAVROBOT_DIR/.env"
 CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
