@@ -19,7 +19,7 @@ This directory now contains both:
 
 The `*.patch` files are repo-owned review/apply artifacts split out of the single cleaned runtime prototype captured from `/opt/shelley`.
 
-They have now also been replay/apply validated in order (`0001` → `0004`) against a fresh upstream Shelley checkout created from `/tmp/shelley-official` commit `5b07230`.
+They have now also been replay/apply validated in order (`0001` → `0009`) against a fresh upstream Shelley checkout created from `/tmp/shelley-official` commit `5b07230`.
 
 Current validation result:
 

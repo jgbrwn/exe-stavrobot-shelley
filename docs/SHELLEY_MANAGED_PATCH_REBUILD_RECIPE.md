@@ -450,7 +450,7 @@ The repo now also includes a first replay/apply validator for the split series:
 That helper:
 
 - creates a detached worktree from a chosen upstream Shelley checkout/ref
-- runs `git apply --check` for `0001` → `0004`
+- runs `git apply --check` for the full managed stack (`0001` → `0009`)
 - applies the series in order
 - builds upstream UI assets with `npx --yes pnpm@10.28.0`
 - runs `go test ./server/... ./db/...`
@@ -463,7 +463,7 @@ The repo now also includes a first managed refresh helper:
 
 That helper:
 
-- reapplies or skips the owned `0001` → `0004` series against a managed Shelley checkout
+- reapplies or skips the owned `0001` → `0009` series against a managed Shelley checkout
 - regenerates sqlc output
 - rebuilds UI assets, templates, and `bin/shelley`
 - optionally runs `smoke-test-shelley-managed-s1.sh`
