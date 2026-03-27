@@ -4,7 +4,7 @@
 
 # Stavrobot installer
 
-Phase 1 installer project for deploying and updating [stavrobot](https://github.com/skorokithakis/stavrobot) on an exe.dev VM.
+Phase 1 installer project for deploying and updating [stavrobot](https://github.com/skorokithakis/stavrobot) on an [exe.dev](https://exe.dev/docs/all) VM.
 
 ## Phase 1 scope
 

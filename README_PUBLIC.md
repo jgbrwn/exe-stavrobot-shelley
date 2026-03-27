@@ -1,12 +1,12 @@
 # exe-stavrobot-shelley (public quickstart)
 
-Install and run Stavrobot on an exe.dev VM, with optional managed Shelley integration.
+Install and run [Stavrobot](https://github.com/skorokithakis/stavrobot) on an [exe.dev](https://exe.dev) VM, with optional managed [Shelley](https://github.com/boldsoftware/shelley) integration.
 
 ## 5-minute VM quickstart
 
 ```bash
 # 1) clone
-git clone https://github.com/<org>/exe-stavrobot-shelley.git /opt/stavrobot-installer
+git clone https://github.com/jgbrwn/exe-stavrobot-shelley.git /opt/stavrobot-installer
 cd /opt/stavrobot-installer
 
 # 2) preflight (safe)

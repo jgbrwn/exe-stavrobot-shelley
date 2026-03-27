@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/your-org/exe-stavrobot-shelley.git}"
+REPO_URL="${REPO_URL:-https://github.com/jgbrwn/exe-stavrobot-shelley.git}"
 DEST_DIR="${DEST_DIR:-/opt/stavrobot-installer}"
 
 if [[ $# -gt 0 ]]; then

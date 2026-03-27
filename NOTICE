@@ -1,0 +1,17 @@
+# Notices and third-party acknowledgements
+
+This project orchestrates installation/integration workflows around upstream projects,
+most notably:
+
+- Stavrobot: https://github.com/skorokithakis/stavrobot
+- Shelley: https://github.com/boldsoftware/shelley
+
+Please review and comply with each upstream project's license and notices when using,
+deploying, modifying, or redistributing integrated systems.
+
+Observed upstream license identifiers at time of writing:
+
+- Stavrobot: AGPL-3.0 (`LICENSE` in upstream repository)
+- Shelley: Apache-2.0 (`LICENSE` in upstream repository)
+
+This repository does not replace upstream license terms; it is an operational installer/integration layer.
