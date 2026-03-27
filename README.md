@@ -116,7 +116,6 @@ Still manual in this track:
 
 # 5) Optional: inspect managed Shelley status
 ./install-stavrobot.sh --print-shelley-mode-status --basic
-./install-stavrobot.sh --refresh-shelley-mode-release
 ```
 
 For this same short guide from the CLI: `./install-stavrobot.sh --help-basic`
@@ -126,6 +125,25 @@ For this same short guide from the CLI: `./install-stavrobot.sh --help-basic`
 Yes — provider and API key setup are already part of the installer’s interactive config flow during normal `--stavrobot-dir ...` install/refresh runs.
 
 For OpenRouter specifically, the installer also fetches current free-model suggestions and prompts for provider/model/key values in the same setup path.
+
+### exe.dev public URL for webhooks/integrations
+
+If you need inbound webhooks (for example Telegram/email flows), mark the VM public and pin the shared port:
+
+```bash
+ssh exe.dev share set-public <vm-name>
+ssh exe.dev share port <vm-name> 8000
+```
+
+Primary public URL shape:
+
+- `https://<vm-name>.exe.xyz` (no `:8000` suffix)
+
+Return to private mode when needed:
+
+```bash
+ssh exe.dev share set-private <vm-name>
+```
 
 ## Planned usage
 

@@ -29,6 +29,12 @@ To make your VM public, run from your local machine:
 ssh exe.dev share set-public <vm-name>
 ```
 
+To switch back to private access later:
+
+```bash
+ssh exe.dev share set-private <vm-name>
+```
+
 To ensure the proxy points at your Stavrobot port (default 8000):
 
 ```bash
