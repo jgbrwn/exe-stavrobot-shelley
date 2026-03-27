@@ -19,6 +19,30 @@ cd /opt/stavrobot-installer
 ./install-stavrobot.sh --refresh-shelley-mode-release
 ```
 
+## Make your exe.dev VM public (for Telegram/webhook integrations)
+
+By default, exe.dev HTTP proxy access is private.
+
+To make your VM public, run from your local machine:
+
+```bash
+ssh exe.dev share set-public <vm-name>
+```
+
+To ensure the proxy points at your Stavrobot port (default 8000):
+
+```bash
+ssh exe.dev share port <vm-name> 8000
+```
+
+Then your public base URL is:
+
+- `https://<vm-name>.exe.xyz`
+
+No `:8000` suffix is needed for the main shared/public port.
+
+(For alternate internal ports in 3000-9999 you can still use `:port`, but those are not your primary public URL.)
+
 ## Most-used commands
 
 ```bash
@@ -31,6 +55,24 @@ cd /opt/stavrobot-installer
 # managed Shelley strict refresh
 ./install-stavrobot.sh --refresh-shelley-mode-basic
 ```
+
+## Quick verification
+
+```bash
+# local health
+curl -fsS http://localhost:8000/ >/dev/null && echo "local web ok"
+
+# public health (after set-public)
+curl -fsS https://<vm-name>.exe.xyz/ >/dev/null && echo "public web ok"
+```
+
+## Troubleshooting
+
+- If `--doctor` fails, install missing tools first and rerun it.
+- If Docker permission errors appear, add your user to `docker` group and re-login.
+- If Shelley refresh fails, run:
+  - `./install-stavrobot.sh --print-shelley-mode-status --basic`
+  - `./install-stavrobot.sh --refresh-shelley-mode-release`
 
 ## Notes
 
