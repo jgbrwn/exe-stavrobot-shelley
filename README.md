@@ -1,3 +1,7 @@
+> New users: start with **[README_PUBLIC.md](./README_PUBLIC.md)** for the consumer-facing quickstart.
+>
+> This `README.md` is the full project/operator reference and includes deeper architecture + managed Shelley patch-series details.
+
 # Stavrobot installer
 
 Phase 1 installer project for deploying and updating [stavrobot](https://github.com/skorokithakis/stavrobot) on an exe.dev VM.
