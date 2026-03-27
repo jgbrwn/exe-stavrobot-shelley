@@ -21,6 +21,7 @@ ISOLATION_PROFILE_STATE_PATH=""
 ISOLATION_BRIDGE_REQUEST_TIMEOUT="${ISOLATION_BRIDGE_REQUEST_TIMEOUT:-85}"
 ISOLATION_BRIDGE_RETRIES="${ISOLATION_BRIDGE_RETRIES:-1}"
 ISOLATION_BRIDGE_RETRY_DELAY="${ISOLATION_BRIDGE_RETRY_DELAY:-2}"
+PNPM_CMD="${PNPM_CMD:-npx --yes pnpm@10.28.0}"
 
 find_port_listener() {
   if command -v ss >/dev/null 2>&1; then
@@ -67,6 +68,7 @@ Flags:
                             Override per-seed isolation bridge --retries (default: 1)
   --isolation-bridge-retry-delay SEC
                             Override per-seed isolation bridge --retry-delay (default: 2)
+  --pnpm-cmd CMD             Command used for pnpm UI rebuild fallback (default: npx --yes pnpm@10.28.0)
   --keep-server              Leave validation server running after completion
   --help
 USAGE
@@ -126,6 +128,10 @@ while [[ $# -gt 0 ]]; do
       ISOLATION_BRIDGE_RETRY_DELAY="$2"
       shift 2
       ;;
+    --pnpm-cmd)
+      PNPM_CMD="$2"
+      shift 2
+      ;;
     --keep-server)
       KEEP_SERVER=1
       shift
@@ -144,6 +150,9 @@ require_cmd tmux
 require_cmd curl
 require_cmd sqlite3
 require_cmd python3
+require_cmd node
+require_cmd npx
+require_cmd go
 
 [[ "$PORT" =~ ^[0-9]+$ ]] || die "--port must be numeric"
 [[ "$ISOLATION_BRIDGE_REQUEST_TIMEOUT" =~ ^[0-9]+$ ]] || die "--isolation-bridge-request-timeout must be numeric"
@@ -369,6 +378,19 @@ stamp=$(date +%s)
 [[ -n "$DB_PATH" ]] || DB_PATH="/tmp/shelley-s4-recall-${PORT}-${stamp}.db"
 [[ -n "$TMUX_SESSION" ]] || TMUX_SESSION="shelley-s4-recall-${PORT}-${stamp}"
 BASE_URL="http://localhost:$PORT"
+
+info "Ensuring Shelley UI build is current for validation server"
+(
+  cd "$SHELLEY_DIR/ui"
+  eval "$PNPM_CMD install --frozen-lockfile"
+  eval "$PNPM_CMD run build"
+)
+
+info "Rebuilding managed Shelley binary after UI build"
+(
+  cd "$SHELLEY_DIR"
+  go build -o "$SHELLEY_BIN" ./cmd/shelley
+)
 
 rm -f "$DB_PATH" "$SERVER_LOG"
 tmux kill-session -t "$TMUX_SESSION" >/dev/null 2>&1 || true
