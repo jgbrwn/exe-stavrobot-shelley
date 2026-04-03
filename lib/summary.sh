@@ -62,7 +62,9 @@ EOF
   fi
   if [[ "$email_enabled" == "true" ]]; then
     cat <<'EOF'
-- Email config is present. Cloudflare Email Worker deployment is still manual in Phase 1.
+- Email config is present. Choose inbound delivery path:
+  - Cloudflare worker: ./install-stavrobot.sh --configure-cloudflare-email-worker --stavrobot-dir <path>
+  - exe.dev receive-email bridge: ./install-stavrobot.sh --configure-exedev-email-bridge --stavrobot-dir <path>
 EOF
   fi
 }

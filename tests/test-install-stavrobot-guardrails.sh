@@ -169,3 +169,13 @@ assert_contains "$out" '--deploy-cloudflare-email-worker, --cloudflare-worker-na
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --configure-cloudflare-email-worker --refresh-shelley-mode --stavrobot-dir /tmp/stavrobot 2>&1 || true)
 assert_contains "$out" '--configure-cloudflare-email-worker cannot be combined with --refresh-shelley-mode'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --disable-exedev-email-bridge 2>&1 || true)
+assert_contains "$out" '--disable-exedev-email-bridge requires --configure-exedev-email-bridge'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --configure-exedev-email-bridge --refresh-shelley-mode --stavrobot-dir /tmp/stavrobot 2>&1 || true)
+assert_contains "$out" '--configure-exedev-email-bridge cannot be combined with --refresh-shelley-mode'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --configure-cloudflare-email-worker --configure-exedev-email-bridge --stavrobot-dir /tmp/stavrobot 2>&1 || true)
+assert_contains "$out" '--configure-cloudflare-email-worker cannot be combined with --configure-exedev-email-bridge'
+

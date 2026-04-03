@@ -26,7 +26,7 @@ Phase 1 installer project for deploying and updating [stavrobot](https://github.
 
 ## Phase 2 status
 
-Two Phase 2 tracks are active and substantially implemented:
+Three Phase 2 tracks are active and substantially implemented:
 
 ### Cloudflare automation
 
@@ -38,6 +38,17 @@ Remaining manual steps in this track:
 
 - Cloudflare account auth/login if not already set up
 - Cloudflare Email Routing rule creation in the dashboard
+
+### exe.dev email bridge automation
+
+- `install-exedev-email-bridge.sh` configures a local systemd bridge from `~/Maildir/new/` to Stavrobot `/email/webhook`
+- this provides an inbound email alternative to the Cloudflare worker path when running on exe.dev
+- installer helper supports enable and disable flows (`--configure-exedev-email-bridge`, `--disable-exedev-email-bridge`)
+
+Remaining manual steps in this track:
+
+- enable receive-email for the VM (`ssh exe.dev share receive-email <vmname> on`)
+- monitor bridge service logs and Maildir health
 
 ### Shelley integration MVP
 
@@ -514,6 +525,7 @@ This file may contain plugin secrets. It is written with mode `0600`.
 - `--skip-config` reuses the current `.env` and `data/main/config.toml`; pair it with `--skip-plugins` when you want a mostly no-op validation pass.
 - The installer now has a first-class OpenRouter provider path with live free-model selection, but current upstream Stavrobot config still lacks an explicit arbitrary base-URL field for broader arbitrary OpenAI-compatible endpoint setup.
 - Cloudflare email worker automation currently generates/deploys the worker bundle, but Email Routing rule creation is still manual.
+- exe.dev receive-email bridge automation is available as an alternative inbound path; outbound send_email still requires SMTP.
 - Non-interactive automation is not finished yet.
 
 ## Manual integrations still left to the operator
@@ -523,7 +535,8 @@ The installer can generate config for these, but some final activation steps are
 - `authFile` login flow
 - Signal registration/linking
 - WhatsApp QR linking
-- Cloudflare Email Routing rule creation
+- Cloudflare Email Routing rule creation (if using Cloudflare inbound path)
+- exe.dev `share receive-email ... on` enable step (if using exe.dev inbound path)
 - Claude Code login for the coder container
 
 ## Plugin run report
@@ -532,7 +545,9 @@ The most recent plugin install/configure results are written to:
 
 - `state/last-plugin-report.txt`
 
-## Cloudflare email worker automation
+## Email inbound automation options
+
+### Cloudflare email worker automation
 
 Generate a worker bundle from existing Stavrobot config:
 
@@ -563,6 +578,28 @@ Contents:
 - `.dev.vars.example`
 - `README.md`
 - `CHECKLIST.md`
+
+### exe.dev receive-email bridge automation
+
+Install/start the Maildir -> Stavrobot webhook bridge service:
+
+```bash
+./install-exedev-email-bridge.sh --stavrobot-dir /opt/stavrobot
+```
+
+Disable/stop bridge service:
+
+```bash
+./install-exedev-email-bridge.sh --stavrobot-dir /opt/stavrobot --disable-service
+```
+
+The bridge reads emails delivered to `~/Maildir/new/` (via exe.dev receive-email) and forwards them to `<publicHostname>/email/webhook` with Stavrobot `email.webhookSecret` auth.
+
+Manual exe.dev step still required:
+
+```bash
+ssh exe.dev share receive-email <vmname> on
+```
 
 ## Shelley integration MVP
 

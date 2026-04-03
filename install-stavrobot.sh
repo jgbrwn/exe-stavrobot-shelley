@@ -49,6 +49,8 @@ CF_EMAIL_WORKER_ONLY=0
 CF_EMAIL_WORKER_DEPLOY=0
 CF_EMAIL_WORKER_NAME=""
 CF_EMAIL_WORKER_ACCOUNT_ID=""
+EXEDEV_EMAIL_BRIDGE_ONLY=0
+EXEDEV_EMAIL_BRIDGE_DISABLE=0
 MANAGED_SHELLEY_DIR="${MANAGED_SHELLEY_DIR:-${SHELLEY_DIR:-/opt/shelley}}"
 STAVROBOT_REPO_URL="${STAVROBOT_REPO_URL:-https://github.com/skorokithakis/stavrobot.git}"
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
@@ -65,6 +67,7 @@ CODER_ENABLED=false
 SIGNAL_ENABLED=false
 WHATSAPP_ENABLED=false
 EMAIL_ENABLED=false
+EMAIL_TRANSPORT_MODE="smtp"
 PLUGINS_SELECTED_COUNT=0
 PLUGINS_HANDLED=0
 PLUGIN_REPORT_FILE=""
@@ -91,7 +94,10 @@ Usage (most users):
   # 5) Optional: Cloudflare email worker bundle/deploy helper
   ./install-stavrobot.sh --configure-cloudflare-email-worker --stavrobot-dir /opt/stavrobot
 
-  # 6) Optional: status checks
+  # 6) Optional: exe.dev inbound email bridge helper (alternative to Cloudflare)
+  ./install-stavrobot.sh --configure-exedev-email-bridge --stavrobot-dir /opt/stavrobot
+
+  # 7) Optional: status checks
   ./install-stavrobot.sh --print-shelley-mode-status --basic
   ./install-stavrobot.sh --print-shelley-mode-status
   ./install-stavrobot.sh --print-shelley-mode-status --json
@@ -143,6 +149,8 @@ Flags:
   --deploy-cloudflare-email-worker      With --configure-cloudflare-email-worker, also run wrangler deploy + secret upload
   --cloudflare-worker-name NAME         Optional worker name override for Cloudflare helper
   --cloudflare-account-id ID            Optional Cloudflare account ID for generated wrangler.toml
+  --configure-exedev-email-bridge       Run exe.dev Maildir->Stavrobot /email/webhook bridge helper
+  --disable-exedev-email-bridge         With --configure-exedev-email-bridge, stop/disable bridge service
   --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
   --doctor --json               Emit machine-readable doctor output
   --help-basic                 Print basic user quickstart and common commands
@@ -185,6 +193,8 @@ Shelley mode helpers:
   --deploy-cloudflare-email-worker      With --configure-cloudflare-email-worker, also run wrangler deploy + secret upload
   --cloudflare-worker-name NAME         Optional worker name override for Cloudflare helper
   --cloudflare-account-id ID            Optional Cloudflare account ID for generated wrangler.toml
+  --configure-exedev-email-bridge       Run exe.dev Maildir->Stavrobot /email/webhook bridge helper
+  --disable-exedev-email-bridge         With --configure-exedev-email-bridge, stop/disable bridge service
   --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
   --doctor --json               Emit machine-readable doctor output
 EOF
@@ -702,6 +712,14 @@ while [[ $# -gt 0 ]]; do
       CF_EMAIL_WORKER_ACCOUNT_ID="$2"
       shift 2
       ;;
+    --configure-exedev-email-bridge)
+      EXEDEV_EMAIL_BRIDGE_ONLY=1
+      shift
+      ;;
+    --disable-exedev-email-bridge)
+      EXEDEV_EMAIL_BRIDGE_DISABLE=1
+      shift
+      ;;
     --doctor)
       DOCTOR_ONLY=1
       shift
@@ -743,11 +761,23 @@ fi
 if (( CF_EMAIL_WORKER_ONLY == 0 && (CF_EMAIL_WORKER_DEPLOY == 1 || ${#CF_EMAIL_WORKER_NAME} > 0 || ${#CF_EMAIL_WORKER_ACCOUNT_ID} > 0) )); then
   die "--deploy-cloudflare-email-worker, --cloudflare-worker-name, and --cloudflare-account-id require --configure-cloudflare-email-worker"
 fi
+if (( EXEDEV_EMAIL_BRIDGE_DISABLE == 1 && EXEDEV_EMAIL_BRIDGE_ONLY == 0 )); then
+  die "--disable-exedev-email-bridge requires --configure-exedev-email-bridge"
+fi
 if (( CF_EMAIL_WORKER_ONLY == 1 && SHELLEY_REFRESH_ONLY == 1 )); then
   die "--configure-cloudflare-email-worker cannot be combined with --refresh-shelley-mode"
 fi
+if (( EXEDEV_EMAIL_BRIDGE_ONLY == 1 && SHELLEY_REFRESH_ONLY == 1 )); then
+  die "--configure-exedev-email-bridge cannot be combined with --refresh-shelley-mode"
+fi
 if (( CF_EMAIL_WORKER_ONLY == 1 && (SHELLEY_STATUS_JSON == 1 || SHELLEY_STATUS_BASIC == 1) )); then
   die "--json/--basic cannot be combined with --configure-cloudflare-email-worker"
+fi
+if (( EXEDEV_EMAIL_BRIDGE_ONLY == 1 && (SHELLEY_STATUS_JSON == 1 || SHELLEY_STATUS_BASIC == 1) )); then
+  die "--json/--basic cannot be combined with --configure-exedev-email-bridge"
+fi
+if (( CF_EMAIL_WORKER_ONLY == 1 && EXEDEV_EMAIL_BRIDGE_ONLY == 1 )); then
+  die "--configure-cloudflare-email-worker cannot be combined with --configure-exedev-email-bridge"
 fi
 if (( SHELLEY_REFRESH_ONLY )) && (( SHELLEY_STATUS_BASIC )); then
   die "--basic cannot be combined with --refresh-shelley-mode"
@@ -755,7 +785,7 @@ fi
 if (( SHELLEY_STATUS_JSON )) && (( SHELLEY_STATUS_BASIC )); then
   die "--json cannot be combined with --basic"
 fi
-if (( DOCTOR_ONLY )) && (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || REFRESH_ONLY || PLUGINS_ONLY || CONFIG_ONLY || SKIP_CONFIG || SKIP_PLUGINS || SHOW_SECRETS || CF_EMAIL_WORKER_ONLY || CF_EMAIL_WORKER_DEPLOY )); then
+if (( DOCTOR_ONLY )) && (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || REFRESH_ONLY || PLUGINS_ONLY || CONFIG_ONLY || SKIP_CONFIG || SKIP_PLUGINS || SHOW_SECRETS || CF_EMAIL_WORKER_ONLY || CF_EMAIL_WORKER_DEPLOY || EXEDEV_EMAIL_BRIDGE_ONLY || EXEDEV_EMAIL_BRIDGE_DISABLE )); then
   die "--doctor cannot be combined with installer mutation or Shelley refresh/status flags"
 fi
 
@@ -833,7 +863,7 @@ fi
 
 if (( CF_EMAIL_WORKER_ONLY )); then
   [[ -n "$STAVROBOT_DIR" ]] || die "--configure-cloudflare-email-worker requires --stavrobot-dir"
-  (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHELLEY_STATUS_ONLY == 0 && SHELLEY_REFRESH_ONLY == 0 )) || \
+  (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHELLEY_STATUS_ONLY == 0 && SHELLEY_REFRESH_ONLY == 0 && EXEDEV_EMAIL_BRIDGE_ONLY == 0 )) || \
     die "--configure-cloudflare-email-worker cannot be combined with installer mutation/status/refresh flags"
   cf_args=(--stavrobot-dir "$STAVROBOT_DIR")
   if (( CF_EMAIL_WORKER_DEPLOY )); then
@@ -854,6 +884,27 @@ You still need to complete one Cloudflare portal step:
   1) Cloudflare Dashboard -> Email -> Email Routing
   2) Route inbound mail to the deployed worker (default: stavrobot-email-worker)
   3) Send a test email and verify Stavrobot receives /email/webhook
+EOF
+  exit 0
+fi
+
+if (( EXEDEV_EMAIL_BRIDGE_ONLY )); then
+  [[ -n "$STAVROBOT_DIR" ]] || die "--configure-exedev-email-bridge requires --stavrobot-dir"
+  (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHELLEY_STATUS_ONLY == 0 && SHELLEY_REFRESH_ONLY == 0 && CF_EMAIL_WORKER_ONLY == 0 && CF_EMAIL_WORKER_DEPLOY == 0 )) || \
+    die "--configure-exedev-email-bridge cannot be combined with installer mutation/status/refresh flags"
+  exedev_args=(--stavrobot-dir "$STAVROBOT_DIR")
+  if (( EXEDEV_EMAIL_BRIDGE_DISABLE )); then
+    exedev_args+=(--disable-service)
+  fi
+  "$ROOT_DIR/install-exedev-email-bridge.sh" "${exedev_args[@]}"
+
+  cat <<'EOF'
+
+[manual-exedev-email-steps]
+You still need one exe.dev CLI step (outside this installer):
+  1) ssh exe.dev share receive-email <vmname> on
+  2) Send a test email to any.address@<vmname>.exe.xyz
+  3) Verify bridge logs and Stavrobot /email/webhook handling
 EOF
   exit 0
 fi
@@ -1185,6 +1236,7 @@ else
   SMTP_USER=""
   SMTP_PASSWORD=""
   FROM_ADDRESS=""
+  EMAIL_TRANSPORT_MODE="smtp"
   if prompt_yes_no "Enable email integration?" "N"; then
     EMAIL_ENABLED=true
     WEBHOOK_SECRET=$(prompt_secret "Email webhook secret" "")
@@ -1197,6 +1249,9 @@ else
     SMTP_PASSWORD=$(prompt_secret "SMTP password (optional; press Enter to omit)" "")
     FROM_ADDRESS=$(prompt_optional_text "From address (optional; type SKIP to omit)" "")
     [[ "$FROM_ADDRESS" == "__SKIP__" ]] && FROM_ADDRESS=""
+
+    info "Inbound email delivery can use either Cloudflare Email Worker or exe.dev receive-email bridge."
+    info "Outbound send_email still requires SMTP in Stavrobot today (exe.dev send-email API is not SMTP)."
   fi
 
   CODER_MODEL=""

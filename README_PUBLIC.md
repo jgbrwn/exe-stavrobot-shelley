@@ -60,7 +60,11 @@ No `:8000` suffix is needed for the main shared/public port.
 
 (For alternate internal ports in 3000-9999 you can still use `:port`, but those are not your primary public URL.)
 
-## Cloudflare email worker (basic user flow)
+## Email inbound options: Cloudflare worker or exe.dev receive-email bridge
+
+You can use **either** path for inbound email into Stavrobot `/email/webhook`:
+
+### Option A: Cloudflare email worker (default Stavrobot path)
 
 ```bash
 # 1) Generate worker bundle from current Stavrobot config
@@ -75,6 +79,26 @@ Manual Cloudflare portal step still required:
 1. Open **Cloudflare Dashboard → Email → Email Routing** for your domain.
 2. Create/confirm route(s) to worker `stavrobot-email-worker` (or your override name).
 3. Send a test email and verify Stavrobot receives `/email/webhook` traffic.
+
+### Option B: exe.dev receive-email bridge (no Cloudflare required)
+
+```bash
+# Install/enable Maildir -> /email/webhook bridge service
+./install-stavrobot.sh --configure-exedev-email-bridge --stavrobot-dir "$STAVROBOT_DIR"
+
+# Later, disable/stop the bridge service
+./install-stavrobot.sh --configure-exedev-email-bridge --disable-exedev-email-bridge --stavrobot-dir "$STAVROBOT_DIR"
+```
+
+Plus one manual exe.dev CLI step (run from your local machine):
+
+```bash
+ssh exe.dev share receive-email <vm-name> on
+```
+
+Then send test mail to `anything@<vm-name>.exe.xyz` and verify Stavrobot logs.
+
+You can switch between Option A and Option B at any time by enabling one path and disabling the other integration.
 
 ## Most-used commands
 
@@ -111,6 +135,10 @@ curl -fsS https://<vm-name>.exe.xyz/ >/dev/null && echo "public web ok"
   - ensure VM is public (`share set-public`) and using the intended shared port
   - ensure Cloudflare Email Routing rule is created to the deployed worker
   - verify worker secret `WEBHOOK_SECRET` matches Stavrobot config
+- If exe.dev bridge email is not receiving:
+  - ensure `ssh exe.dev share receive-email <vm-name> on` is enabled
+  - check bridge service logs: `sudo journalctl -u stavrobot-exedev-email-bridge -f`
+  - verify Maildir has messages under `~/Maildir/new/`
 
 ## Notes
 
@@ -121,6 +149,7 @@ curl -fsS https://<vm-name>.exe.xyz/ >/dev/null && echo "public web ok"
 ## Known limitations
 
 - Cloudflare Email Routing rule creation is still manual in the Cloudflare portal.
+- exe.dev send-email API is currently not a drop-in SMTP transport; Stavrobot outbound `send_email` still uses SMTP.
 - Some integrations (Signal/WhatsApp/authFile/login flows) still include manual operator activation steps.
 - Non-interactive full automation is not complete yet; the guided interactive installer path is the primary supported user flow.
 
@@ -131,6 +160,7 @@ When you are ready, add these under `docs/public/` and reference them here:
 - installer doctor success output
 - first-run installer completion summary
 - Cloudflare Email Routing dashboard route example
+- exe.dev email bridge service status/log screenshot
 - managed Shelley status (`--print-shelley-mode-status --basic`)
 
 ## Permissions and path guidance (exe.dev)
