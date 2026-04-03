@@ -73,3 +73,18 @@ out=$(SHELLEY_INSTALLER_TEST_SKIP_OPENROUTER_FETCH=1 "$ROOT_DIR/install-stavrobo
 assert_contains "$out" "Cloning stavrobot into $NEW_STAVROBOT_DIR"
 assert_contains "$out" "Skip-config mode: reusing existing config files"
 rm -rf "$TMP_CLONE_ROOT"
+
+FAKE_STAVROBOT3="$TMP_DIR/stavrobot-noninteractive-email"
+cp -R "$FAKE_STAVROBOT" "$FAKE_STAVROBOT3"
+out=$(SHELLEY_INSTALLER_TEST_SKIP_OPENROUTER_FETCH=1 "$ROOT_DIR/install-stavrobot.sh" \
+  --stavrobot-dir "$FAKE_STAVROBOT3" \
+  --config-only \
+  --email-mode exedev-relay \
+  --email-webhook-secret test-webhook-secret \
+  --email-owner owner@example.com 2>&1)
+assert_contains "$out" 'Config-only mode: wrote config files without rebuilding containers or running plugins'
+assert_contains "$out" 'exe.dev relay outbound enabled (recipient must be exactly: owner@example.com)'
+if [[ ! -f "$FAKE_STAVROBOT3/docker-compose.exedev-email-relay.override.yml" ]]; then
+  echo 'expected exedev email relay override file to exist' >&2
+  exit 1
+fi

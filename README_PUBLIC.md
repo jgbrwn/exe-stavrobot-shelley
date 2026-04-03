@@ -110,6 +110,15 @@ During `./install-stavrobot.sh --stavrobot-dir ...` email setup, choose one:
 
 If you choose exe.dev relay outbound, installer configures Stavrobot SMTP to a local relay shim that calls exe.dev send-email API. This is constrained to your exe.dev account email by platform rules.
 
+Non-interactive override flags are also supported:
+
+```bash
+./install-stavrobot.sh --stavrobot-dir "$STAVROBOT_DIR" --config-only \
+  --email-mode exedev-relay \
+  --email-webhook-secret '<secret>' \
+  --email-owner 'you@example.com'
+```
+
 ## Most-used commands
 
 ```bash

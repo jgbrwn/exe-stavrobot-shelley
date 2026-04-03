@@ -51,6 +51,14 @@ CF_EMAIL_WORKER_NAME=""
 CF_EMAIL_WORKER_ACCOUNT_ID=""
 EXEDEV_EMAIL_BRIDGE_ONLY=0
 EXEDEV_EMAIL_BRIDGE_DISABLE=0
+EMAIL_MODE_OVERRIDE=""
+EMAIL_WEBHOOK_SECRET_OVERRIDE=""
+EMAIL_OWNER_OVERRIDE=""
+EMAIL_SMTP_HOST_OVERRIDE=""
+EMAIL_SMTP_PORT_OVERRIDE=""
+EMAIL_SMTP_USER_OVERRIDE=""
+EMAIL_SMTP_PASSWORD_OVERRIDE=""
+EMAIL_FROM_OVERRIDE=""
 MANAGED_SHELLEY_DIR="${MANAGED_SHELLEY_DIR:-${SHELLEY_DIR:-/opt/shelley}}"
 STAVROBOT_REPO_URL="${STAVROBOT_REPO_URL:-https://github.com/skorokithakis/stavrobot.git}"
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
@@ -151,6 +159,14 @@ Flags:
   --cloudflare-account-id ID            Optional Cloudflare account ID for generated wrangler.toml
   --configure-exedev-email-bridge       Run exe.dev Maildir->Stavrobot /email/webhook bridge helper
   --disable-exedev-email-bridge         With --configure-exedev-email-bridge, stop/disable bridge service
+  --email-mode MODE                      Non-interactive email mode: smtp | exedev-relay | inbound-only
+  --email-webhook-secret VALUE           Non-interactive email webhook secret
+  --email-owner ADDRESS                  Non-interactive owner email override (required for exedev-relay)
+  --email-smtp-host VALUE                Non-interactive SMTP host override (smtp mode)
+  --email-smtp-port VALUE                Non-interactive SMTP port override (smtp mode)
+  --email-smtp-user VALUE                Non-interactive SMTP user override (smtp mode)
+  --email-smtp-password VALUE            Non-interactive SMTP password override (smtp mode)
+  --email-from VALUE                     Non-interactive From address override (smtp mode)
   --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
   --doctor --json               Emit machine-readable doctor output
   --help-basic                 Print basic user quickstart and common commands
@@ -195,6 +211,14 @@ Shelley mode helpers:
   --cloudflare-account-id ID            Optional Cloudflare account ID for generated wrangler.toml
   --configure-exedev-email-bridge       Run exe.dev Maildir->Stavrobot /email/webhook bridge helper
   --disable-exedev-email-bridge         With --configure-exedev-email-bridge, stop/disable bridge service
+  --email-mode MODE                      Non-interactive email mode: smtp | exedev-relay | inbound-only
+  --email-webhook-secret VALUE           Non-interactive email webhook secret
+  --email-owner ADDRESS                  Non-interactive owner email override (required for exedev-relay)
+  --email-smtp-host VALUE                Non-interactive SMTP host override (smtp mode)
+  --email-smtp-port VALUE                Non-interactive SMTP port override (smtp mode)
+  --email-smtp-user VALUE                Non-interactive SMTP user override (smtp mode)
+  --email-smtp-password VALUE            Non-interactive SMTP password override (smtp mode)
+  --email-from VALUE                     Non-interactive From address override (smtp mode)
   --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
   --doctor --json               Emit machine-readable doctor output
 EOF
@@ -730,6 +754,38 @@ while [[ $# -gt 0 ]]; do
       EXEDEV_EMAIL_BRIDGE_DISABLE=1
       shift
       ;;
+    --email-mode)
+      EMAIL_MODE_OVERRIDE="$2"
+      shift 2
+      ;;
+    --email-webhook-secret)
+      EMAIL_WEBHOOK_SECRET_OVERRIDE="$2"
+      shift 2
+      ;;
+    --email-owner)
+      EMAIL_OWNER_OVERRIDE="$2"
+      shift 2
+      ;;
+    --email-smtp-host)
+      EMAIL_SMTP_HOST_OVERRIDE="$2"
+      shift 2
+      ;;
+    --email-smtp-port)
+      EMAIL_SMTP_PORT_OVERRIDE="$2"
+      shift 2
+      ;;
+    --email-smtp-user)
+      EMAIL_SMTP_USER_OVERRIDE="$2"
+      shift 2
+      ;;
+    --email-smtp-password)
+      EMAIL_SMTP_PASSWORD_OVERRIDE="$2"
+      shift 2
+      ;;
+    --email-from)
+      EMAIL_FROM_OVERRIDE="$2"
+      shift 2
+      ;;
     --doctor)
       DOCTOR_ONLY=1
       shift
@@ -795,8 +851,23 @@ fi
 if (( SHELLEY_STATUS_JSON )) && (( SHELLEY_STATUS_BASIC )); then
   die "--json cannot be combined with --basic"
 fi
-if (( DOCTOR_ONLY )) && (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || REFRESH_ONLY || PLUGINS_ONLY || CONFIG_ONLY || SKIP_CONFIG || SKIP_PLUGINS || SHOW_SECRETS || CF_EMAIL_WORKER_ONLY || CF_EMAIL_WORKER_DEPLOY || EXEDEV_EMAIL_BRIDGE_ONLY || EXEDEV_EMAIL_BRIDGE_DISABLE )); then
-  die "--doctor cannot be combined with installer mutation or Shelley refresh/status flags"
+if (( DOCTOR_ONLY )) && (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || REFRESH_ONLY || PLUGINS_ONLY || CONFIG_ONLY || SKIP_CONFIG || SKIP_PLUGINS || SHOW_SECRETS || CF_EMAIL_WORKER_ONLY || CF_EMAIL_WORKER_DEPLOY || EXEDEV_EMAIL_BRIDGE_ONLY || EXEDEV_EMAIL_BRIDGE_DISABLE )) || [[ -n "$EMAIL_MODE_OVERRIDE$EMAIL_WEBHOOK_SECRET_OVERRIDE$EMAIL_OWNER_OVERRIDE$EMAIL_SMTP_HOST_OVERRIDE$EMAIL_SMTP_PORT_OVERRIDE$EMAIL_SMTP_USER_OVERRIDE$EMAIL_SMTP_PASSWORD_OVERRIDE$EMAIL_FROM_OVERRIDE" ]]; then
+  if (( DOCTOR_ONLY )); then
+    die "--doctor cannot be combined with installer mutation or Shelley refresh/status flags"
+  fi
+fi
+
+if [[ -n "$EMAIL_MODE_OVERRIDE$EMAIL_WEBHOOK_SECRET_OVERRIDE$EMAIL_OWNER_OVERRIDE$EMAIL_SMTP_HOST_OVERRIDE$EMAIL_SMTP_PORT_OVERRIDE$EMAIL_SMTP_USER_OVERRIDE$EMAIL_SMTP_PASSWORD_OVERRIDE$EMAIL_FROM_OVERRIDE" ]]; then
+  if (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || CF_EMAIL_WORKER_ONLY || EXEDEV_EMAIL_BRIDGE_ONLY )); then
+    die "--email-* flags cannot be combined with Shelley status/refresh or email-helper-only modes"
+  fi
+  if [[ -z "$EMAIL_MODE_OVERRIDE" ]]; then
+    die "--email-mode is required when using non-interactive --email-* overrides"
+  fi
+  case "$EMAIL_MODE_OVERRIDE" in
+    smtp|exedev-relay|inbound-only) ;;
+    *) die "--email-mode must be one of: smtp, exedev-relay, inbound-only" ;;
+  esac
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then
@@ -1247,7 +1318,48 @@ else
   SMTP_PASSWORD=""
   FROM_ADDRESS=""
   EMAIL_TRANSPORT_MODE="smtp"
-  if prompt_yes_no "Enable email integration?" "N"; then
+
+  EMAIL_NONINTERACTIVE=false
+  if [[ -n "$EMAIL_MODE_OVERRIDE$EMAIL_WEBHOOK_SECRET_OVERRIDE$EMAIL_OWNER_OVERRIDE$EMAIL_SMTP_HOST_OVERRIDE$EMAIL_SMTP_PORT_OVERRIDE$EMAIL_SMTP_USER_OVERRIDE$EMAIL_SMTP_PASSWORD_OVERRIDE$EMAIL_FROM_OVERRIDE" ]]; then
+    EMAIL_NONINTERACTIVE=true
+  fi
+
+  if [[ "$EMAIL_NONINTERACTIVE" == true ]]; then
+    if [[ -z "$EMAIL_MODE_OVERRIDE" ]]; then
+      die "--email-mode is required when using non-interactive --email-* overrides"
+    fi
+    EMAIL_ENABLED=true
+    EMAIL_TRANSPORT_MODE="$EMAIL_MODE_OVERRIDE"
+    WEBHOOK_SECRET="$EMAIL_WEBHOOK_SECRET_OVERRIDE"
+    [[ -n "$WEBHOOK_SECRET" ]] || die "--email-webhook-secret is required with --email-mode"
+
+    case "$EMAIL_TRANSPORT_MODE" in
+      smtp)
+        SMTP_HOST="$EMAIL_SMTP_HOST_OVERRIDE"
+        SMTP_PORT="$EMAIL_SMTP_PORT_OVERRIDE"
+        SMTP_USER="$EMAIL_SMTP_USER_OVERRIDE"
+        SMTP_PASSWORD="$EMAIL_SMTP_PASSWORD_OVERRIDE"
+        FROM_ADDRESS="$EMAIL_FROM_OVERRIDE"
+        [[ -n "$SMTP_HOST" && -n "$SMTP_PORT" && -n "$SMTP_USER" && -n "$SMTP_PASSWORD" && -n "$FROM_ADDRESS" ]] || \
+          die "smtp mode requires --email-smtp-host/--email-smtp-port/--email-smtp-user/--email-smtp-password/--email-from"
+        ;;
+      exedev-relay)
+        OWNER_EMAIL="$EMAIL_OWNER_OVERRIDE"
+        [[ -n "$OWNER_EMAIL" ]] || die "exedev-relay mode requires --email-owner"
+        SMTP_HOST="host.docker.internal"
+        SMTP_PORT="2525"
+        SMTP_USER="relay"
+        SMTP_PASSWORD="relay"
+        FROM_ADDRESS="$OWNER_EMAIL"
+        info "exe.dev relay outbound enabled (recipient must be exactly: $OWNER_EMAIL)"
+        ;;
+      inbound-only)
+        ;;
+      *)
+        die "Unhandled email mode: $EMAIL_TRANSPORT_MODE"
+        ;;
+    esac
+  elif prompt_yes_no "Enable email integration?" "N"; then
     EMAIL_ENABLED=true
     WEBHOOK_SECRET=$(prompt_secret "Email webhook secret" "")
 

@@ -179,3 +179,11 @@ assert_contains "$out" '--configure-exedev-email-bridge cannot be combined with 
 out=$("$ROOT_DIR/install-stavrobot.sh" --configure-cloudflare-email-worker --configure-exedev-email-bridge --stavrobot-dir /tmp/stavrobot 2>&1 || true)
 assert_contains "$out" '--configure-cloudflare-email-worker cannot be combined with --configure-exedev-email-bridge'
 
+out=$("$ROOT_DIR/install-stavrobot.sh" --email-smtp-host smtp.example.com 2>&1 || true)
+assert_contains "$out" '--email-mode is required when using non-interactive --email-* overrides'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --email-mode not-a-mode --email-webhook-secret s 2>&1 || true)
+assert_contains "$out" '--email-mode must be one of: smtp, exedev-relay, inbound-only'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --doctor --email-mode smtp 2>&1 || true)
+assert_contains "$out" '--doctor cannot be combined with installer mutation or Shelley refresh/status flags'
