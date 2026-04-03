@@ -100,6 +100,16 @@ Then send test mail to `anything@<vm-name>.exe.xyz` and verify Stavrobot logs.
 
 You can switch between Option A and Option B at any time by enabling one path and disabling the other integration.
 
+### Outbound mode options (in installer)
+
+During `./install-stavrobot.sh --stavrobot-dir ...` email setup, choose one:
+
+- `SMTP outbound + webhook inbound` (general outbound recipients)
+- `exe.dev relay outbound (owner-email only) + webhook inbound`
+- `Inbound-only (disable outbound send_email)`
+
+If you choose exe.dev relay outbound, installer configures Stavrobot SMTP to a local relay shim that calls exe.dev send-email API. This is constrained to your exe.dev account email by platform rules.
+
 ## Most-used commands
 
 ```bash
@@ -149,7 +159,7 @@ curl -fsS https://<vm-name>.exe.xyz/ >/dev/null && echo "public web ok"
 ## Known limitations
 
 - Cloudflare Email Routing rule creation is still manual in the Cloudflare portal.
-- exe.dev send-email API is currently not a drop-in SMTP transport; Stavrobot outbound `send_email` still uses SMTP.
+- exe.dev relay outbound mode is owner-email-only (exe.dev restriction): Stavrobot `send_email` to non-owner recipients will fail.
 - Some integrations (Signal/WhatsApp/authFile/login flows) still include manual operator activation steps.
 - Non-interactive full automation is not complete yet; the guided interactive installer path is the primary supported user flow.
 

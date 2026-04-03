@@ -525,7 +525,8 @@ This file may contain plugin secrets. It is written with mode `0600`.
 - `--skip-config` reuses the current `.env` and `data/main/config.toml`; pair it with `--skip-plugins` when you want a mostly no-op validation pass.
 - The installer now has a first-class OpenRouter provider path with live free-model selection, but current upstream Stavrobot config still lacks an explicit arbitrary base-URL field for broader arbitrary OpenAI-compatible endpoint setup.
 - Cloudflare email worker automation currently generates/deploys the worker bundle, but Email Routing rule creation is still manual.
-- exe.dev receive-email bridge automation is available as an alternative inbound path; outbound send_email still requires SMTP.
+- exe.dev receive-email bridge automation is available as an alternative inbound path.
+- exe.dev outbound relay mode is available via a local SMTP shim, but is restricted to owner-email-only sends.
 - Non-interactive automation is not finished yet.
 
 ## Manual integrations still left to the operator

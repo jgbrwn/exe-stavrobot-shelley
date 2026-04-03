@@ -409,7 +409,15 @@ auth_mode = 'apiKey' if data.get('apiKey') else ('authFile' if data.get('authFil
 coder_enabled = 'true' if data.get('coder') else 'false'
 signal_enabled = 'true' if data.get('signal') else 'false'
 whatsapp_enabled = 'true' if data.get('whatsapp') else 'false'
-email_enabled = 'true' if data.get('email') else 'false'
+email = data.get('email') or {}
+email_enabled = 'true' if email else 'false'
+email_transport_mode = 'smtp'
+if (email.get('smtpHost') == 'host.docker.internal' and int(email.get('smtpPort', 0) or 0) == 2525 and
+    email.get('smtpUser') == 'relay' and email.get('smtpPassword') == 'relay'):
+    email_transport_mode = 'exedev-relay'
+elif email and not email.get('smtpHost'):
+    email_transport_mode = 'inbound-only'
+owner_email = (data.get('owner') or {}).get('email', '')
 print(f'PASSWORD_FOR_READY={password!r}')
 print(f'PUBLIC_HOSTNAME_FINAL={public_hostname!r}')
 print(f'AUTH_MODE_FINAL={auth_mode!r}')
@@ -417,6 +425,8 @@ print(f'CODER_ENABLED={coder_enabled!r}')
 print(f'SIGNAL_ENABLED={signal_enabled!r}')
 print(f'WHATSAPP_ENABLED={whatsapp_enabled!r}')
 print(f'EMAIL_ENABLED={email_enabled!r}')
+print(f'EMAIL_TRANSPORT_MODE={email_transport_mode!r}')
+print(f'OWNER_EMAIL={owner_email!r}')
 PY
 )"
   fi
@@ -1032,7 +1042,7 @@ if (( PLUGINS_ONLY )); then
   wait_for_stavrobot_ready
   run_plugins_from_state
   print_run_summary "$BEFORE_HEAD" "$AFTER_HEAD" false false 0 "$PLUGINS_HANDLED" "$PLUGIN_REPORT_FILE"
-  print_next_steps "$PUBLIC_HOSTNAME_FINAL" "$CODER_ENABLED" "$SIGNAL_ENABLED" "$WHATSAPP_ENABLED" "$EMAIL_ENABLED" "$AUTH_MODE_FINAL"
+  print_next_steps "$PUBLIC_HOSTNAME_FINAL" "$CODER_ENABLED" "$SIGNAL_ENABLED" "$WHATSAPP_ENABLED" "$EMAIL_ENABLED" "$AUTH_MODE_FINAL" "$EMAIL_TRANSPORT_MODE"
   exit 0
 fi
 
@@ -1240,18 +1250,43 @@ else
   if prompt_yes_no "Enable email integration?" "N"; then
     EMAIL_ENABLED=true
     WEBHOOK_SECRET=$(prompt_secret "Email webhook secret" "")
-    SMTP_HOST=$(prompt_optional_text "SMTP host (optional; type SKIP to omit)" "")
-    [[ "$SMTP_HOST" == "__SKIP__" ]] && SMTP_HOST=""
-    SMTP_PORT=$(prompt_optional_text "SMTP port (optional; type SKIP to omit)" "587")
-    [[ "$SMTP_PORT" == "__SKIP__" ]] && SMTP_PORT=""
-    SMTP_USER=$(prompt_optional_text "SMTP username (optional; type SKIP to omit)" "")
-    [[ "$SMTP_USER" == "__SKIP__" ]] && SMTP_USER=""
-    SMTP_PASSWORD=$(prompt_secret "SMTP password (optional; press Enter to omit)" "")
-    FROM_ADDRESS=$(prompt_optional_text "From address (optional; type SKIP to omit)" "")
-    [[ "$FROM_ADDRESS" == "__SKIP__" ]] && FROM_ADDRESS=""
+
+    EMAIL_MODE=$(prompt_choice "Email mode:" "SMTP outbound + webhook inbound" "exe.dev relay outbound (owner-email only) + webhook inbound" "Inbound-only (disable outbound send_email)")
+    case "$EMAIL_MODE" in
+      "SMTP outbound + webhook inbound")
+        SMTP_HOST=$(prompt_optional_text "SMTP host (optional; type SKIP to omit)" "")
+        [[ "$SMTP_HOST" == "__SKIP__" ]] && SMTP_HOST=""
+        SMTP_PORT=$(prompt_optional_text "SMTP port (optional; type SKIP to omit)" "587")
+        [[ "$SMTP_PORT" == "__SKIP__" ]] && SMTP_PORT=""
+        SMTP_USER=$(prompt_optional_text "SMTP username (optional; type SKIP to omit)" "")
+        [[ "$SMTP_USER" == "__SKIP__" ]] && SMTP_USER=""
+        SMTP_PASSWORD=$(prompt_secret "SMTP password (optional; press Enter to omit)" "")
+        FROM_ADDRESS=$(prompt_optional_text "From address (optional; type SKIP to omit)" "")
+        [[ "$FROM_ADDRESS" == "__SKIP__" ]] && FROM_ADDRESS=""
+        EMAIL_TRANSPORT_MODE="smtp"
+        ;;
+      "exe.dev relay outbound (owner-email only) + webhook inbound")
+        OWNER_EMAIL_RELAY=$(prompt_text "Owner email (must match your exe.dev account email)" "$OWNER_EMAIL")
+        OWNER_EMAIL_RELAY=${OWNER_EMAIL_RELAY:-$OWNER_EMAIL}
+        [[ -n "$OWNER_EMAIL_RELAY" ]] || die "exe.dev relay requires owner email"
+        OWNER_EMAIL="$OWNER_EMAIL_RELAY"
+        SMTP_HOST="host.docker.internal"
+        SMTP_PORT="2525"
+        SMTP_USER="relay"
+        SMTP_PASSWORD="relay"
+        FROM_ADDRESS="$OWNER_EMAIL_RELAY"
+        EMAIL_TRANSPORT_MODE="exedev-relay"
+        info "exe.dev relay outbound enabled (recipient must be exactly: $OWNER_EMAIL_RELAY)"
+        ;;
+      "Inbound-only (disable outbound send_email)")
+        EMAIL_TRANSPORT_MODE="inbound-only"
+        ;;
+      *)
+        die "Unhandled email mode: $EMAIL_MODE"
+        ;;
+    esac
 
     info "Inbound email delivery can use either Cloudflare Email Worker or exe.dev receive-email bridge."
-    info "Outbound send_email still requires SMTP in Stavrobot today (exe.dev send-email API is not SMTP)."
   fi
 
   CODER_MODEL=""
@@ -1320,6 +1355,19 @@ EOF
   load_runtime_metadata
 fi
 
+if (( REFRESH_ONLY )) || (( SKIP_CONFIG )); then
+  load_runtime_metadata
+fi
+
+if [[ "$EMAIL_TRANSPORT_MODE" == "exedev-relay" ]]; then
+  if [[ -z "$OWNER_EMAIL" ]]; then
+    die "exe.dev relay mode requires [owner].email in config.toml"
+  fi
+  write_exedev_smtp_relay_override "$STAVROBOT_DIR" "$OWNER_EMAIL" "$ROOT_DIR/scripts/exedev_smtp_relay.py"
+else
+  remove_exedev_smtp_relay_override "$STAVROBOT_DIR"
+fi
+
 if (( CONFIG_ONLY )); then
   SKIP_PLUGINS=1
 fi
@@ -1357,5 +1405,5 @@ if (( !SKIP_PLUGINS && !CONFIG_ONLY )); then
 fi
 
 print_run_summary "$BEFORE_HEAD" "$AFTER_HEAD" "$ENV_CHANGED" "$CONFIG_CHANGED" "$PLUGINS_SELECTED_COUNT" "$PLUGINS_HANDLED" "$PLUGIN_REPORT_FILE"
-print_next_steps "$PUBLIC_HOSTNAME_FINAL" "$CODER_ENABLED" "$SIGNAL_ENABLED" "$WHATSAPP_ENABLED" "$EMAIL_ENABLED" "$AUTH_MODE_FINAL"
+print_next_steps "$PUBLIC_HOSTNAME_FINAL" "$CODER_ENABLED" "$SIGNAL_ENABLED" "$WHATSAPP_ENABLED" "$EMAIL_ENABLED" "$AUTH_MODE_FINAL" "$EMAIL_TRANSPORT_MODE"
 info "See README.md and IMPLEMENTATION_PLAN.md"

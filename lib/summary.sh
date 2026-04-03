@@ -32,6 +32,7 @@ print_next_steps() {
   local whatsapp_enabled="$4"
   local email_enabled="$5"
   local auth_mode="$6"
+  local email_transport_mode="${7-smtp}"
   cat <<EOF
 
 Next steps
@@ -66,5 +67,10 @@ EOF
   - Cloudflare worker: ./install-stavrobot.sh --configure-cloudflare-email-worker --stavrobot-dir <path>
   - exe.dev receive-email bridge: ./install-stavrobot.sh --configure-exedev-email-bridge --stavrobot-dir <path>
 EOF
+    if [[ "$email_transport_mode" == "exedev-relay" ]]; then
+      cat <<'EOF'
+- Outbound email uses exe.dev relay shim (owner-email only). send_email to non-owner recipients will be rejected.
+EOF
+    fi
   fi
 }
