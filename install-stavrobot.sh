@@ -62,6 +62,9 @@ EMAIL_FROM_OVERRIDE=""
 PRIVATE_MODAL_ENABLE=0
 PRIVATE_MODAL_DISABLE=0
 PRIVATE_MODAL_SET_DEFAULT=0
+PRIVATE_MODAL_DEPLOY=0
+PRIVATE_MODAL_SKIP_PREFETCH=0
+PRIVATE_MODAL_APP_NAME_OVERRIDE=""
 PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE=""
 PRIVATE_MODAL_TOKEN_ID_OVERRIDE=""
 PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE=""
@@ -190,6 +193,9 @@ Flags:
   --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
   --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
   --private-modal-set-default            Also set Stavrobot provider/model to private-modal profile
+  --deploy-private-modal-qwen            Use Modal CLI to deploy production Qwen3.5-9B endpoint and auto-detect URL
+  --private-modal-app-name NAME          Modal app name for deploy (default: private-modal-qwen35-9b)
+  --private-modal-skip-prefetch          Skip one-time prefetch_model run before deploy
   --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
   --doctor --json               Emit machine-readable doctor output
   --help-basic                 Print basic user quickstart and common commands
@@ -251,6 +257,9 @@ Shelley mode helpers:
   --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
   --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
   --private-modal-set-default            Also set Stavrobot provider/model to private-modal profile
+  --deploy-private-modal-qwen            Use Modal CLI to deploy production Qwen3.5-9B endpoint and auto-detect URL
+  --private-modal-app-name NAME          Modal app name for deploy (default: private-modal-qwen35-9b)
+  --private-modal-skip-prefetch          Skip one-time prefetch_model run before deploy
   --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
   --doctor --json               Emit machine-readable doctor output
 EOF
@@ -928,6 +937,19 @@ while [[ $# -gt 0 ]]; do
       PRIVATE_MODAL_SET_DEFAULT=1
       shift
       ;;
+    --deploy-private-modal-qwen)
+      PRIVATE_MODAL_DEPLOY=1
+      PRIVATE_MODAL_ENABLE=1
+      shift
+      ;;
+    --private-modal-app-name)
+      PRIVATE_MODAL_APP_NAME_OVERRIDE="$2"
+      shift 2
+      ;;
+    --private-modal-skip-prefetch)
+      PRIVATE_MODAL_SKIP_PREFETCH=1
+      shift
+      ;;
     --doctor)
       DOCTOR_ONLY=1
       shift
@@ -1024,20 +1046,26 @@ if [[ -n "$EMAIL_MODE_OVERRIDE$EMAIL_WEBHOOK_SECRET_OVERRIDE$EMAIL_OWNER_OVERRID
   esac
 fi
 
-if (( PRIVATE_MODAL_ENABLE == 0 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DISABLE -eq 1 ]]; then
+if (( PRIVATE_MODAL_ENABLE == 0 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DISABLE -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
   die "--private-modal-* flags require --configure-private-modal-qwen"
 fi
 
-if (( PRIVATE_MODAL_DISABLE == 1 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 ]]; then
+if (( PRIVATE_MODAL_DISABLE == 1 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
   die "--disable-private-modal-qwen cannot be combined with other --private-modal-* configuration flags"
 fi
 
 if (( PRIVATE_MODAL_ENABLE == 1 && PRIVATE_MODAL_DISABLE == 0 )); then
-  [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE" ]] || die "--private-modal-upstream-url is required with --configure-private-modal-qwen"
-  [[ -n "$PRIVATE_MODAL_TOKEN_ID_OVERRIDE" ]] || die "--private-modal-token-id is required with --configure-private-modal-qwen"
-  [[ -n "$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE" ]] || die "--private-modal-token-secret is required with --configure-private-modal-qwen"
   [[ "$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE" =~ ^[0-9]+$ || -z "$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE" ]] || die "--private-modal-context-window must be an integer"
   [[ "$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE" =~ ^[0-9]+$ || -z "$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE" ]] || die "--private-modal-max-tokens must be an integer"
+
+  if (( PRIVATE_MODAL_DEPLOY == 0 )); then
+    [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE" ]] || die "--private-modal-upstream-url is required with --configure-private-modal-qwen (unless --deploy-private-modal-qwen is used)"
+  fi
+
+  if [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 ]]; then
+    [[ -n "$PRIVATE_MODAL_TOKEN_ID_OVERRIDE" ]] || die "--private-modal-token-id is required when configuring private modal proxy auth"
+    [[ -n "$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE" ]] || die "--private-modal-token-secret is required when configuring private modal proxy auth"
+  fi
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then
@@ -1182,6 +1210,68 @@ if (( PRIVATE_MODAL_ENABLE )); then
   modal_model="${PRIVATE_MODAL_MODEL_OVERRIDE:-Qwen/Qwen3.5-9B-Instruct}"
   modal_context_window="${PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE:-32768}"
   modal_max_tokens="${PRIVATE_MODAL_MAX_TOKENS_OVERRIDE:-8192}"
+  modal_app_name="${PRIVATE_MODAL_APP_NAME_OVERRIDE:-private-modal-qwen35-9b}"
+  modal_app_script="$ROOT_DIR/scripts/modal_qwen35_9b_app.py"
+  modal_app_script_for_deploy="$modal_app_script"
+
+  if (( PRIVATE_MODAL_DEPLOY )); then
+    require_cmd python3
+    require_cmd pip
+    if ! command -v modal >/dev/null 2>&1; then
+      info "Installing Modal CLI (python -m pip install modal)"
+      python3 -m pip install --user modal >/dev/null
+      export PATH="$HOME/.local/bin:$PATH"
+    fi
+    require_cmd modal
+
+    if [[ "$modal_app_name" != "private-modal-qwen35-9b" ]]; then
+      modal_tmp_script=$(mktemp --suffix=.py)
+      python3 - "$modal_app_script" "$modal_tmp_script" "$modal_app_name" <<'PY'
+import pathlib, re, sys
+src, dst, app_name = sys.argv[1:]
+text = pathlib.Path(src).read_text()
+text = re.sub(r'APP_NAME\s*=\s*"[^"]+"', f'APP_NAME = "{app_name}"', text, count=1)
+pathlib.Path(dst).write_text(text)
+print(dst)
+PY
+      modal_app_script_for_deploy="$modal_tmp_script"
+    fi
+
+    if (( PRIVATE_MODAL_SKIP_PREFETCH == 0 )); then
+      info "Running one-time Modal model prefetch into persistent volume"
+      modal run "$modal_app_script_for_deploy"::prefetch_model
+    fi
+
+    info "Deploying Modal app via CLI"
+    deploy_log=$(mktemp)
+    if ! modal deploy "$modal_app_script_for_deploy" 2>&1 | tee "$deploy_log"; then
+      rm -f "$deploy_log"
+      die "Modal deploy failed"
+    fi
+
+    detected_url=$(python3 - "$deploy_log" <<'PY'
+import re, sys
+text = open(sys.argv[1]).read()
+urls = re.findall(r'https://[a-zA-Z0-9\-\.]+\.modal\.run', text)
+print(urls[-1] if urls else '')
+PY
+)
+    rm -f "$deploy_log"
+
+    if [[ -n "$detected_url" ]]; then
+      PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE="$detected_url"
+      info "Detected Modal endpoint URL: $PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE"
+    fi
+
+    [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE" ]] || die "Could not auto-detect Modal endpoint URL. Re-run with --private-modal-upstream-url"
+    if [[ -n "${modal_tmp_script:-}" ]]; then
+      rm -f "$modal_tmp_script"
+    fi
+  fi
+
+  [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE" ]] || die "Missing private modal upstream URL"
+  [[ -n "$PRIVATE_MODAL_TOKEN_ID_OVERRIDE" ]] || die "Missing private modal token id"
+  [[ -n "$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE" ]] || die "Missing private modal token secret"
 
   write_private_modal_llm_override "$STAVROBOT_DIR" "$ROOT_DIR/scripts/modal_openai_proxy.py" "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE" "$PRIVATE_MODAL_TOKEN_ID_OVERRIDE" "$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE" "11435"
   write_private_modal_profile_state "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE" "$PRIVATE_MODAL_TOKEN_ID_OVERRIDE" "$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE" "$modal_model" "$modal_context_window" "$modal_max_tokens"
@@ -1206,7 +1296,8 @@ if (( PRIVATE_MODAL_ENABLE )); then
 [private-modal-next-steps]
 - Private Modal local proxy service override is configured.
 - Stored profile metadata: $ROOT_DIR/state/llm-profiles.json
-- If you have not deployed your Modal endpoint yet, do that now and rerun this command.
+- Modal app script: $modal_app_script (app name: $modal_app_name)
+- If Modal CLI is not authenticated yet, run: modal setup
 - To disable later:
   ./install-stavrobot.sh --configure-private-modal-qwen --disable-private-modal-qwen --stavrobot-dir "$STAVROBOT_DIR"
 EOF

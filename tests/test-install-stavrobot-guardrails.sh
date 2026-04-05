@@ -195,13 +195,16 @@ out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --stavrobo
 assert_contains "$out" '--configure-private-modal-qwen cannot be combined with --refresh-shelley-mode'
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --private-modal-token-id ak-test --private-modal-token-secret as-test 2>&1 || true)
-assert_contains "$out" '--private-modal-upstream-url is required with --configure-private-modal-qwen'
+assert_contains "$out" '--private-modal-upstream-url is required with --configure-private-modal-qwen (unless --deploy-private-modal-qwen is used)'
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --private-modal-upstream-url https://example.modal.run --private-modal-token-secret as-test 2>&1 || true)
-assert_contains "$out" '--private-modal-token-id is required with --configure-private-modal-qwen'
+assert_contains "$out" '--private-modal-token-id is required when configuring private modal proxy auth'
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --private-modal-upstream-url https://example.modal.run --private-modal-token-id ak-test 2>&1 || true)
-assert_contains "$out" '--private-modal-token-secret is required with --configure-private-modal-qwen'
+assert_contains "$out" '--private-modal-token-secret is required when configuring private modal proxy auth'
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --disable-private-modal-qwen --private-modal-upstream-url https://example.modal.run 2>&1 || true)
 assert_contains "$out" '--disable-private-modal-qwen cannot be combined with other --private-modal-* configuration flags'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --deploy-private-modal-qwen --private-modal-upstream-url https://example.modal.run 2>&1 || true)
+assert_contains "$out" '--private-modal-token-id is required when configuring private modal proxy auth'

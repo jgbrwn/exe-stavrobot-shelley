@@ -123,7 +123,7 @@ Non-interactive override flags are also supported:
 
 You can configure a private Modal-hosted endpoint (OpenAI-compatible) via a local proxy that injects Modal auth headers.
 
-Configure it:
+Configure it (manual upstream URL path):
 
 ```bash
 ./install-stavrobot.sh --configure-private-modal-qwen --stavrobot-dir "$STAVROBOT_DIR" \
@@ -132,6 +132,17 @@ Configure it:
   --private-modal-token-secret 'as-...' \
   --private-modal-set-default
 ```
+
+Or let installer deploy the Modal app via Modal CLI:
+
+```bash
+./install-stavrobot.sh --configure-private-modal-qwen --deploy-private-modal-qwen --stavrobot-dir "$STAVROBOT_DIR" \
+  --private-modal-token-id 'ak-...' \
+  --private-modal-token-secret 'as-...' \
+  --private-modal-set-default
+```
+
+(If Modal CLI is not authenticated yet, run `modal setup` when prompted.)
 
 What this does:
 
