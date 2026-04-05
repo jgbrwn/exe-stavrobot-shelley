@@ -190,7 +190,7 @@ Flags:
   --private-modal-upstream-url URL       Private Modal upstream base URL (e.g. https://<workspace>--<app>.modal.run)
   --private-modal-token-id ID            Modal proxy-auth token id (ak-...)
   --private-modal-token-secret SECRET    Modal proxy-auth token secret (as-...)
-  --private-modal-model MODEL            Model id for private modal profile (default: Qwen/Qwen3.5-9B-Instruct)
+  --private-modal-model MODEL            Model id for private modal profile (default: Qwen/Qwen3.5-9B)
   --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
   --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
   --private-modal-hf-token-file PATH     File containing Hugging Face token for gated/private model download
@@ -255,7 +255,7 @@ Shelley mode helpers:
   --private-modal-upstream-url URL       Private Modal upstream base URL (e.g. https://<workspace>--<app>.modal.run)
   --private-modal-token-id ID            Modal proxy-auth token id (ak-...)
   --private-modal-token-secret SECRET    Modal proxy-auth token secret (as-...)
-  --private-modal-model MODEL            Model id for private modal profile (default: Qwen/Qwen3.5-9B-Instruct)
+  --private-modal-model MODEL            Model id for private modal profile (default: Qwen/Qwen3.5-9B)
   --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
   --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
   --private-modal-hf-token-file PATH     File containing Hugging Face token for gated/private model download
@@ -1102,6 +1102,25 @@ if (( PRIVATE_MODAL_ENABLE == 1 && PRIVATE_MODAL_DISABLE == 0 )); then
     [[ -n "$PRIVATE_MODAL_TOKEN_ID_OVERRIDE" ]] || die "--private-modal-token-id is required when configuring private modal proxy auth"
     [[ -n "$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE" ]] || die "--private-modal-token-secret is required when configuring private modal proxy auth"
   fi
+
+  if [[ -n "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE" ]]; then
+    [[ -f "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE" ]] || die "private modal HF token file not found: $PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE"
+    hf_token_precheck=$(tr -d '\r\n' < "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE")
+    [[ -n "$hf_token_precheck" ]] || die "private modal HF token file is empty: $PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE"
+  elif (( PRIVATE_MODAL_DEPLOY == 1 && PRIVATE_MODAL_SKIP_PREFETCH == 0 )); then
+    if [[ -n "${HF_TOKEN:-}${HUGGINGFACE_HUB_TOKEN:-}" ]]; then
+      :
+    elif [[ -t 0 ]]; then
+      PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE=$(prompt_text "Hugging Face token file path (required for prefetch with gated/private models)" "")
+      [[ -n "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE" ]] || die "--private-modal-hf-token-file is required for prefetch; pass --private-modal-skip-prefetch to bypass"
+      [[ -f "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE" ]] || die "private modal HF token file not found: $PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE"
+      hf_token_precheck=$(tr -d '\r\n' < "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE")
+      [[ -n "$hf_token_precheck" ]] || die "private modal HF token file is empty: $PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE"
+    else
+      die "--private-modal-hf-token-file (or HF_TOKEN/HUGGINGFACE_HUB_TOKEN env) is required for non-interactive prefetch; or pass --private-modal-skip-prefetch"
+    fi
+  fi
+
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then
@@ -1243,7 +1262,7 @@ if (( PRIVATE_MODAL_ENABLE )); then
     exit 0
   fi
 
-  modal_model="${PRIVATE_MODAL_MODEL_OVERRIDE:-Qwen/Qwen3.5-9B-Instruct}"
+  modal_model="${PRIVATE_MODAL_MODEL_OVERRIDE:-Qwen/Qwen3.5-9B}"
   modal_context_window="${PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE:-32768}"
   modal_max_tokens="${PRIVATE_MODAL_MAX_TOKENS_OVERRIDE:-8192}"
   modal_app_name="${PRIVATE_MODAL_APP_NAME_OVERRIDE:-private-modal-qwen35-9b}"
@@ -1282,6 +1301,7 @@ PY
       modal_app_script_for_deploy="$modal_tmp_script"
     fi
 
+    hf_token_value="${HF_TOKEN:-${HUGGINGFACE_HUB_TOKEN:-}}"
     if [[ -n "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE" ]]; then
       [[ -f "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE" ]] || die "private modal HF token file not found: $PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE"
       hf_token_value=$(tr -d '\r\n' < "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE")

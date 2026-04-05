@@ -23,7 +23,7 @@ import subprocess
 import modal
 
 APP_NAME = "private-modal-qwen35-9b"
-MODEL_ID = "Qwen/Qwen3.5-9B-Instruct"
+MODEL_ID = "Qwen/Qwen3.5-9B"
 MODEL_VOLUME_NAME = "private-modal-qwen35-9b-model"
 HF_CACHE_VOLUME_NAME = "private-modal-qwen35-9b-hf-cache"
 VLLM_CACHE_VOLUME_NAME = "private-modal-qwen35-9b-vllm-cache"
