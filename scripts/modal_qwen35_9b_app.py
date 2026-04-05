@@ -79,15 +79,13 @@ def prefetch_model():
     gpu="L4",
     timeout=60 * 60,
     scaledown_window=600,
-    container_idle_timeout=600,
-    requires_proxy_auth=True,
     volumes={
         MODEL_MOUNT: model_vol,
         HF_CACHE_MOUNT: hf_cache_vol,
         VLLM_CACHE_MOUNT: vllm_cache_vol,
     },
 )
-@modal.web_server(port=VLLM_PORT, startup_timeout=60 * 15)
+@modal.web_server(port=VLLM_PORT, startup_timeout=60 * 15, requires_proxy_auth=True)
 def serve():
     """Run vLLM OpenAI-compatible server bound to a private Modal endpoint."""
 
