@@ -208,3 +208,9 @@ assert_contains "$out" '--disable-private-modal-qwen cannot be combined with oth
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --deploy-private-modal-qwen --private-modal-upstream-url https://example.modal.run 2>&1 || true)
 assert_contains "$out" '--private-modal-token-id is required when configuring private modal proxy auth'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --private-modal-hf-token-file /tmp/hftoken 2>&1 || true)
+assert_contains "$out" '--private-modal-* flags require --configure-private-modal-qwen'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --disable-private-modal-qwen --private-modal-hf-token-file /tmp/hftoken 2>&1 || true)
+assert_contains "$out" '--disable-private-modal-qwen cannot be combined with other --private-modal-* configuration flags'

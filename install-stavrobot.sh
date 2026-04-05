@@ -71,6 +71,7 @@ PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE=""
 PRIVATE_MODAL_MODEL_OVERRIDE=""
 PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE=""
 PRIVATE_MODAL_MAX_TOKENS_OVERRIDE=""
+PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE=""
 MANAGED_SHELLEY_DIR="${MANAGED_SHELLEY_DIR:-${SHELLEY_DIR:-/opt/shelley}}"
 STAVROBOT_REPO_URL="${STAVROBOT_REPO_URL:-https://github.com/skorokithakis/stavrobot.git}"
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
@@ -192,6 +193,7 @@ Flags:
   --private-modal-model MODEL            Model id for private modal profile (default: Qwen/Qwen3.5-9B-Instruct)
   --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
   --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
+  --private-modal-hf-token-file PATH     File containing Hugging Face token for gated/private model download
   --private-modal-set-default            Also set Stavrobot provider/model to private-modal profile
   --deploy-private-modal-qwen            Use Modal CLI to deploy production Qwen3.5-9B endpoint and auto-detect URL
   --private-modal-app-name NAME          Modal app name for deploy (default: private-modal-qwen35-9b)
@@ -256,6 +258,7 @@ Shelley mode helpers:
   --private-modal-model MODEL            Model id for private modal profile (default: Qwen/Qwen3.5-9B-Instruct)
   --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
   --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
+  --private-modal-hf-token-file PATH     File containing Hugging Face token for gated/private model download
   --private-modal-set-default            Also set Stavrobot provider/model to private-modal profile
   --deploy-private-modal-qwen            Use Modal CLI to deploy production Qwen3.5-9B endpoint and auto-detect URL
   --private-modal-app-name NAME          Modal app name for deploy (default: private-modal-qwen35-9b)
@@ -962,6 +965,10 @@ while [[ $# -gt 0 ]]; do
       PRIVATE_MODAL_MAX_TOKENS_OVERRIDE="$2"
       shift 2
       ;;
+    --private-modal-hf-token-file)
+      PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE="$2"
+      shift 2
+      ;;
     --private-modal-set-default)
       PRIVATE_MODAL_SET_DEFAULT=1
       shift
@@ -1075,11 +1082,11 @@ if [[ -n "$EMAIL_MODE_OVERRIDE$EMAIL_WEBHOOK_SECRET_OVERRIDE$EMAIL_OWNER_OVERRID
   esac
 fi
 
-if (( PRIVATE_MODAL_ENABLE == 0 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DISABLE -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
+if (( PRIVATE_MODAL_ENABLE == 0 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DISABLE -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
   die "--private-modal-* flags require --configure-private-modal-qwen"
 fi
 
-if (( PRIVATE_MODAL_DISABLE == 1 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
+if (( PRIVATE_MODAL_DISABLE == 1 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
   die "--disable-private-modal-qwen cannot be combined with other --private-modal-* configuration flags"
 fi
 
@@ -1275,9 +1282,19 @@ PY
       modal_app_script_for_deploy="$modal_tmp_script"
     fi
 
+    if [[ -n "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE" ]]; then
+      [[ -f "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE" ]] || die "private modal HF token file not found: $PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE"
+      hf_token_value=$(tr -d '\r\n' < "$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE")
+      [[ -n "$hf_token_value" ]] || die "private modal HF token file is empty: $PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE"
+    fi
+
     if (( PRIVATE_MODAL_SKIP_PREFETCH == 0 )); then
       info "Running one-time Modal model prefetch into persistent volume"
-      "$MODAL_BIN" run "$modal_app_script_for_deploy"::prefetch_model
+      if [[ -n "${hf_token_value:-}" ]]; then
+        "$MODAL_BIN" run "$modal_app_script_for_deploy"::prefetch_model --hf-token "$hf_token_value"
+      else
+        "$MODAL_BIN" run "$modal_app_script_for_deploy"::prefetch_model
+      fi
     fi
 
     info "Deploying Modal app via CLI"

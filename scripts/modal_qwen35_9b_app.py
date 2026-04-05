@@ -17,6 +17,7 @@ This app is intended to be private via Modal proxy auth:
   - client must send Modal-Key / Modal-Secret headers
 """
 
+import os
 import subprocess
 
 import modal
@@ -58,16 +59,22 @@ vllm_cache_vol = modal.Volume.from_name(VLLM_CACHE_VOLUME_NAME, create_if_missin
     timeout=60 * 30,
     volumes={MODEL_MOUNT: model_vol, HF_CACHE_MOUNT: hf_cache_vol},
 )
-def prefetch_model():
+def prefetch_model(hf_token: str = ""):
     """One-time (or occasional) prefetch to persist model weights on volume."""
     from huggingface_hub import snapshot_download
 
-    print(f"[modal-qwen] prefetch start model={MODEL_ID} -> {MODEL_MOUNT}")
+    effective_token = hf_token or os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN", "")
+    if effective_token:
+        os.environ["HF_TOKEN"] = effective_token
+        os.environ["HUGGINGFACE_HUB_TOKEN"] = effective_token
+
+    print(f"[modal-qwen] prefetch start model={MODEL_ID} -> {MODEL_MOUNT}; token={'yes' if effective_token else 'no'}")
     snapshot_download(
         repo_id=MODEL_ID,
         local_dir=MODEL_MOUNT,
         local_dir_use_symlinks=False,
         resume_download=True,
+        token=effective_token if effective_token else None,
     )
     model_vol.commit()
     hf_cache_vol.commit()

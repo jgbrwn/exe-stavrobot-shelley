@@ -139,6 +139,7 @@ Or let installer deploy the Modal app via Modal CLI:
 ./install-stavrobot.sh --configure-private-modal-qwen --deploy-private-modal-qwen --stavrobot-dir "$STAVROBOT_DIR" \
   --private-modal-token-id 'ak-...' \
   --private-modal-token-secret 'as-...' \
+  --private-modal-hf-token-file /path/to/hf_token_file \
   --private-modal-set-default
 ```
 
