@@ -144,6 +144,8 @@ Or let installer deploy the Modal app via Modal CLI:
 
 (If Modal CLI is not authenticated yet, run `modal setup` when prompted.)
 
+Note: installer auto-manages an isolated Modal CLI venv at `state/modal-cli-venv` when `modal` is not already on your PATH. If venv support is missing, install `python3-venv`.
+
 What this does:
 
 - writes a `docker-compose.private-modal-llm.override.yml` service (`private-modal-llm-proxy`)

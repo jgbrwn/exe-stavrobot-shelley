@@ -269,6 +269,24 @@ json_quote() {
   python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"
 }
 
+python_venv_usable() {
+  local tmp
+  tmp=$(mktemp -d)
+  if python3 -m venv "$tmp/venv" >/dev/null 2>&1; then
+    rm -rf "$tmp"
+    return 0
+  fi
+  rm -rf "$tmp"
+  return 1
+}
+
+ensure_python_venv_capable() {
+  if python_venv_usable; then
+    return 0
+  fi
+  die "python3 venv support is required (install package: python3-venv)"
+}
+
 run_doctor() {
   local as_json="${1:-0}"
   local -a required_cmds=(git python3 docker curl node npx go tmux)
@@ -301,6 +319,9 @@ def run(cmd):
 checks = []
 for c in required_cmds:
     checks.append({"name": f"cmd:{c}", "ok": shutil.which(c) is not None})
+rc, _, _ = run("python3 -m venv /tmp/.installer-doctor-venv-$$")
+run("rm -rf /tmp/.installer-doctor-venv-$$")
+checks.append({"name": "python:venv", "ok": rc == 0, "hint": "install python3-venv" if rc != 0 else ""})
 for f in required_files:
     checks.append({"name": f"file:{f}", "ok": os.path.isfile(os.path.join(root, f))})
 for p in patch_files:
@@ -331,6 +352,14 @@ PY
       ((fail_count+=1))
     fi
   done
+
+  if python_venv_usable; then
+    printf '[ok] python:venv\n'
+    ((ok_count+=1))
+  else
+    printf '[fail] python:venv (missing support; install python3-venv)\n'
+    ((fail_count+=1))
+  fi
 
   for path in \
     "$ROOT_DIR/install-stavrobot.sh" \
@@ -1216,13 +1245,22 @@ if (( PRIVATE_MODAL_ENABLE )); then
 
   if (( PRIVATE_MODAL_DEPLOY )); then
     require_cmd python3
-    require_cmd pip
-    if ! command -v modal >/dev/null 2>&1; then
-      info "Installing Modal CLI (python -m pip install modal)"
-      python3 -m pip install --user modal >/dev/null
-      export PATH="$HOME/.local/bin:$PATH"
+
+    MODAL_BIN=""
+    if command -v modal >/dev/null 2>&1; then
+      MODAL_BIN=$(command -v modal)
+    else
+      ensure_python_venv_capable
+      modal_venv="$ROOT_DIR/state/modal-cli-venv"
+      if [[ ! -x "$modal_venv/bin/modal" ]]; then
+        info "Installing Modal CLI into isolated venv: $modal_venv"
+        python3 -m venv "$modal_venv"
+        "$modal_venv/bin/pip" install -q modal
+      fi
+      MODAL_BIN="$modal_venv/bin/modal"
     fi
-    require_cmd modal
+
+    [[ -x "$MODAL_BIN" ]] || die "Modal CLI not found; install with pipx or provide modal in PATH"
 
     if [[ "$modal_app_name" != "private-modal-qwen35-9b" ]]; then
       modal_tmp_script=$(mktemp --suffix=.py)
@@ -1239,12 +1277,12 @@ PY
 
     if (( PRIVATE_MODAL_SKIP_PREFETCH == 0 )); then
       info "Running one-time Modal model prefetch into persistent volume"
-      modal run "$modal_app_script_for_deploy"::prefetch_model
+      "$MODAL_BIN" run "$modal_app_script_for_deploy"::prefetch_model
     fi
 
     info "Deploying Modal app via CLI"
     deploy_log=$(mktemp)
-    if ! modal deploy "$modal_app_script_for_deploy" 2>&1 | tee "$deploy_log"; then
+    if ! "$MODAL_BIN" deploy "$modal_app_script_for_deploy" 2>&1 | tee "$deploy_log"; then
       rm -f "$deploy_log"
       die "Modal deploy failed"
     fi
