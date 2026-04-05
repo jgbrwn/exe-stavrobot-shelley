@@ -187,3 +187,21 @@ assert_contains "$out" '--email-mode must be one of: smtp, exedev-relay, inbound
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --doctor --email-mode smtp 2>&1 || true)
 assert_contains "$out" '--doctor cannot be combined with installer mutation or Shelley refresh/status flags'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --private-modal-upstream-url https://example.modal.run 2>&1 || true)
+assert_contains "$out" '--private-modal-* flags require --configure-private-modal-qwen'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --stavrobot-dir /tmp/stavrobot --refresh-shelley-mode --private-modal-upstream-url https://example.modal.run --private-modal-token-id ak-test --private-modal-token-secret as-test 2>&1 || true)
+assert_contains "$out" '--configure-private-modal-qwen cannot be combined with --refresh-shelley-mode'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --private-modal-token-id ak-test --private-modal-token-secret as-test 2>&1 || true)
+assert_contains "$out" '--private-modal-upstream-url is required with --configure-private-modal-qwen'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --private-modal-upstream-url https://example.modal.run --private-modal-token-secret as-test 2>&1 || true)
+assert_contains "$out" '--private-modal-token-id is required with --configure-private-modal-qwen'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --private-modal-upstream-url https://example.modal.run --private-modal-token-id ak-test 2>&1 || true)
+assert_contains "$out" '--private-modal-token-secret is required with --configure-private-modal-qwen'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --disable-private-modal-qwen --private-modal-upstream-url https://example.modal.run 2>&1 || true)
+assert_contains "$out" '--disable-private-modal-qwen cannot be combined with other --private-modal-* configuration flags'

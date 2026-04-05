@@ -458,12 +458,14 @@ REQUIRE_PATCHED_MANAGED_RUNTIME=1 ./tests/run.sh test-s4-recall-validation-runti
 
 ## Operator helper: Stavrobot backend model control
 
-For current operator/admin use, this repo now includes a separate helper for shared Stavrobot backend model inspection and OpenRouter model changes:
+For current operator/admin use, this repo now includes a helper for shared Stavrobot backend model/provider inspection and switching:
 
 ```bash
 ./manage-stavrobot-model.sh get-current --stavrobot-dir /opt/stavrobot
 ./manage-stavrobot-model.sh list-openrouter-free --stavrobot-dir /opt/stavrobot
 ./manage-stavrobot-model.sh apply --stavrobot-dir /opt/stavrobot --model openrouter/free
+./manage-stavrobot-model.sh list-profiles --stavrobot-dir /opt/stavrobot
+./manage-stavrobot-model.sh apply-profile --stavrobot-dir /opt/stavrobot --profile private-modal-qwen
 ```
 
 Current behavior:

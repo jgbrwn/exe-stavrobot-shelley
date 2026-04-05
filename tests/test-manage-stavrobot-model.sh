@@ -130,4 +130,39 @@ assert_contains "$config_after" 'model = "qwen/qwen3-coder:free"'
 docker_calls=$(cat "$DOCKER_LOG")
 assert_contains "$docker_calls" 'compose restart app'
 
+PROFILES_PATH="$TMP_DIR/llm-profiles.json"
+cat > "$PROFILES_PATH" <<'EOF_PROFILES'
+{
+  "profiles": {
+    "private-modal-qwen": {
+      "name": "Private Modal endpoint (Qwen3.5-9B)",
+      "provider": "openai",
+      "model": "Qwen/Qwen3.5-9B-Instruct",
+      "api": "openai-completions",
+      "baseUrl": "http://host.docker.internal:11435/v1",
+      "apiKey": "private-modal-local-proxy",
+      "contextWindow": 32768,
+      "maxTokens": 8192
+    }
+  }
+}
+EOF_PROFILES
+
+profiles_out=$("$ROOT_DIR/manage-stavrobot-model.sh" list-profiles --config-path "$CONFIG_APPLY" --profiles-path "$PROFILES_PATH")
+assert_contains "$profiles_out" '"status": "ok"'
+assert_contains "$profiles_out" '"private-modal-qwen"'
+
+apply_profile_out=$(PATH="$TMP_DIR/bin:$PATH" STAVROBOT_CLIENT_BIN="$CLIENT_STUB" "$ROOT_DIR/manage-stavrobot-model.sh" apply-profile --stavrobot-dir "$FAKE_STAVROBOT" --profiles-path "$PROFILES_PATH" --profile private-modal-qwen)
+assert_contains "$apply_profile_out" '"status": "ok"'
+assert_contains "$apply_profile_out" '"provider": "openai"'
+assert_contains "$apply_profile_out" '"current_model": "Qwen/Qwen3.5-9B-Instruct"'
+
+config_after_profile=$(cat "$CONFIG_APPLY")
+assert_contains "$config_after_profile" 'provider = "openai"'
+assert_contains "$config_after_profile" 'model = "Qwen/Qwen3.5-9B-Instruct"'
+assert_contains "$config_after_profile" 'baseUrl = "http://host.docker.internal:11435/v1"'
+assert_contains "$config_after_profile" 'api = "openai-completions"'
+assert_contains "$config_after_profile" 'contextWindow = 32768'
+assert_contains "$config_after_profile" 'maxTokens = 8192'
+
 printf 'manage-stavrobot-model tests passed\n'

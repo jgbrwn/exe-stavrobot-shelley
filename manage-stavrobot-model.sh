@@ -11,6 +11,8 @@ TIMEOUT=60
 POLL_INTERVAL=2
 ACTION=""
 MODEL=""
+PROFILE=""
+PROFILES_PATH="${ROOT_DIR}/state/llm-profiles.json"
 STAVROBOT_CLIENT_BIN="${STAVROBOT_CLIENT_BIN:-$ROOT_DIR/client-stavrobot.sh}"
 OPENROUTER_MODELS_SCRIPT="${OPENROUTER_MODELS_SCRIPT:-$ROOT_DIR/py/openrouter_models.py}"
 
@@ -22,14 +24,18 @@ Actions:
   get-current
   list-openrouter-free
   apply --model MODEL_ID
+  list-profiles
+  apply-profile --profile PROFILE_ID
 
 Flags:
   --stavrobot-dir PATH   Use PATH/data/main/config.toml and docker compose there
   --config-path PATH     Explicit config.toml path
+  --profiles-path PATH   LLM profiles JSON path (default: ./state/llm-profiles.json)
   --base-url URL         Stavrobot base URL (default: STAVROBOT_BASE_URL or http://localhost:8000)
   --timeout SEC          Health wait timeout for apply (default: 60)
   --poll-interval SEC    Health poll interval for apply (default: 2)
-  --model MODEL_ID       Model to apply
+  --model MODEL_ID       Model to apply (for action=apply)
+  --profile PROFILE_ID   Profile id to apply (for action=apply-profile)
   --help
 
 Environment:
@@ -48,6 +54,10 @@ resolve_config_path() {
 
 require_action() {
   [[ -n "$ACTION" ]] || die "Specify an action"
+}
+
+require_stavrobot_dir_for_restart() {
+  [[ -n "$STAVROBOT_DIR" ]] || die "This action requires --stavrobot-dir so docker compose can restart app"
 }
 
 get_current_json() {
@@ -140,6 +150,76 @@ wait_for_health_model() {
   done
 }
 
+restart_and_wait() {
+  local expected_provider="$1"
+  local expected_model="$2"
+
+  local health_out operation
+  if ! (cd "$STAVROBOT_DIR" && docker compose restart app >/dev/null); then
+    python3 - "$expected_provider" "$expected_model" <<'PY'
+import json, sys
+print(json.dumps({
+  "status": "error",
+  "error": "restart_failed",
+  "provider": sys.argv[1],
+  "attempted_model": sys.argv[2],
+  "operation": "restart",
+  "ready": False,
+  "message": "Failed to restart Stavrobot app service."
+}, indent=2))
+PY
+    exit 1
+  fi
+  operation="restart"
+
+  if health_out=$(wait_for_health_model "$expected_provider" "$expected_model"); then
+    python3 - "$expected_model" "$operation" "$health_out" <<'PY'
+import json, sys
+print(json.dumps({
+  "status": "ok",
+  "operation": sys.argv[2],
+  "current_model": sys.argv[1],
+  "provider": json.loads(sys.argv[3]).get("provider", ""),
+  "ready": True,
+  "health": json.loads(sys.argv[3]),
+}, indent=2))
+PY
+    return 0
+  fi
+
+  if (cd "$STAVROBOT_DIR" && docker compose up -d --force-recreate app >/dev/null); then
+    operation="force-recreate"
+    if health_out=$(wait_for_health_model "$expected_provider" "$expected_model"); then
+      python3 - "$expected_model" "$operation" "$health_out" <<'PY'
+import json, sys
+print(json.dumps({
+  "status": "ok",
+  "operation": sys.argv[2],
+  "current_model": sys.argv[1],
+  "provider": json.loads(sys.argv[3]).get("provider", ""),
+  "ready": True,
+  "health": json.loads(sys.argv[3]),
+}, indent=2))
+PY
+      return 0
+    fi
+  fi
+
+  python3 - "$expected_provider" "$expected_model" <<'PY'
+import json, sys
+print(json.dumps({
+  "status": "error",
+  "error": "health_timeout",
+  "provider": sys.argv[1],
+  "attempted_model": sys.argv[2],
+  "operation": "force-recreate",
+  "ready": False,
+  "message": "Timed out waiting for Stavrobot health after model/provider change."
+}, indent=2))
+PY
+  return 1
+}
+
 list_openrouter_free() {
   ensure_openrouter_active
   python3 - "$OPENROUTER_MODELS_SCRIPT" <<'PY'
@@ -176,11 +256,44 @@ print(json.dumps(payload, indent=2))
 PY
 }
 
+list_profiles() {
+  python3 - "$PROFILES_PATH" "$CONFIG_PATH" <<'PY'
+import json, os, sys, tomllib
+profiles_path, config_path = sys.argv[1], sys.argv[2]
+profiles = {}
+if os.path.exists(profiles_path):
+    with open(profiles_path) as f:
+        payload = json.load(f)
+    profiles = payload.get("profiles", {}) if isinstance(payload, dict) else {}
+
+cfg = tomllib.loads(open(config_path).read())
+provider = cfg.get("provider", "")
+model = cfg.get("model", "")
+base_url = cfg.get("baseUrl", "")
+active = ""
+for pid, p in profiles.items():
+    if not isinstance(p, dict):
+        continue
+    if p.get("provider") == provider and p.get("model") == model:
+        p_base = p.get("baseUrl", "")
+        if p_base == base_url:
+            active = pid
+            break
+
+print(json.dumps({
+    "status": "ok",
+    "active_profile": active,
+    "profiles": profiles,
+}, indent=2))
+PY
+}
+
 apply_model() {
   [[ -n "$MODEL" ]] || die "apply requires --model"
   ensure_openrouter_active
+  require_stavrobot_dir_for_restart
 
-  local before tmp previous_model provider health_out operation
+  local tmp previous_model provider
   tmp=$(mktemp)
   get_current_json >"$tmp"
   previous_model=$(json_field "$tmp" model)
@@ -189,80 +302,58 @@ apply_model() {
 
   python3 "$ROOT_DIR/py/stavrobot_model_control.py" set-model "$CONFIG_PATH" "$MODEL" >/dev/null
 
-  if [[ -n "$STAVROBOT_DIR" ]]; then
-    if ! (cd "$STAVROBOT_DIR" && docker compose restart app >/dev/null); then
-      python3 - "$previous_model" "$MODEL" <<'PY'
+  if restart_and_wait "$provider" "$MODEL" >/tmp/manage-stavrobot-model-health.json; then
+    python3 - "$previous_model" "$MODEL" "$(cat /tmp/manage-stavrobot-model-health.json)" <<'PY'
 import json, sys
-print(json.dumps({
-  "status": "error",
-  "error": "restart_failed",
-  "previous_model": sys.argv[1],
-  "attempted_model": sys.argv[2],
-  "operation": "restart",
-  "ready": False,
-  "message": "Failed to restart Stavrobot app service."
-}, indent=2))
+base = json.loads(sys.argv[3])
+base["previous_model"] = sys.argv[1]
+base["current_model"] = sys.argv[2]
+print(json.dumps(base, indent=2))
 PY
-      exit 1
-    fi
-    operation="restart"
-  else
-    die "apply currently requires --stavrobot-dir so docker compose can be run safely"
-  fi
-
-  if health_out=$(wait_for_health_model "$provider" "$MODEL"); then
-    python3 - "$previous_model" "$MODEL" "$operation" "$health_out" <<'PY'
-import json, sys
-print(json.dumps({
-  "status": "ok",
-  "operation": sys.argv[3],
-  "previous_model": sys.argv[1],
-  "current_model": sys.argv[2],
-  "provider": json.loads(sys.argv[4]).get("provider", ""),
-  "ready": True,
-  "health": json.loads(sys.argv[4]),
-}, indent=2))
-PY
+    rm -f /tmp/manage-stavrobot-model-health.json
     return 0
   fi
+  rm -f /tmp/manage-stavrobot-model-health.json
+  return 1
+}
 
-  if (cd "$STAVROBOT_DIR" && docker compose up -d --force-recreate app >/dev/null); then
-    operation="force-recreate"
-    if health_out=$(wait_for_health_model "$provider" "$MODEL"); then
-      python3 - "$previous_model" "$MODEL" "$operation" "$health_out" <<'PY'
-import json, sys
-print(json.dumps({
-  "status": "ok",
-  "operation": sys.argv[3],
-  "previous_model": sys.argv[1],
-  "current_model": sys.argv[2],
-  "provider": json.loads(sys.argv[4]).get("provider", ""),
-  "ready": True,
-  "health": json.loads(sys.argv[4]),
-}, indent=2))
+load_profile_json() {
+  python3 - "$PROFILES_PATH" "$PROFILE" <<'PY'
+import json, os, sys
+path, profile = sys.argv[1], sys.argv[2]
+if not os.path.exists(path):
+    raise SystemExit(f"profiles file not found: {path}")
+payload = json.load(open(path))
+profiles = payload.get("profiles", {}) if isinstance(payload, dict) else {}
+if profile not in profiles:
+    raise SystemExit(f"profile not found: {profile}")
+print(json.dumps(profiles[profile]))
 PY
-      return 0
-    fi
+}
+
+apply_profile() {
+  [[ -n "$PROFILE" ]] || die "apply-profile requires --profile"
+  require_stavrobot_dir_for_restart
+
+  local profile_json
+  profile_json=$(load_profile_json)
+
+  local expected_provider expected_model
+  expected_provider=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("provider",""))' "$profile_json")
+  expected_model=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("model",""))' "$profile_json")
+  [[ -n "$expected_provider" && -n "$expected_model" ]] || die "profile must include provider and model"
+
+  python3 "$ROOT_DIR/py/stavrobot_model_control.py" set-provider "$CONFIG_PATH" "$profile_json" >/dev/null
+
+  if restart_and_wait "$expected_provider" "$expected_model"; then
+    return 0
   fi
-
-  python3 - "$previous_model" "$MODEL" <<'PY'
-import json, sys
-print(json.dumps({
-  "status": "error",
-  "error": "health_timeout",
-  "previous_model": sys.argv[1],
-  "attempted_model": sys.argv[2],
-  "operation": "force-recreate",
-  "ready": False,
-  "message": "Timed out waiting for Stavrobot health after model change."
-}, indent=2))
-PY
   return 1
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    get-current|list-openrouter-free|apply)
+    get-current|list-openrouter-free|apply|list-profiles|apply-profile)
       [[ -z "$ACTION" ]] || die "Only one action may be specified"
       ACTION="$1"
       shift
@@ -273,6 +364,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --config-path)
       CONFIG_PATH="$2"
+      shift 2
+      ;;
+    --profiles-path)
+      PROFILES_PATH="$2"
       shift 2
       ;;
     --base-url)
@@ -289,6 +384,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --model)
       MODEL="$2"
+      shift 2
+      ;;
+    --profile)
+      PROFILE="$2"
       shift 2
       ;;
     --help)
@@ -315,5 +414,11 @@ case "$ACTION" in
     ;;
   apply)
     apply_model
+    ;;
+  list-profiles)
+    list_profiles
+    ;;
+  apply-profile)
+    apply_profile
     ;;
 esac

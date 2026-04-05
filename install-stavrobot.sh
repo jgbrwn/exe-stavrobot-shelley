@@ -59,6 +59,15 @@ EMAIL_SMTP_PORT_OVERRIDE=""
 EMAIL_SMTP_USER_OVERRIDE=""
 EMAIL_SMTP_PASSWORD_OVERRIDE=""
 EMAIL_FROM_OVERRIDE=""
+PRIVATE_MODAL_ENABLE=0
+PRIVATE_MODAL_DISABLE=0
+PRIVATE_MODAL_SET_DEFAULT=0
+PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE=""
+PRIVATE_MODAL_TOKEN_ID_OVERRIDE=""
+PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE=""
+PRIVATE_MODAL_MODEL_OVERRIDE=""
+PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE=""
+PRIVATE_MODAL_MAX_TOKENS_OVERRIDE=""
 MANAGED_SHELLEY_DIR="${MANAGED_SHELLEY_DIR:-${SHELLEY_DIR:-/opt/shelley}}"
 STAVROBOT_REPO_URL="${STAVROBOT_REPO_URL:-https://github.com/skorokithakis/stavrobot.git}"
 STAVROBOT_BASE_URL="${STAVROBOT_BASE_URL:-http://localhost:8000}"
@@ -105,7 +114,12 @@ Usage (most users):
   # 6) Optional: exe.dev inbound email bridge helper (alternative to Cloudflare)
   ./install-stavrobot.sh --configure-exedev-email-bridge --stavrobot-dir /opt/stavrobot
 
-  # 7) Optional: status checks
+  # 7) Optional: private Modal Qwen endpoint local proxy helper
+  ./install-stavrobot.sh --configure-private-modal-qwen --stavrobot-dir /opt/stavrobot \
+    --private-modal-upstream-url https://<workspace>--<app>.modal.run \
+    --private-modal-token-id ak-... --private-modal-token-secret as-... --private-modal-set-default
+
+  # 8) Optional: status checks
   ./install-stavrobot.sh --print-shelley-mode-status --basic
   ./install-stavrobot.sh --print-shelley-mode-status
   ./install-stavrobot.sh --print-shelley-mode-status --json
@@ -167,6 +181,15 @@ Flags:
   --email-smtp-user VALUE                Non-interactive SMTP user override (smtp mode)
   --email-smtp-password VALUE            Non-interactive SMTP password override (smtp mode)
   --email-from VALUE                     Non-interactive From address override (smtp mode)
+  --configure-private-modal-qwen         Configure local private Modal OpenAI proxy service override
+  --disable-private-modal-qwen           With --configure-private-modal-qwen, remove/disable private Modal proxy override
+  --private-modal-upstream-url URL       Private Modal upstream base URL (e.g. https://<workspace>--<app>.modal.run)
+  --private-modal-token-id ID            Modal proxy-auth token id (ak-...)
+  --private-modal-token-secret SECRET    Modal proxy-auth token secret (as-...)
+  --private-modal-model MODEL            Model id for private modal profile (default: Qwen/Qwen3.5-9B-Instruct)
+  --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
+  --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
+  --private-modal-set-default            Also set Stavrobot provider/model to private-modal profile
   --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
   --doctor --json               Emit machine-readable doctor output
   --help-basic                 Print basic user quickstart and common commands
@@ -219,6 +242,15 @@ Shelley mode helpers:
   --email-smtp-user VALUE                Non-interactive SMTP user override (smtp mode)
   --email-smtp-password VALUE            Non-interactive SMTP password override (smtp mode)
   --email-from VALUE                     Non-interactive From address override (smtp mode)
+  --configure-private-modal-qwen         Configure local private Modal OpenAI proxy service override
+  --disable-private-modal-qwen           With --configure-private-modal-qwen, remove/disable private Modal proxy override
+  --private-modal-upstream-url URL       Private Modal upstream base URL (e.g. https://<workspace>--<app>.modal.run)
+  --private-modal-token-id ID            Modal proxy-auth token id (ak-...)
+  --private-modal-token-secret SECRET    Modal proxy-auth token secret (as-...)
+  --private-modal-model MODEL            Model id for private modal profile (default: Qwen/Qwen3.5-9B-Instruct)
+  --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
+  --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
+  --private-modal-set-default            Also set Stavrobot provider/model to private-modal profile
   --doctor                      Read-only environment/preflight checker for local installer + Shelley tooling
   --doctor --json               Emit machine-readable doctor output
 EOF
@@ -454,6 +486,78 @@ print(f'OWNER_EMAIL={owner_email!r}')
 PY
 )"
   fi
+}
+
+write_private_modal_profile_state() {
+  local upstream_url="$1"
+  local token_id="$2"
+  local token_secret="$3"
+  local model="$4"
+  local context_window="$5"
+  local max_tokens="$6"
+  local state_path="$ROOT_DIR/state/llm-profiles.json"
+
+  python3 - "$state_path" "$upstream_url" "$token_id" "$token_secret" "$model" "$context_window" "$max_tokens" <<'PY'
+import json, os, sys
+path, upstream_url, token_id, token_secret, model, context_window, max_tokens = sys.argv[1:]
+profiles = {}
+if os.path.exists(path):
+    try:
+        with open(path) as f:
+            payload = json.load(f)
+        if isinstance(payload, dict):
+            profiles = payload
+    except Exception:
+        profiles = {}
+profiles.setdefault("profiles", {})
+profiles["profiles"]["private-modal-qwen"] = {
+    "name": "Private Modal endpoint (Qwen3.5-9B)",
+    "provider": "openai",
+    "model": model,
+    "api": "openai-completions",
+    "baseUrl": "http://host.docker.internal:11435/v1",
+    "apiKey": "private-modal-local-proxy",
+    "contextWindow": int(context_window),
+    "maxTokens": int(max_tokens),
+    "modal": {
+        "upstream_url": upstream_url,
+        "token_id": token_id,
+        "token_secret": token_secret,
+    },
+}
+with open(path, "w") as f:
+    json.dump(profiles, f, indent=2)
+PY
+  ensure_private_file "$state_path"
+}
+
+apply_private_modal_profile_to_config() {
+  local model="$1"
+  local context_window="$2"
+  local max_tokens="$3"
+
+  python3 - "$CONFIG_PATH" "$model" "$context_window" "$max_tokens" <<'PY'
+import re, sys
+path, model, context_window, max_tokens = sys.argv[1:]
+text = open(path).read()
+
+def set_or_add(text, pattern, line):
+    rx = re.compile(pattern, re.MULTILINE)
+    if rx.search(text):
+        return rx.sub(line, text, count=1)
+    return text.rstrip() + "\n" + line + "\n"
+
+text = set_or_add(text, r'^provider\s*=\s*"[^"]*"\s*$', 'provider = "openai"')
+text = set_or_add(text, r'^model\s*=\s*"[^"]*"\s*$', f'model = "{model}"')
+text = set_or_add(text, r'^apiKey\s*=\s*"[^"]*"\s*$', 'apiKey = "private-modal-local-proxy"')
+text = set_or_add(text, r'^baseUrl\s*=\s*"[^"]*"\s*$', 'baseUrl = "http://host.docker.internal:11435/v1"')
+text = set_or_add(text, r'^api\s*=\s*"[^"]*"\s*$', 'api = "openai-completions"')
+text = set_or_add(text, r'^contextWindow\s*=\s*[0-9]+\s*$', f'contextWindow = {int(context_window)}')
+text = set_or_add(text, r'^maxTokens\s*=\s*[0-9]+\s*$', f'maxTokens = {int(max_tokens)}')
+
+text = re.sub(r'(?m)^authFile\s*=\s*"[^"]*"\s*$\n?', '', text)
+open(path, 'w').write(text)
+PY
 }
 
 wait_for_stavrobot_ready() {
@@ -786,6 +890,44 @@ while [[ $# -gt 0 ]]; do
       EMAIL_FROM_OVERRIDE="$2"
       shift 2
       ;;
+    --configure-private-modal-qwen)
+      PRIVATE_MODAL_ENABLE=1
+      shift
+      ;;
+    --disable-private-modal-qwen)
+      PRIVATE_MODAL_ENABLE=1
+      PRIVATE_MODAL_DISABLE=1
+      PRIVATE_MODAL_SET_DEFAULT=0
+      shift
+      ;;
+    --private-modal-upstream-url)
+      PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE="$2"
+      shift 2
+      ;;
+    --private-modal-token-id)
+      PRIVATE_MODAL_TOKEN_ID_OVERRIDE="$2"
+      shift 2
+      ;;
+    --private-modal-token-secret)
+      PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE="$2"
+      shift 2
+      ;;
+    --private-modal-model)
+      PRIVATE_MODAL_MODEL_OVERRIDE="$2"
+      shift 2
+      ;;
+    --private-modal-context-window)
+      PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE="$2"
+      shift 2
+      ;;
+    --private-modal-max-tokens)
+      PRIVATE_MODAL_MAX_TOKENS_OVERRIDE="$2"
+      shift 2
+      ;;
+    --private-modal-set-default)
+      PRIVATE_MODAL_SET_DEFAULT=1
+      shift
+      ;;
     --doctor)
       DOCTOR_ONLY=1
       shift
@@ -836,14 +978,26 @@ fi
 if (( EXEDEV_EMAIL_BRIDGE_ONLY == 1 && SHELLEY_REFRESH_ONLY == 1 )); then
   die "--configure-exedev-email-bridge cannot be combined with --refresh-shelley-mode"
 fi
+if (( PRIVATE_MODAL_ENABLE == 1 && SHELLEY_REFRESH_ONLY == 1 )); then
+  die "--configure-private-modal-qwen cannot be combined with --refresh-shelley-mode"
+fi
 if (( CF_EMAIL_WORKER_ONLY == 1 && (SHELLEY_STATUS_JSON == 1 || SHELLEY_STATUS_BASIC == 1) )); then
   die "--json/--basic cannot be combined with --configure-cloudflare-email-worker"
 fi
 if (( EXEDEV_EMAIL_BRIDGE_ONLY == 1 && (SHELLEY_STATUS_JSON == 1 || SHELLEY_STATUS_BASIC == 1) )); then
   die "--json/--basic cannot be combined with --configure-exedev-email-bridge"
 fi
+if (( PRIVATE_MODAL_ENABLE == 1 && (SHELLEY_STATUS_JSON == 1 || SHELLEY_STATUS_BASIC == 1) )); then
+  die "--json/--basic cannot be combined with --configure-private-modal-qwen"
+fi
 if (( CF_EMAIL_WORKER_ONLY == 1 && EXEDEV_EMAIL_BRIDGE_ONLY == 1 )); then
   die "--configure-cloudflare-email-worker cannot be combined with --configure-exedev-email-bridge"
+fi
+if (( CF_EMAIL_WORKER_ONLY == 1 && PRIVATE_MODAL_ENABLE == 1 )); then
+  die "--configure-cloudflare-email-worker cannot be combined with --configure-private-modal-qwen"
+fi
+if (( EXEDEV_EMAIL_BRIDGE_ONLY == 1 && PRIVATE_MODAL_ENABLE == 1 )); then
+  die "--configure-exedev-email-bridge cannot be combined with --configure-private-modal-qwen"
 fi
 if (( SHELLEY_REFRESH_ONLY )) && (( SHELLEY_STATUS_BASIC )); then
   die "--basic cannot be combined with --refresh-shelley-mode"
@@ -851,15 +1005,15 @@ fi
 if (( SHELLEY_STATUS_JSON )) && (( SHELLEY_STATUS_BASIC )); then
   die "--json cannot be combined with --basic"
 fi
-if (( DOCTOR_ONLY )) && (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || REFRESH_ONLY || PLUGINS_ONLY || CONFIG_ONLY || SKIP_CONFIG || SKIP_PLUGINS || SHOW_SECRETS || CF_EMAIL_WORKER_ONLY || CF_EMAIL_WORKER_DEPLOY || EXEDEV_EMAIL_BRIDGE_ONLY || EXEDEV_EMAIL_BRIDGE_DISABLE )) || [[ -n "$EMAIL_MODE_OVERRIDE$EMAIL_WEBHOOK_SECRET_OVERRIDE$EMAIL_OWNER_OVERRIDE$EMAIL_SMTP_HOST_OVERRIDE$EMAIL_SMTP_PORT_OVERRIDE$EMAIL_SMTP_USER_OVERRIDE$EMAIL_SMTP_PASSWORD_OVERRIDE$EMAIL_FROM_OVERRIDE" ]]; then
+if (( DOCTOR_ONLY )) && (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || REFRESH_ONLY || PLUGINS_ONLY || CONFIG_ONLY || SKIP_CONFIG || SKIP_PLUGINS || SHOW_SECRETS || CF_EMAIL_WORKER_ONLY || CF_EMAIL_WORKER_DEPLOY || EXEDEV_EMAIL_BRIDGE_ONLY || EXEDEV_EMAIL_BRIDGE_DISABLE || PRIVATE_MODAL_ENABLE )) || [[ -n "$EMAIL_MODE_OVERRIDE$EMAIL_WEBHOOK_SECRET_OVERRIDE$EMAIL_OWNER_OVERRIDE$EMAIL_SMTP_HOST_OVERRIDE$EMAIL_SMTP_PORT_OVERRIDE$EMAIL_SMTP_USER_OVERRIDE$EMAIL_SMTP_PASSWORD_OVERRIDE$EMAIL_FROM_OVERRIDE" ]]; then
   if (( DOCTOR_ONLY )); then
     die "--doctor cannot be combined with installer mutation or Shelley refresh/status flags"
   fi
 fi
 
 if [[ -n "$EMAIL_MODE_OVERRIDE$EMAIL_WEBHOOK_SECRET_OVERRIDE$EMAIL_OWNER_OVERRIDE$EMAIL_SMTP_HOST_OVERRIDE$EMAIL_SMTP_PORT_OVERRIDE$EMAIL_SMTP_USER_OVERRIDE$EMAIL_SMTP_PASSWORD_OVERRIDE$EMAIL_FROM_OVERRIDE" ]]; then
-  if (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || CF_EMAIL_WORKER_ONLY || EXEDEV_EMAIL_BRIDGE_ONLY )); then
-    die "--email-* flags cannot be combined with Shelley status/refresh or email-helper-only modes"
+  if (( SHELLEY_REFRESH_ONLY || SHELLEY_STATUS_ONLY || CF_EMAIL_WORKER_ONLY || EXEDEV_EMAIL_BRIDGE_ONLY || PRIVATE_MODAL_ENABLE )); then
+    die "--email-* flags cannot be combined with Shelley status/refresh or helper-only modes"
   fi
   if [[ -z "$EMAIL_MODE_OVERRIDE" ]]; then
     die "--email-mode is required when using non-interactive --email-* overrides"
@@ -868,6 +1022,22 @@ if [[ -n "$EMAIL_MODE_OVERRIDE$EMAIL_WEBHOOK_SECRET_OVERRIDE$EMAIL_OWNER_OVERRID
     smtp|exedev-relay|inbound-only) ;;
     *) die "--email-mode must be one of: smtp, exedev-relay, inbound-only" ;;
   esac
+fi
+
+if (( PRIVATE_MODAL_ENABLE == 0 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DISABLE -eq 1 ]]; then
+  die "--private-modal-* flags require --configure-private-modal-qwen"
+fi
+
+if (( PRIVATE_MODAL_DISABLE == 1 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 ]]; then
+  die "--disable-private-modal-qwen cannot be combined with other --private-modal-* configuration flags"
+fi
+
+if (( PRIVATE_MODAL_ENABLE == 1 && PRIVATE_MODAL_DISABLE == 0 )); then
+  [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE" ]] || die "--private-modal-upstream-url is required with --configure-private-modal-qwen"
+  [[ -n "$PRIVATE_MODAL_TOKEN_ID_OVERRIDE" ]] || die "--private-modal-token-id is required with --configure-private-modal-qwen"
+  [[ -n "$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE" ]] || die "--private-modal-token-secret is required with --configure-private-modal-qwen"
+  [[ "$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE" =~ ^[0-9]+$ || -z "$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE" ]] || die "--private-modal-context-window must be an integer"
+  [[ "$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE" =~ ^[0-9]+$ || -z "$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE" ]] || die "--private-modal-max-tokens must be an integer"
 fi
 
 if (( SHELLEY_STATUS_ONLY )); then
@@ -971,7 +1141,7 @@ fi
 
 if (( EXEDEV_EMAIL_BRIDGE_ONLY )); then
   [[ -n "$STAVROBOT_DIR" ]] || die "--configure-exedev-email-bridge requires --stavrobot-dir"
-  (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHELLEY_STATUS_ONLY == 0 && SHELLEY_REFRESH_ONLY == 0 && CF_EMAIL_WORKER_ONLY == 0 && CF_EMAIL_WORKER_DEPLOY == 0 )) || \
+  (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && CONFIG_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHELLEY_STATUS_ONLY == 0 && SHELLEY_REFRESH_ONLY == 0 && CF_EMAIL_WORKER_ONLY == 0 && CF_EMAIL_WORKER_DEPLOY == 0 && PRIVATE_MODAL_ENABLE == 0 )) || \
     die "--configure-exedev-email-bridge cannot be combined with installer mutation/status/refresh flags"
   exedev_args=(--stavrobot-dir "$STAVROBOT_DIR")
   if (( EXEDEV_EMAIL_BRIDGE_DISABLE )); then
@@ -986,6 +1156,59 @@ You still need one exe.dev CLI step (outside this installer):
   1) ssh exe.dev share receive-email <vmname> on
   2) Send a test email to any.address@<vmname>.exe.xyz
   3) Verify bridge logs and Stavrobot /email/webhook handling
+EOF
+  exit 0
+fi
+
+if (( PRIVATE_MODAL_ENABLE )); then
+  [[ -n "$STAVROBOT_DIR" ]] || die "--configure-private-modal-qwen requires --stavrobot-dir"
+  (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHELLEY_STATUS_ONLY == 0 && SHELLEY_REFRESH_ONLY == 0 && CF_EMAIL_WORKER_ONLY == 0 && CF_EMAIL_WORKER_DEPLOY == 0 && EXEDEV_EMAIL_BRIDGE_ONLY == 0 )) || \
+    die "--configure-private-modal-qwen cannot be combined with installer mutation/status/refresh flags"
+
+  if (( PRIVATE_MODAL_DISABLE )); then
+    remove_private_modal_llm_override "$STAVROBOT_DIR"
+    info "Removed private Modal proxy override file"
+    if (( CONFIG_ONLY == 0 )); then
+      info "Recreating containers after private Modal disable"
+      docker_compose_up_recreate "$STAVROBOT_DIR"
+      load_runtime_metadata
+      if [[ -n "$PASSWORD_FOR_READY" ]]; then
+        wait_for_stavrobot_ready
+      fi
+    fi
+    exit 0
+  fi
+
+  modal_model="${PRIVATE_MODAL_MODEL_OVERRIDE:-Qwen/Qwen3.5-9B-Instruct}"
+  modal_context_window="${PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE:-32768}"
+  modal_max_tokens="${PRIVATE_MODAL_MAX_TOKENS_OVERRIDE:-8192}"
+
+  write_private_modal_llm_override "$STAVROBOT_DIR" "$ROOT_DIR/scripts/modal_openai_proxy.py" "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE" "$PRIVATE_MODAL_TOKEN_ID_OVERRIDE" "$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE" "11435"
+  write_private_modal_profile_state "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE" "$PRIVATE_MODAL_TOKEN_ID_OVERRIDE" "$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE" "$modal_model" "$modal_context_window" "$modal_max_tokens"
+  info "Private Modal proxy override written"
+
+  if (( PRIVATE_MODAL_SET_DEFAULT )); then
+    [[ -f "$STAVROBOT_DIR/data/main/config.toml" ]] || die "Missing config.toml at $STAVROBOT_DIR/data/main/config.toml"
+    CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
+    apply_private_modal_profile_to_config "$modal_model" "$modal_context_window" "$modal_max_tokens"
+    info "Set Stavrobot default provider/model to private Modal profile"
+  fi
+
+  if (( CONFIG_ONLY == 0 )); then
+    info "Recreating containers after private Modal configure"
+    docker_compose_up_recreate "$STAVROBOT_DIR"
+    load_runtime_metadata
+    wait_for_stavrobot_ready
+  fi
+
+  cat <<EOF
+
+[private-modal-next-steps]
+- Private Modal local proxy service override is configured.
+- Stored profile metadata: $ROOT_DIR/state/llm-profiles.json
+- If you have not deployed your Modal endpoint yet, do that now and rerun this command.
+- To disable later:
+  ./install-stavrobot.sh --configure-private-modal-qwen --disable-private-modal-qwen --stavrobot-dir "$STAVROBOT_DIR"
 EOF
   exit 0
 fi

@@ -119,6 +119,39 @@ Non-interactive override flags are also supported:
   --email-owner 'you@example.com'
 ```
 
+## Private Modal endpoint option (Qwen3.5-9B)
+
+You can configure a private Modal-hosted endpoint (OpenAI-compatible) via a local proxy that injects Modal auth headers.
+
+Configure it:
+
+```bash
+./install-stavrobot.sh --configure-private-modal-qwen --stavrobot-dir "$STAVROBOT_DIR" \
+  --private-modal-upstream-url 'https://<workspace>--<app>.modal.run' \
+  --private-modal-token-id 'ak-...' \
+  --private-modal-token-secret 'as-...' \
+  --private-modal-set-default
+```
+
+What this does:
+
+- writes a `docker-compose.private-modal-llm.override.yml` service (`private-modal-llm-proxy`)
+- routes Stavrobot to `http://host.docker.internal:11435/v1`
+- stores a reusable provider profile in `state/llm-profiles.json`
+
+Disable later:
+
+```bash
+./install-stavrobot.sh --configure-private-modal-qwen --disable-private-modal-qwen --stavrobot-dir "$STAVROBOT_DIR"
+```
+
+You can keep both OpenRouter and private Modal profiles configured, then switch with:
+
+```bash
+./manage-stavrobot-model.sh list-profiles --stavrobot-dir "$STAVROBOT_DIR"
+./manage-stavrobot-model.sh apply-profile --stavrobot-dir "$STAVROBOT_DIR" --profile private-modal-qwen
+```
+
 ## Most-used commands
 
 ```bash
