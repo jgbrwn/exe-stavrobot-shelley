@@ -29,6 +29,8 @@ HF_CACHE_VOLUME_NAME = "private-modal-qwen35-9b-hf-cache"
 VLLM_CACHE_VOLUME_NAME = "private-modal-qwen35-9b-vllm-cache"
 VLLM_PORT = 8000
 MAX_MODEL_LEN = int(os.environ.get("MAX_MODEL_LEN", "16384"))
+MAX_NUM_SEQS = int(os.environ.get("MAX_NUM_SEQS", "8"))
+ENFORCE_EAGER = os.environ.get("ENFORCE_EAGER", "1") == "1"
 
 MODEL_MOUNT = "/models"
 HF_CACHE_MOUNT = "/root/.cache/huggingface"
@@ -121,6 +123,8 @@ def serve():
         model_path,
         "--max-model-len",
         str(MAX_MODEL_LEN),
+        "--max-num-seqs",
+        str(MAX_NUM_SEQS),
         "--gpu-memory-utilization",
         "0.90",
         "--trust-remote-code",
@@ -128,6 +132,9 @@ def serve():
         "--tool-call-parser",
         "hermes",
     ]
+
+    if ENFORCE_EAGER:
+        cmd.append("--enforce-eager")
 
     print("[modal-qwen] launching:", " ".join(cmd))
     subprocess.Popen(cmd)
