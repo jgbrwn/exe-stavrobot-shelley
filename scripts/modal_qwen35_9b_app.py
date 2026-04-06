@@ -130,9 +130,9 @@ def serve():
         "--gpu-memory-utilization",
         "0.90",
         "--trust-remote-code",
-        "--enable-auto-tool-choice",
-        "--tool-call-parser",
-        "hermes",
+        "--language-model-only",
+        "--reasoning-parser",
+        "qwen3",
         "--default-chat-template-kwargs",
         DEFAULT_CHAT_TEMPLATE_KWARGS,
     ]
