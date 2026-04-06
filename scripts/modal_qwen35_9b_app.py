@@ -44,8 +44,10 @@ image = (
     modal.Image.from_registry("nvidia/cuda:12.4.1-devel-ubuntu22.04", add_python="3.11")
     .entrypoint([])
     .pip_install(
-        "vllm==0.7.2",
-        "transformers==4.48.3",
+        # Qwen3.5-* uses the new qwen3_5 architecture, which requires newer
+        # vLLM+transformers support than the old 0.7.2/4.48.x combo.
+        "vllm==0.17.1",
+        "transformers>=4.56.0,<5",
         "huggingface_hub[hf_transfer]>=0.24.0",
         "hf-transfer>=0.1.8",
     )
