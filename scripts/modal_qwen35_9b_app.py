@@ -40,6 +40,7 @@ image = (
     .entrypoint([])
     .pip_install(
         "vllm==0.7.2",
+        "transformers==4.48.3",
         "huggingface_hub[hf_transfer]>=0.24.0",
         "hf-transfer>=0.1.8",
     )
