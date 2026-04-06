@@ -32,7 +32,7 @@ MAX_MODEL_LEN = int(os.environ.get("MAX_MODEL_LEN", "16384"))
 MAX_NUM_SEQS = int(os.environ.get("MAX_NUM_SEQS", "8"))
 ENFORCE_EAGER = os.environ.get("ENFORCE_EAGER", "1") == "1"
 SCALEDOWN_WINDOW_SECONDS = int(os.environ.get("SCALEDOWN_WINDOW_SECONDS", "180"))
-CHAT_TEMPLATE_KWARGS = os.environ.get("CHAT_TEMPLATE_KWARGS", '{"enable_thinking": false}')
+DEFAULT_CHAT_TEMPLATE_KWARGS = os.environ.get("DEFAULT_CHAT_TEMPLATE_KWARGS", '{"enable_thinking":false}')
 
 MODEL_MOUNT = "/models"
 HF_CACHE_MOUNT = "/root/.cache/huggingface"
@@ -133,8 +133,8 @@ def serve():
         "--enable-auto-tool-choice",
         "--tool-call-parser",
         "hermes",
-        "--chat-template-kwargs",
-        CHAT_TEMPLATE_KWARGS,
+        "--default-chat-template-kwargs",
+        DEFAULT_CHAT_TEMPLATE_KWARGS,
     ]
 
     if ENFORCE_EAGER:

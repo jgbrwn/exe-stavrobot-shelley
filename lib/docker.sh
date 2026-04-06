@@ -91,7 +91,7 @@ services:
       UPSTREAM_BASE_URL: "$upstream_base_url"
       MODAL_TOKEN_ID: "$modal_token_id"
       MODAL_TOKEN_SECRET: "$modal_token_secret"
-      REQUEST_TIMEOUT_SECONDS: "600"
+      REQUEST_TIMEOUT_SECONDS: "2400"
     volumes:
       - "$proxy_script_host_path:/proxy/modal_openai_proxy.py:ro"
 EOF
