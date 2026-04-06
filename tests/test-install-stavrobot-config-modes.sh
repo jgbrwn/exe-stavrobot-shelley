@@ -16,7 +16,7 @@ assert_contains() {
 }
 
 FAKE_STAVROBOT="$TMP_DIR/stavrobot"
-mkdir -p "$FAKE_STAVROBOT/data/main"
+mkdir -p "$FAKE_STAVROBOT/config" "$FAKE_STAVROBOT/data/app" "$FAKE_STAVROBOT/data/main"
 cat > "$FAKE_STAVROBOT/env.example" <<'EOF_ENV'
 TZ=UTC
 POSTGRES_USER=stavrobot
@@ -87,5 +87,29 @@ assert_contains "$out" 'Config-only mode: wrote config files without rebuilding 
 assert_contains "$out" 'exe.dev relay outbound enabled (recipient must be exactly: owner@example.com)'
 if [[ ! -f "$FAKE_STAVROBOT3/docker-compose.exedev-email-relay.override.yml" ]]; then
   echo 'expected exedev email relay override file to exist' >&2
+  exit 1
+fi
+
+FAKE_STAVROBOT4="$TMP_DIR/stavrobot-private-modal"
+cp -R "$FAKE_STAVROBOT" "$FAKE_STAVROBOT4"
+HF_TOKEN_FILE="$TMP_DIR/hf_token.txt"
+printf 'hf_dummy_token\n' > "$HF_TOKEN_FILE"
+out=$(SHELLEY_INSTALLER_TEST_SKIP_OPENROUTER_FETCH=1 "$ROOT_DIR/install-stavrobot.sh" \
+  --configure-private-modal-qwen \
+  --stavrobot-dir "$FAKE_STAVROBOT4" \
+  --skip-config \
+  --config-only \
+  --private-modal-upstream-url https://example.modal.run \
+  --private-modal-token-id ak-test \
+  --private-modal-token-secret as-test \
+  --private-modal-hf-token-file "$HF_TOKEN_FILE" \
+  --private-modal-set-default 2>&1)
+assert_contains "$out" 'Private Modal proxy override written'
+config_out=$(cat "$FAKE_STAVROBOT4/data/main/config.toml")
+assert_contains "$config_out" 'provider = "openai"'
+assert_contains "$config_out" 'baseUrl = "http://host.docker.internal:11435/v1"'
+assert_contains "$config_out" '[owner]'
+if [[ ! -f "$FAKE_STAVROBOT4/docker-compose.private-modal-llm.override.yml" ]]; then
+  echo 'expected private modal override file to exist' >&2
   exit 1
 fi

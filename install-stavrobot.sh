@@ -69,6 +69,7 @@ PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE=""
 PRIVATE_MODAL_TOKEN_ID_OVERRIDE=""
 PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE=""
 PRIVATE_MODAL_MODEL_OVERRIDE=""
+PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE=""
 PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE=""
 PRIVATE_MODAL_MAX_TOKENS_OVERRIDE=""
 PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE=""
@@ -190,7 +191,8 @@ Flags:
   --private-modal-upstream-url URL       Private Modal upstream base URL (e.g. https://<workspace>--<app>.modal.run)
   --private-modal-token-id ID            Modal proxy-auth token id (ak-...)
   --private-modal-token-secret SECRET    Modal proxy-auth token secret (as-...)
-  --private-modal-model MODEL            Model id for private modal profile (default: Qwen/Qwen3.5-9B)
+  --private-modal-model MODEL            Model id written into Stavrobot config profile (default: same as --private-modal-hf-model-id)
+  --private-modal-hf-model-id MODEL      Hugging Face model repo id used by Modal app (default: Qwen/Qwen3.5-9B)
   --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
   --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
   --private-modal-hf-token-file PATH     File containing Hugging Face token for gated/private model download
@@ -255,7 +257,8 @@ Shelley mode helpers:
   --private-modal-upstream-url URL       Private Modal upstream base URL (e.g. https://<workspace>--<app>.modal.run)
   --private-modal-token-id ID            Modal proxy-auth token id (ak-...)
   --private-modal-token-secret SECRET    Modal proxy-auth token secret (as-...)
-  --private-modal-model MODEL            Model id for private modal profile (default: Qwen/Qwen3.5-9B)
+  --private-modal-model MODEL            Model id written into Stavrobot config profile (default: same as --private-modal-hf-model-id)
+  --private-modal-hf-model-id MODEL      Hugging Face model repo id used by Modal app (default: Qwen/Qwen3.5-9B)
   --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
   --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
   --private-modal-hf-token-file PATH     File containing Hugging Face token for gated/private model download
@@ -582,22 +585,44 @@ import re, sys
 path, model, context_window, max_tokens = sys.argv[1:]
 text = open(path).read()
 
-def set_or_add(text, pattern, line):
+section_match = re.search(r'(?m)^\[', text)
+if section_match:
+    top = text[:section_match.start()]
+    rest = text[section_match.start():]
+else:
+    top = text
+    rest = ""
+
+def set_or_add_top(top, pattern, line):
     rx = re.compile(pattern, re.MULTILINE)
-    if rx.search(text):
-        return rx.sub(line, text, count=1)
-    return text.rstrip() + "\n" + line + "\n"
+    if rx.search(top):
+        return rx.sub(line, top, count=1)
+    top = top.rstrip() + "\n" if top.strip() else ""
+    return top + line + "\n"
 
-text = set_or_add(text, r'^provider\s*=\s*"[^"]*"\s*$', 'provider = "openai"')
-text = set_or_add(text, r'^model\s*=\s*"[^"]*"\s*$', f'model = "{model}"')
-text = set_or_add(text, r'^apiKey\s*=\s*"[^"]*"\s*$', 'apiKey = "private-modal-local-proxy"')
-text = set_or_add(text, r'^baseUrl\s*=\s*"[^"]*"\s*$', 'baseUrl = "http://host.docker.internal:11435/v1"')
-text = set_or_add(text, r'^api\s*=\s*"[^"]*"\s*$', 'api = "openai-completions"')
-text = set_or_add(text, r'^contextWindow\s*=\s*[0-9]+\s*$', f'contextWindow = {int(context_window)}')
-text = set_or_add(text, r'^maxTokens\s*=\s*[0-9]+\s*$', f'maxTokens = {int(max_tokens)}')
+def remove_top(top, pattern):
+    return re.sub(pattern, '', top, flags=re.MULTILINE)
 
-text = re.sub(r'(?m)^authFile\s*=\s*"[^"]*"\s*$\n?', '', text)
-open(path, 'w').write(text)
+top = set_or_add_top(top, r'^provider\s*=\s*"[^"]*"\s*$', 'provider = "openai"')
+top = set_or_add_top(top, r'^model\s*=\s*"[^"]*"\s*$', f'model = "{model}"')
+top = set_or_add_top(top, r'^apiKey\s*=\s*"[^"]*"\s*$', 'apiKey = "private-modal-local-proxy"')
+top = set_or_add_top(top, r'^baseUrl\s*=\s*"[^"]*"\s*$', 'baseUrl = "http://host.docker.internal:11435/v1"')
+top = set_or_add_top(top, r'^api\s*=\s*"[^"]*"\s*$', 'api = "openai-completions"')
+top = set_or_add_top(top, r'^contextWindow\s*=\s*[0-9]+\s*$', f'contextWindow = {int(context_window)}')
+top = set_or_add_top(top, r'^maxTokens\s*=\s*[0-9]+\s*$', f'maxTokens = {int(max_tokens)}')
+top = remove_top(top, r'^authFile\s*=\s*"[^"]*"\s*$\n?')
+
+new_text = top.rstrip() + "\n\n" + rest.lstrip("\n") if rest else top.rstrip() + "\n"
+
+owner_match = re.search(r'(?ms)^\[owner\]\n(.*?)(^\[[^\]]+\]\n|\Z)', new_text)
+if owner_match:
+    owner_body = owner_match.group(1)
+    owner_body = re.sub(r'(?m)^(baseUrl|api|contextWindow|maxTokens)\s*=\s*.*\n?', '', owner_body)
+    owner_rebuilt = '[owner]\n' + owner_body.rstrip() + '\n'
+    tail = owner_match.group(2)
+    new_text = new_text[:owner_match.start()] + owner_rebuilt + tail + new_text[owner_match.end():]
+
+open(path, 'w').write(new_text)
 PY
 }
 
@@ -957,6 +982,10 @@ while [[ $# -gt 0 ]]; do
       PRIVATE_MODAL_MODEL_OVERRIDE="$2"
       shift 2
       ;;
+    --private-modal-hf-model-id)
+      PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE="$2"
+      shift 2
+      ;;
     --private-modal-context-window)
       PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE="$2"
       shift 2
@@ -1082,11 +1111,11 @@ if [[ -n "$EMAIL_MODE_OVERRIDE$EMAIL_WEBHOOK_SECRET_OVERRIDE$EMAIL_OWNER_OVERRID
   esac
 fi
 
-if (( PRIVATE_MODAL_ENABLE == 0 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DISABLE -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
+if (( PRIVATE_MODAL_ENABLE == 0 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DISABLE -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
   die "--private-modal-* flags require --configure-private-modal-qwen"
 fi
 
-if (( PRIVATE_MODAL_DISABLE == 1 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
+if (( PRIVATE_MODAL_DISABLE == 1 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
   die "--disable-private-modal-qwen cannot be combined with other --private-modal-* configuration flags"
 fi
 
@@ -1245,6 +1274,20 @@ fi
 
 if (( PRIVATE_MODAL_ENABLE )); then
   [[ -n "$STAVROBOT_DIR" ]] || die "--configure-private-modal-qwen requires --stavrobot-dir"
+
+  require_cmd git
+  require_cmd python3
+  require_cmd docker
+  require_cmd curl
+  ensure_stavrobot_checkout "$STAVROBOT_DIR" "$STAVROBOT_REPO_URL"
+
+  if [[ -f "$STAVROBOT_DIR/data/main/config.toml" || -d "$STAVROBOT_DIR/data/main" ]]; then
+    CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
+  elif [[ -f "$STAVROBOT_DIR/config/config.toml" || -d "$STAVROBOT_DIR/config" ]]; then
+    CONFIG_PATH="$STAVROBOT_DIR/config/config.toml"
+  else
+    CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
+  fi
   (( REFRESH_ONLY == 0 && PLUGINS_ONLY == 0 && SKIP_CONFIG == 0 && SKIP_PLUGINS == 0 && SHELLEY_STATUS_ONLY == 0 && SHELLEY_REFRESH_ONLY == 0 && CF_EMAIL_WORKER_ONLY == 0 && CF_EMAIL_WORKER_DEPLOY == 0 && EXEDEV_EMAIL_BRIDGE_ONLY == 0 )) || \
     die "--configure-private-modal-qwen cannot be combined with installer mutation/status/refresh flags"
 
@@ -1262,7 +1305,8 @@ if (( PRIVATE_MODAL_ENABLE )); then
     exit 0
   fi
 
-  modal_model="${PRIVATE_MODAL_MODEL_OVERRIDE:-Qwen/Qwen3.5-9B}"
+  modal_hf_model_id="${PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE:-Qwen/Qwen3.5-9B}"
+  modal_model="${PRIVATE_MODAL_MODEL_OVERRIDE:-$modal_hf_model_id}"
   modal_context_window="${PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE:-32768}"
   modal_max_tokens="${PRIVATE_MODAL_MAX_TOKENS_OVERRIDE:-8192}"
   modal_app_name="${PRIVATE_MODAL_APP_NAME_OVERRIDE:-private-modal-qwen35-9b}"
@@ -1288,13 +1332,14 @@ if (( PRIVATE_MODAL_ENABLE )); then
 
     [[ -x "$MODAL_BIN" ]] || die "Modal CLI not found; install with pipx or provide modal in PATH"
 
-    if [[ "$modal_app_name" != "private-modal-qwen35-9b" ]]; then
+    if [[ "$modal_app_name" != "private-modal-qwen35-9b" || "$modal_hf_model_id" != "Qwen/Qwen3.5-9B" ]]; then
       modal_tmp_script=$(mktemp --suffix=.py)
-      python3 - "$modal_app_script" "$modal_tmp_script" "$modal_app_name" <<'PY'
+      python3 - "$modal_app_script" "$modal_tmp_script" "$modal_app_name" "$modal_hf_model_id" <<'PY'
 import pathlib, re, sys
-src, dst, app_name = sys.argv[1:]
+src, dst, app_name, model_id = sys.argv[1:]
 text = pathlib.Path(src).read_text()
 text = re.sub(r'APP_NAME\s*=\s*"[^"]+"', f'APP_NAME = "{app_name}"', text, count=1)
+text = re.sub(r'MODEL_ID\s*=\s*"[^"]+"', f'MODEL_ID = "{model_id}"', text, count=1)
 pathlib.Path(dst).write_text(text)
 print(dst)
 PY
@@ -1353,8 +1398,15 @@ PY
   info "Private Modal proxy override written"
 
   if (( PRIVATE_MODAL_SET_DEFAULT )); then
-    [[ -f "$STAVROBOT_DIR/data/main/config.toml" ]] || die "Missing config.toml at $STAVROBOT_DIR/data/main/config.toml"
-    CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
+    if [[ ! -f "$CONFIG_PATH" ]]; then
+      mkdir -p "$(dirname "$CONFIG_PATH")"
+      if [[ -f "$STAVROBOT_DIR/config.example.toml" ]]; then
+        cp "$STAVROBOT_DIR/config.example.toml" "$CONFIG_PATH"
+        info "Seeded missing config from config.example.toml at $CONFIG_PATH"
+      else
+        die "Missing config.toml at $CONFIG_PATH"
+      fi
+    fi
     apply_private_modal_profile_to_config "$modal_model" "$modal_context_window" "$modal_max_tokens"
     info "Set Stavrobot default provider/model to private Modal profile"
   fi
@@ -1468,7 +1520,13 @@ require_cmd curl
 ensure_stavrobot_checkout "$STAVROBOT_DIR" "$STAVROBOT_REPO_URL"
 mkdir -p "$ROOT_DIR/state"
 ENV_PATH="$STAVROBOT_DIR/.env"
-CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
+if [[ -f "$STAVROBOT_DIR/data/main/config.toml" || -d "$STAVROBOT_DIR/data/main" ]]; then
+  CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
+elif [[ -f "$STAVROBOT_DIR/config/config.toml" || -d "$STAVROBOT_DIR/config" ]]; then
+  CONFIG_PATH="$STAVROBOT_DIR/config/config.toml"
+else
+  CONFIG_PATH="$STAVROBOT_DIR/data/main/config.toml"
+fi
 PLUGIN_STATE_JSON="$ROOT_DIR/state/last-plugin-inputs.json"
 PLUGIN_REPORT_FILE="$ROOT_DIR/state/last-plugin-report.txt"
 : > "$PLUGIN_REPORT_FILE"

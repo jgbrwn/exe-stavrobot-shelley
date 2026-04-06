@@ -214,3 +214,6 @@ assert_contains "$out" '--private-modal-* flags require --configure-private-moda
 
 out=$("$ROOT_DIR/install-stavrobot.sh" --configure-private-modal-qwen --disable-private-modal-qwen --private-modal-hf-token-file /tmp/hftoken 2>&1 || true)
 assert_contains "$out" '--disable-private-modal-qwen cannot be combined with other --private-modal-* configuration flags'
+
+out=$("$ROOT_DIR/install-stavrobot.sh" --private-modal-hf-model-id Qwen/Qwen3.5-9B 2>&1 || true)
+assert_contains "$out" '--private-modal-* flags require --configure-private-modal-qwen'
