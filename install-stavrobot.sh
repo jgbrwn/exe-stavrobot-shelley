@@ -1353,7 +1353,7 @@ if (( PRIVATE_MODAL_ENABLE )); then
 
   modal_hf_model_id="${PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE:-Qwen/Qwen3.5-9B}"
   modal_model="${PRIVATE_MODAL_MODEL_OVERRIDE:-$modal_hf_model_id}"
-  modal_context_window="${PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE:-16384}"
+  modal_context_window="${PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE:-8192}"
   modal_max_tokens="${PRIVATE_MODAL_MAX_TOKENS_OVERRIDE:-8192}"
   modal_app_name="${PRIVATE_MODAL_APP_NAME_OVERRIDE:-private-modal-qwen35-9b}"
   modal_app_script="$ROOT_DIR/scripts/modal_qwen35_9b_app.py"

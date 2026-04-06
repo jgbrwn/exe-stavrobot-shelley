@@ -28,8 +28,8 @@ MODEL_VOLUME_NAME = "private-modal-qwen35-9b-model"
 HF_CACHE_VOLUME_NAME = "private-modal-qwen35-9b-hf-cache"
 VLLM_CACHE_VOLUME_NAME = "private-modal-qwen35-9b-vllm-cache"
 VLLM_PORT = 8000
-MAX_MODEL_LEN = int(os.environ.get("MAX_MODEL_LEN", "16384"))
-MAX_NUM_SEQS = int(os.environ.get("MAX_NUM_SEQS", "8"))
+MAX_MODEL_LEN = int(os.environ.get("MAX_MODEL_LEN", "8192"))
+MAX_NUM_SEQS = int(os.environ.get("MAX_NUM_SEQS", "2"))
 ENFORCE_EAGER = os.environ.get("ENFORCE_EAGER", "1") == "1"
 SCALEDOWN_WINDOW_SECONDS = int(os.environ.get("SCALEDOWN_WINDOW_SECONDS", "180"))
 DEFAULT_CHAT_TEMPLATE_KWARGS = os.environ.get("DEFAULT_CHAT_TEMPLATE_KWARGS", '{"enable_thinking":false}')
