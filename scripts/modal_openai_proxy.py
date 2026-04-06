@@ -3,6 +3,7 @@ import http.server
 import json
 import os
 import socketserver
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -26,7 +27,6 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt, *args):
-        # keep default stderr logging but include client address
         super().log_message(fmt, *args)
 
     def do_GET(self):
@@ -55,6 +55,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         redirect_count = 0
 
         while True:
+            request_start = time.time()
             req = urllib.request.Request(upstream_url, data=body if method != "GET" else None, method=method)
 
             for header in ("Content-Type", "Accept", "Authorization"):
@@ -69,6 +70,8 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
                     payload = resp.read()
                     ctype = resp.headers.get("Content-Type", "application/json")
+                    elapsed = time.time() - request_start
+                    print(f"[modal-openai-proxy] {method} {upstream_url} -> {resp.status} in {elapsed:.2f}s")
                     self._write_response(resp.status, payload, ctype)
                     return
             except urllib.error.HTTPError as exc:
@@ -86,6 +89,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                         self._write_response(status, payload, ctype)
                         return
 
+                    print(f"[modal-openai-proxy] redirect {redirect_count}/{MAX_REDIRECTS}: {method} {upstream_url} -> {exc.code} {location}")
                     upstream_url = urllib.parse.urljoin(upstream_url, location)
                     if exc.code == 303 and method != "GET":
                         method = "GET"
@@ -94,9 +98,13 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
 
                 payload = exc.read() if hasattr(exc, "read") else b""
                 ctype = exc.headers.get("Content-Type", "application/json") if exc.headers else "application/json"
+                elapsed = time.time() - request_start
+                print(f"[modal-openai-proxy] {method} {upstream_url} -> HTTPError {exc.code} in {elapsed:.2f}s")
                 self._write_response(exc.code, payload, ctype)
                 return
             except Exception as exc:
+                elapsed = time.time() - request_start
+                print(f"[modal-openai-proxy] {method} {upstream_url} -> error after {elapsed:.2f}s: {exc}")
                 status, payload, ctype = _json(502, {"error": f"proxy_error: {exc}"})
                 self._write_response(status, payload, ctype)
                 return
