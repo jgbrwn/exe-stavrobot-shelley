@@ -68,6 +68,8 @@ PRIVATE_MODAL_APP_NAME_OVERRIDE=""
 PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE=""
 PRIVATE_MODAL_TOKEN_ID_OVERRIDE=""
 PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE=""
+PRIVATE_MODAL_PROXY_TOKEN_ID_OVERRIDE=""
+PRIVATE_MODAL_PROXY_TOKEN_SECRET_OVERRIDE=""
 PRIVATE_MODAL_MODEL_OVERRIDE=""
 PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE=""
 PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE=""
@@ -122,7 +124,7 @@ Usage (most users):
   # 7) Optional: private Modal Qwen endpoint local proxy helper
   ./install-stavrobot.sh --configure-private-modal-qwen --stavrobot-dir /opt/stavrobot \
     --private-modal-upstream-url https://<workspace>--<app>.modal.run \
-    --private-modal-token-id ak-... --private-modal-token-secret as-... --private-modal-set-default
+    --private-modal-token-id wk-... --private-modal-token-secret ws-... --private-modal-set-default
 
   # 8) Optional: status checks
   ./install-stavrobot.sh --print-shelley-mode-status --basic
@@ -189,8 +191,10 @@ Flags:
   --configure-private-modal-qwen         Configure local private Modal OpenAI proxy service override
   --disable-private-modal-qwen           With --configure-private-modal-qwen, remove/disable private Modal proxy override
   --private-modal-upstream-url URL       Private Modal upstream base URL (e.g. https://<workspace>--<app>.modal.run)
-  --private-modal-token-id ID            Modal proxy-auth token id (ak-...)
-  --private-modal-token-secret SECRET    Modal proxy-auth token secret (as-...)
+  --private-modal-token-id ID            Modal Proxy Auth key id used by local proxy (wk-...)
+  --private-modal-token-secret SECRET    Modal Proxy Auth secret used by local proxy (ws-...)
+  --private-modal-proxy-token-id ID      Alias for --private-modal-token-id
+  --private-modal-proxy-token-secret SECRET  Alias for --private-modal-token-secret
   --private-modal-model MODEL            Model id written into Stavrobot config profile (default: same as --private-modal-hf-model-id)
   --private-modal-hf-model-id MODEL      Hugging Face model repo id used by Modal app (default: Qwen/Qwen3.5-9B)
   --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
@@ -255,8 +259,10 @@ Shelley mode helpers:
   --configure-private-modal-qwen         Configure local private Modal OpenAI proxy service override
   --disable-private-modal-qwen           With --configure-private-modal-qwen, remove/disable private Modal proxy override
   --private-modal-upstream-url URL       Private Modal upstream base URL (e.g. https://<workspace>--<app>.modal.run)
-  --private-modal-token-id ID            Modal proxy-auth token id (ak-...)
-  --private-modal-token-secret SECRET    Modal proxy-auth token secret (as-...)
+  --private-modal-token-id ID            Modal Proxy Auth key id used by local proxy (wk-...)
+  --private-modal-token-secret SECRET    Modal Proxy Auth secret used by local proxy (ws-...)
+  --private-modal-proxy-token-id ID      Alias for --private-modal-token-id
+  --private-modal-proxy-token-secret SECRET  Alias for --private-modal-token-secret
   --private-modal-model MODEL            Model id written into Stavrobot config profile (default: same as --private-modal-hf-model-id)
   --private-modal-hf-model-id MODEL      Hugging Face model repo id used by Modal app (default: Qwen/Qwen3.5-9B)
   --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
@@ -559,7 +565,7 @@ profiles["profiles"]["private-modal-qwen"] = {
     "provider": "openai",
     "model": model,
     "api": "openai-completions",
-    "baseUrl": "http://host.docker.internal:11435/v1",
+    "baseUrl": "http://private-modal-llm-proxy:11435/v1",
     "apiKey": "private-modal-local-proxy",
     "contextWindow": int(context_window),
     "maxTokens": int(max_tokens),
@@ -606,7 +612,7 @@ def remove_top(top, pattern):
 top = set_or_add_top(top, r'^provider\s*=\s*"[^"]*"\s*$', 'provider = "openai"')
 top = set_or_add_top(top, r'^model\s*=\s*"[^"]*"\s*$', f'model = "{model}"')
 top = set_or_add_top(top, r'^apiKey\s*=\s*"[^"]*"\s*$', 'apiKey = "private-modal-local-proxy"')
-top = set_or_add_top(top, r'^baseUrl\s*=\s*"[^"]*"\s*$', 'baseUrl = "http://host.docker.internal:11435/v1"')
+top = set_or_add_top(top, r'^baseUrl\s*=\s*"[^"]*"\s*$', 'baseUrl = "http://private-modal-llm-proxy:11435/v1"')
 top = set_or_add_top(top, r'^api\s*=\s*"[^"]*"\s*$', 'api = "openai-completions"')
 top = set_or_add_top(top, r'^contextWindow\s*=\s*[0-9]+\s*$', f'contextWindow = {int(context_window)}')
 top = set_or_add_top(top, r'^maxTokens\s*=\s*[0-9]+\s*$', f'maxTokens = {int(max_tokens)}')
@@ -623,6 +629,44 @@ if owner_match:
     new_text = new_text[:owner_match.start()] + owner_rebuilt + tail + new_text[owner_match.end():]
 
 open(path, 'w').write(new_text)
+PY
+}
+
+strip_seeded_telegram_config_if_disabled() {
+  local config_path="$1"
+
+  python3 - "$config_path" <<'PY'
+import re, sys
+path = sys.argv[1]
+text = open(path).read()
+
+owner_match = re.search(r'(?ms)^\[owner\]\n(.*?)(^\[[^\]]+\]\n|\Z)', text)
+if owner_match:
+    owner_body = owner_match.group(1)
+    owner_body = re.sub(r'(?m)^telegram\s*=\s*"[^"]*"\s*\n?', '', owner_body)
+    owner_rebuilt = '[owner]\n' + owner_body.rstrip() + '\n'
+    tail = owner_match.group(2)
+    text = text[:owner_match.start()] + owner_rebuilt + tail + text[owner_match.end():]
+
+owner_match = re.search(r'(?ms)^\[owner\]\n(.*?)(?=^\[[^\]]+\]\n|\Z)', text)
+owner_body = owner_match.group(1) if owner_match else ""
+owner_telegram_match = re.search(r'(?m)^telegram\s*=\s*"([^"]*)"\s*$', owner_body)
+owner_telegram = (owner_telegram_match.group(1).strip() if owner_telegram_match else "")
+
+telegram_section = re.search(r'(?ms)^\[telegram\]\n.*?(?=^\[[^\]]+\]\n|\Z)', text)
+if telegram_section:
+    body = telegram_section.group(0)
+    bot_match = re.search(r'(?m)^botToken\s*=\s*"([^"]*)"\s*$', body)
+    bot_token = (bot_match.group(1).strip() if bot_match else "")
+    is_seed_placeholder = bot_token in {
+        "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+        "<TELEGRAM_BOT_TOKEN>",
+    } or bot_token.startswith("123456:ABC-DEF")
+    should_remove_telegram = (not bot_token) or (is_seed_placeholder and not owner_telegram)
+    if should_remove_telegram:
+        text = text[:telegram_section.start()] + text[telegram_section.end():]
+
+open(path, 'w').write(text.rstrip() + '\n')
 PY
 }
 
@@ -970,12 +1014,14 @@ while [[ $# -gt 0 ]]; do
       PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE="$2"
       shift 2
       ;;
-    --private-modal-token-id)
+    --private-modal-token-id|--private-modal-proxy-token-id)
       PRIVATE_MODAL_TOKEN_ID_OVERRIDE="$2"
+      PRIVATE_MODAL_PROXY_TOKEN_ID_OVERRIDE="$2"
       shift 2
       ;;
-    --private-modal-token-secret)
+    --private-modal-token-secret|--private-modal-proxy-token-secret)
       PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE="$2"
+      PRIVATE_MODAL_PROXY_TOKEN_SECRET_OVERRIDE="$2"
       shift 2
       ;;
     --private-modal-model)
@@ -1111,11 +1157,11 @@ if [[ -n "$EMAIL_MODE_OVERRIDE$EMAIL_WEBHOOK_SECRET_OVERRIDE$EMAIL_OWNER_OVERRID
   esac
 fi
 
-if (( PRIVATE_MODAL_ENABLE == 0 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DISABLE -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
+if (( PRIVATE_MODAL_ENABLE == 0 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_PROXY_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_PROXY_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DISABLE -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
   die "--private-modal-* flags require --configure-private-modal-qwen"
 fi
 
-if (( PRIVATE_MODAL_DISABLE == 1 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
+if (( PRIVATE_MODAL_DISABLE == 1 )) && [[ -n "$PRIVATE_MODAL_UPSTREAM_URL_OVERRIDE$PRIVATE_MODAL_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_PROXY_TOKEN_ID_OVERRIDE$PRIVATE_MODAL_PROXY_TOKEN_SECRET_OVERRIDE$PRIVATE_MODAL_MODEL_OVERRIDE$PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE$PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE$PRIVATE_MODAL_MAX_TOKENS_OVERRIDE$PRIVATE_MODAL_HF_TOKEN_FILE_OVERRIDE$PRIVATE_MODAL_APP_NAME_OVERRIDE" || $PRIVATE_MODAL_SET_DEFAULT -eq 1 || $PRIVATE_MODAL_DEPLOY -eq 1 || $PRIVATE_MODAL_SKIP_PREFETCH -eq 1 ]]; then
   die "--disable-private-modal-qwen cannot be combined with other --private-modal-* configuration flags"
 fi
 
@@ -1398,16 +1444,19 @@ PY
   info "Private Modal proxy override written"
 
   if (( PRIVATE_MODAL_SET_DEFAULT )); then
+    seeded_missing_config=0
     if [[ ! -f "$CONFIG_PATH" ]]; then
       mkdir -p "$(dirname "$CONFIG_PATH")"
       if [[ -f "$STAVROBOT_DIR/config.example.toml" ]]; then
         cp "$STAVROBOT_DIR/config.example.toml" "$CONFIG_PATH"
         info "Seeded missing config from config.example.toml at $CONFIG_PATH"
+        seeded_missing_config=1
       else
         die "Missing config.toml at $CONFIG_PATH"
       fi
     fi
     apply_private_modal_profile_to_config "$modal_model" "$modal_context_window" "$modal_max_tokens"
+    strip_seeded_telegram_config_if_disabled "$CONFIG_PATH"
     info "Set Stavrobot default provider/model to private Modal profile"
   fi
 
@@ -1911,6 +1960,9 @@ EOF
 EOF
   ensure_private_file "$TOML_JSON"
   python3 "$ROOT_DIR/py/render_toml.py" < "$TOML_JSON" > "$CONFIG_PATH"
+  if [[ -z "$TELEGRAM_BOT_TOKEN" ]]; then
+    strip_seeded_telegram_config_if_disabled "$CONFIG_PATH"
+  fi
   load_runtime_metadata
 fi
 

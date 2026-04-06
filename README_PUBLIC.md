@@ -121,15 +121,15 @@ Non-interactive override flags are also supported:
 
 ## Private Modal endpoint option (Qwen3.5-9B)
 
-You can configure a private Modal-hosted endpoint (OpenAI-compatible) via a local proxy that injects Modal auth headers.
+You can configure a private Modal-hosted endpoint (OpenAI-compatible) via a local proxy that injects Modal Proxy Auth headers (`Modal-Key`/`Modal-Secret`, typically `wk-...` / `ws-...`).
 
 Configure it (manual upstream URL path):
 
 ```bash
 ./install-stavrobot.sh --configure-private-modal-qwen --stavrobot-dir "$STAVROBOT_DIR" \
   --private-modal-upstream-url 'https://<workspace>--<app>.modal.run' \
-  --private-modal-token-id 'ak-...' \
-  --private-modal-token-secret 'as-...' \
+  --private-modal-token-id 'wk-...' \
+  --private-modal-token-secret 'ws-...' \
   --private-modal-set-default
 ```
 
@@ -137,8 +137,8 @@ Or let installer deploy the Modal app via Modal CLI:
 
 ```bash
 ./install-stavrobot.sh --configure-private-modal-qwen --deploy-private-modal-qwen --stavrobot-dir "$STAVROBOT_DIR" \
-  --private-modal-token-id 'ak-...' \
-  --private-modal-token-secret 'as-...' \
+  --private-modal-token-id 'wk-...' \
+  --private-modal-token-secret 'ws-...' \
   --private-modal-hf-token-file /path/to/hf_token_file \
   --private-modal-set-default
 ```
@@ -150,7 +150,7 @@ Note: installer auto-manages an isolated Modal CLI venv at `state/modal-cli-venv
 What this does:
 
 - writes a `docker-compose.private-modal-llm.override.yml` service (`private-modal-llm-proxy`)
-- routes Stavrobot to `http://host.docker.internal:11435/v1`
+- routes Stavrobot to `http://private-modal-llm-proxy:11435/v1`
 - stores a reusable provider profile in `state/llm-profiles.json`
 
 Disable later:

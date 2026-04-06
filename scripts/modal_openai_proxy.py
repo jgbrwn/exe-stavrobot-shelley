@@ -7,6 +7,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+MAX_REDIRECTS = int(os.environ.get("MAX_REDIRECTS", "8"))
+
 
 LISTEN_HOST = os.environ.get("LISTEN_HOST", "0.0.0.0")
 LISTEN_PORT = int(os.environ.get("LISTEN_PORT", "11435"))
@@ -49,28 +51,55 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         content_length = int(self.headers.get("Content-Length", "0") or "0")
         body = self.rfile.read(content_length) if content_length > 0 else b""
 
-        req = urllib.request.Request(upstream_url, data=body if self.command != "GET" else None, method=self.command)
+        method = self.command
+        redirect_count = 0
 
-        for header in ("Content-Type", "Accept", "Authorization"):
-            value = self.headers.get(header)
-            if value:
-                req.add_header(header, value)
+        while True:
+            req = urllib.request.Request(upstream_url, data=body if method != "GET" else None, method=method)
 
-        req.add_header("Modal-Key", MODAL_TOKEN_ID)
-        req.add_header("Modal-Secret", MODAL_TOKEN_SECRET)
+            for header in ("Content-Type", "Accept", "Authorization"):
+                value = self.headers.get(header)
+                if value:
+                    req.add_header(header, value)
 
-        try:
-            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
-                payload = resp.read()
-                ctype = resp.headers.get("Content-Type", "application/json")
-                self._write_response(resp.status, payload, ctype)
-        except urllib.error.HTTPError as exc:
-            payload = exc.read() if hasattr(exc, "read") else b""
-            ctype = exc.headers.get("Content-Type", "application/json") if exc.headers else "application/json"
-            self._write_response(exc.code, payload, ctype)
-        except Exception as exc:
-            status, payload, ctype = _json(502, {"error": f"proxy_error: {exc}"})
-            self._write_response(status, payload, ctype)
+            req.add_header("Modal-Key", MODAL_TOKEN_ID)
+            req.add_header("Modal-Secret", MODAL_TOKEN_SECRET)
+
+            try:
+                with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+                    payload = resp.read()
+                    ctype = resp.headers.get("Content-Type", "application/json")
+                    self._write_response(resp.status, payload, ctype)
+                    return
+            except urllib.error.HTTPError as exc:
+                if exc.code in (301, 302, 303, 307, 308):
+                    location = exc.headers.get("Location") if exc.headers else None
+                    if not location:
+                        payload = exc.read() if hasattr(exc, "read") else b""
+                        ctype = exc.headers.get("Content-Type", "application/json") if exc.headers else "application/json"
+                        self._write_response(exc.code, payload, ctype)
+                        return
+
+                    redirect_count += 1
+                    if redirect_count > MAX_REDIRECTS:
+                        status, payload, ctype = _json(502, {"error": "proxy_error: too many upstream redirects"})
+                        self._write_response(status, payload, ctype)
+                        return
+
+                    upstream_url = urllib.parse.urljoin(upstream_url, location)
+                    if exc.code == 303 and method != "GET":
+                        method = "GET"
+                        body = b""
+                    continue
+
+                payload = exc.read() if hasattr(exc, "read") else b""
+                ctype = exc.headers.get("Content-Type", "application/json") if exc.headers else "application/json"
+                self._write_response(exc.code, payload, ctype)
+                return
+            except Exception as exc:
+                status, payload, ctype = _json(502, {"error": f"proxy_error: {exc}"})
+                self._write_response(status, payload, ctype)
+                return
 
     def _write_response(self, status: int, payload: bytes, content_type: str):
         self.send_response(status)

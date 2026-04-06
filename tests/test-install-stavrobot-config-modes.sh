@@ -53,6 +53,11 @@ out=$(printf '\nN\n1\n1\nclaude-sonnet-4-20250514\nkey\nchange-me\nhttps://examp
   SHELLEY_INSTALLER_TEST_SKIP_OPENROUTER_FETCH=1 "$ROOT_DIR/install-stavrobot.sh" --stavrobot-dir "$FAKE_STAVROBOT" --config-only 2>&1)
 assert_contains "$out" 'Config-only path: skipping upstream stavrobot pull'
 assert_contains "$out" 'Config-only mode: wrote config files without rebuilding containers or running plugins'
+config_out=$(cat "$FAKE_STAVROBOT/data/main/config.toml")
+if grep -Fq '[telegram]' <<<"$config_out"; then
+  echo 'expected telegram section to be removed when telegram integration disabled' >&2
+  exit 1
+fi
 
 FAKE_STAVROBOT2="$TMP_DIR/stavrobot-skip"
 cp -R "$FAKE_STAVROBOT" "$FAKE_STAVROBOT2"
@@ -97,7 +102,6 @@ printf 'hf_dummy_token\n' > "$HF_TOKEN_FILE"
 out=$(SHELLEY_INSTALLER_TEST_SKIP_OPENROUTER_FETCH=1 "$ROOT_DIR/install-stavrobot.sh" \
   --configure-private-modal-qwen \
   --stavrobot-dir "$FAKE_STAVROBOT4" \
-  --skip-config \
   --config-only \
   --private-modal-upstream-url https://example.modal.run \
   --private-modal-token-id ak-test \
@@ -107,9 +111,28 @@ out=$(SHELLEY_INSTALLER_TEST_SKIP_OPENROUTER_FETCH=1 "$ROOT_DIR/install-stavrobo
 assert_contains "$out" 'Private Modal proxy override written'
 config_out=$(cat "$FAKE_STAVROBOT4/data/main/config.toml")
 assert_contains "$config_out" 'provider = "openai"'
-assert_contains "$config_out" 'baseUrl = "http://host.docker.internal:11435/v1"'
+assert_contains "$config_out" 'baseUrl = "http://private-modal-llm-proxy:11435/v1"'
 assert_contains "$config_out" '[owner]'
 if [[ ! -f "$FAKE_STAVROBOT4/docker-compose.private-modal-llm.override.yml" ]]; then
   echo 'expected private modal override file to exist' >&2
+  exit 1
+fi
+
+FAKE_STAVROBOT5="$TMP_DIR/stavrobot-private-modal-alias"
+cp -R "$FAKE_STAVROBOT" "$FAKE_STAVROBOT5"
+out=$(SHELLEY_INSTALLER_TEST_SKIP_OPENROUTER_FETCH=1 "$ROOT_DIR/install-stavrobot.sh" \
+  --configure-private-modal-qwen \
+  --stavrobot-dir "$FAKE_STAVROBOT5" \
+  --config-only \
+  --private-modal-upstream-url https://example.modal.run \
+  --private-modal-proxy-token-id ak-test \
+  --private-modal-proxy-token-secret as-test \
+  --private-modal-set-default 2>&1)
+assert_contains "$out" 'Private Modal proxy override written'
+config_out=$(cat "$FAKE_STAVROBOT5/data/main/config.toml")
+assert_contains "$config_out" 'provider = "openai"'
+assert_contains "$config_out" 'baseUrl = "http://private-modal-llm-proxy:11435/v1"'
+if [[ ! -f "$FAKE_STAVROBOT5/docker-compose.private-modal-llm.override.yml" ]]; then
+  echo 'expected private modal override file to exist (alias path)' >&2
   exit 1
 fi
