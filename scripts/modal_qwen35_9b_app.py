@@ -31,6 +31,8 @@ VLLM_PORT = 8000
 MAX_MODEL_LEN = int(os.environ.get("MAX_MODEL_LEN", "16384"))
 MAX_NUM_SEQS = int(os.environ.get("MAX_NUM_SEQS", "8"))
 ENFORCE_EAGER = os.environ.get("ENFORCE_EAGER", "1") == "1"
+SCALEDOWN_WINDOW_SECONDS = int(os.environ.get("SCALEDOWN_WINDOW_SECONDS", "180"))
+CHAT_TEMPLATE_KWARGS = os.environ.get("CHAT_TEMPLATE_KWARGS", '{"enable_thinking": false}')
 
 MODEL_MOUNT = "/models"
 HF_CACHE_MOUNT = "/root/.cache/huggingface"
@@ -96,7 +98,7 @@ def prefetch_model(hf_token: str = ""):
     image=image,
     gpu="L4",
     timeout=60 * 60,
-    scaledown_window=600,
+    scaledown_window=SCALEDOWN_WINDOW_SECONDS,
     volumes={
         MODEL_MOUNT: model_vol,
         HF_CACHE_MOUNT: hf_cache_vol,
@@ -131,10 +133,12 @@ def serve():
         "--enable-auto-tool-choice",
         "--tool-call-parser",
         "hermes",
+        "--chat-template-kwargs",
+        CHAT_TEMPLATE_KWARGS,
     ]
 
     if ENFORCE_EAGER:
         cmd.append("--enforce-eager")
 
     print("[modal-qwen] launching:", " ".join(cmd))
-    subprocess.Popen(cmd)
+    subprocess.run(cmd, check=True)
