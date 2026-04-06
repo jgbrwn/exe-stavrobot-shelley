@@ -197,7 +197,7 @@ Flags:
   --private-modal-proxy-token-secret SECRET  Alias for --private-modal-token-secret
   --private-modal-model MODEL            Model id written into Stavrobot config profile (default: same as --private-modal-hf-model-id)
   --private-modal-hf-model-id MODEL      Hugging Face model repo id used by Modal app (default: Qwen/Qwen3.5-9B)
-  --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
+  --private-modal-context-window TOKENS  Context window for private modal profile (default: 16384)
   --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
   --private-modal-hf-token-file PATH     File containing Hugging Face token for gated/private model download
   --private-modal-set-default            Also set Stavrobot provider/model to private-modal profile
@@ -265,7 +265,7 @@ Shelley mode helpers:
   --private-modal-proxy-token-secret SECRET  Alias for --private-modal-token-secret
   --private-modal-model MODEL            Model id written into Stavrobot config profile (default: same as --private-modal-hf-model-id)
   --private-modal-hf-model-id MODEL      Hugging Face model repo id used by Modal app (default: Qwen/Qwen3.5-9B)
-  --private-modal-context-window TOKENS  Context window for private modal profile (default: 32768)
+  --private-modal-context-window TOKENS  Context window for private modal profile (default: 16384)
   --private-modal-max-tokens TOKENS      Max output tokens for private modal profile (default: 8192)
   --private-modal-hf-token-file PATH     File containing Hugging Face token for gated/private model download
   --private-modal-set-default            Also set Stavrobot provider/model to private-modal profile
@@ -1353,7 +1353,7 @@ if (( PRIVATE_MODAL_ENABLE )); then
 
   modal_hf_model_id="${PRIVATE_MODAL_HF_MODEL_ID_OVERRIDE:-Qwen/Qwen3.5-9B}"
   modal_model="${PRIVATE_MODAL_MODEL_OVERRIDE:-$modal_hf_model_id}"
-  modal_context_window="${PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE:-32768}"
+  modal_context_window="${PRIVATE_MODAL_CONTEXT_WINDOW_OVERRIDE:-16384}"
   modal_max_tokens="${PRIVATE_MODAL_MAX_TOKENS_OVERRIDE:-8192}"
   modal_app_name="${PRIVATE_MODAL_APP_NAME_OVERRIDE:-private-modal-qwen35-9b}"
   modal_app_script="$ROOT_DIR/scripts/modal_qwen35_9b_app.py"
@@ -1379,13 +1379,15 @@ if (( PRIVATE_MODAL_ENABLE )); then
     [[ -x "$MODAL_BIN" ]] || die "Modal CLI not found; install with pipx or provide modal in PATH"
 
     if [[ "$modal_app_name" != "private-modal-qwen35-9b" || "$modal_hf_model_id" != "Qwen/Qwen3.5-9B" ]]; then
-      modal_tmp_script=$(mktemp --suffix=.py)
-      python3 - "$modal_app_script" "$modal_tmp_script" "$modal_app_name" "$modal_hf_model_id" <<'PY'
+      modal_tmp_script=$(mktemp /tmp/modal_qwen35_9b_app_override_XXXXXX.py)
+      python3 - "$modal_app_script" "$modal_tmp_script" "$modal_app_name" "$modal_hf_model_id" "$modal_context_window" <<'PY'
 import pathlib, re, sys
-src, dst, app_name, model_id = sys.argv[1:]
+src, dst, app_name, model_id, max_model_len = sys.argv[1:]
 text = pathlib.Path(src).read_text()
 text = re.sub(r'APP_NAME\s*=\s*"[^"]+"', f'APP_NAME = "{app_name}"', text, count=1)
 text = re.sub(r'MODEL_ID\s*=\s*"[^"]+"', f'MODEL_ID = "{model_id}"', text, count=1)
+text = re.sub(r'MAX_MODEL_LEN\s*=\s*int\(os\.environ\.get\("MAX_MODEL_LEN",\s*"[0-9]+"\)\)',
+              f'MAX_MODEL_LEN = int(os.environ.get("MAX_MODEL_LEN", "{max_model_len}"))', text, count=1)
 pathlib.Path(dst).write_text(text)
 print(dst)
 PY

@@ -28,10 +28,15 @@ MODEL_VOLUME_NAME = "private-modal-qwen35-9b-model"
 HF_CACHE_VOLUME_NAME = "private-modal-qwen35-9b-hf-cache"
 VLLM_CACHE_VOLUME_NAME = "private-modal-qwen35-9b-vllm-cache"
 VLLM_PORT = 8000
+MAX_MODEL_LEN = int(os.environ.get("MAX_MODEL_LEN", "16384"))
 
 MODEL_MOUNT = "/models"
 HF_CACHE_MOUNT = "/root/.cache/huggingface"
 VLLM_CACHE_MOUNT = "/root/.cache/vllm"
+
+
+def model_cache_dir() -> str:
+    return f"{MODEL_MOUNT}/{MODEL_ID.replace('/', '__')}"
 
 app = modal.App(APP_NAME)
 
@@ -69,10 +74,11 @@ def prefetch_model(hf_token: str = ""):
         os.environ["HF_TOKEN"] = effective_token
         os.environ["HUGGINGFACE_HUB_TOKEN"] = effective_token
 
-    print(f"[modal-qwen] prefetch start model={MODEL_ID} -> {MODEL_MOUNT}; token={'yes' if effective_token else 'no'}")
+    model_path = model_cache_dir()
+    print(f"[modal-qwen] prefetch start model={MODEL_ID} -> {model_path}; token={'yes' if effective_token else 'no'}")
     snapshot_download(
         repo_id=MODEL_ID,
-        local_dir=MODEL_MOUNT,
+        local_dir=model_path,
         local_dir_use_symlinks=False,
         resume_download=True,
         token=effective_token if effective_token else None,
@@ -97,10 +103,12 @@ def prefetch_model(hf_token: str = ""):
 def serve():
     """Run vLLM OpenAI-compatible server bound to a private Modal endpoint."""
 
+    model_path = model_cache_dir()
+
     cmd = [
         "vllm",
         "serve",
-        MODEL_MOUNT,
+        MODEL_ID,
         "--host",
         "0.0.0.0",
         "--port",
@@ -108,11 +116,12 @@ def serve():
         "--served-model-name",
         MODEL_ID,
         "--download-dir",
-        MODEL_MOUNT,
+        model_path,
         "--max-model-len",
-        "32768",
+        str(MAX_MODEL_LEN),
         "--gpu-memory-utilization",
         "0.90",
+        "--trust-remote-code",
         "--enable-auto-tool-choice",
         "--tool-call-parser",
         "hermes",
